@@ -1,4 +1,4 @@
-# Appendix A: Create an El Carro Instance: Advanced  {: #appendix-a}
+# Appendix A: Create an El Carro Instance: Advanced
 
 The `samples` directory provided with the El Carro release contains a set of
 useful manifests to get you started. As you start rolling out El Carro services
