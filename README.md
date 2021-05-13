@@ -85,13 +85,13 @@ strategy.
 
 After the El Carro Instance and Database(s) are created, you can create storage
 snapshot based backups, following
-[this guide](docs/content/backup-restore/snapshot-backups).
+[this guide](docs/content/backup-restore/snapshot-backups.md).
 
 You can also create Oracle native RMAN based backups, following
-[this guide](docs/content/backup-restore/rman-backups).
+[this guide](docs/content/backup-restore/rman-backups.md).
 
 To restore from a backup, follow
-[this guide](docs/content/backup-restore/restore-from-backups).
+[this guide](docs/content/backup-restore/restore-from-backups.md).
 
 ### Data Import & Export
 
@@ -106,7 +106,7 @@ To export data from your El Carro database, follow
 ### What's More?
 
 There are more features supported by El Carro and more to be added soon! For
-more information, check [logging](docs/content/monitoring/logging),
+more information, check [logging](docs/content/monitoring/logging.md),
 [monitoring](docs/content/monitoring/monitoring.md),
 [connectivity](docs/content/monitoring/connectivity.md),
 [UI](docs/content/monitoring/ui.md), etc.
