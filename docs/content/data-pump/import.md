@@ -28,20 +28,20 @@ name** the dump file is imported to, must match.
     You can run the following command to see whether workload identity is
     enabled for the GKE cluster or not:
 
-     <pre class="prettyprint lang-sh">
-     gcloud container clusters describe <var>CLUSTER</var> --zone=<var>ZONE</var>  --project=<var>PROJECT</var> | grep workload
+     ```sh
+     gcloud container clusters describe $CLUSTER --zone=$ZONE  --project=$PROJECT | grep workload
 
      workloadMetadataConfig:
        workloadMetadataConfig:
      workloadIdentityCon fig:
-        workloadPool: <var>PROJECT</var>.svc.id.goog
-     </pre>
+        workloadPool: $PROJECT.svc.id.goog
+     ```
 
     Grant permissions using the appropriate service account:
 
-    <pre class="prettyprint lang-sh">
-     gsutil iam ch serviceAccount:<var>service_account_email</var>:objectViewer gs://example-bucket
-    </pre>
+    ```sh
+     gsutil iam ch serviceAccount:$service_account_email:objectViewer gs://example-bucket
+    ```
 
     **Optionally**
 
@@ -51,20 +51,20 @@ name** the dump file is imported to, must match.
     you request an import log, make sure the operator can write to the
     destination GCS bucket
 
-    <pre class="prettyprint lang-sh">
-    gsutil iam ch serviceAccount:<var>gke_cluster_service_account_email</var>:objectCreator gs://example-log-bucket
-    </pre>
+    ```sh
+    gsutil iam ch serviceAccount:$gke_cluster_service_account_email:objectCreator gs://example-log-bucket
+    ```
 
 1.  Create and apply Import CR
 
     Edit the `gcsPath` and optionally the `gcsLogPath` attributes in the sample
     import resource:
 
-    <pre class="prettyprint lang-sh">
-    cat <var>PATH_TO_EL_CARRO_RELEASE</var>/samples/v1alpha1_import_pdb1.yaml
-    </pre>
+    ```sh
+    cat $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_import_pdb1.yaml
+    ```
 
-    <pre class="prettyprint yaml">
+    ```sh
     apiVersion: oracle.db.anthosapis.com/v1alpha1
     kind: Import
     metadata:
@@ -83,7 +83,7 @@ name** the dump file is imported to, must match.
       # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://ex-bucket
       #  Add .gz as Google Cloud Storage object file extension to enable compression.
       gcsLogPath: "gs://example-log-bucket/import/pdb1.log"
-    </pre>
+    ```
 
     `instance` and `databaseName` must refer to existing `Instance` and
     `Database` custom resources names in the namespace the `Import` resource
@@ -91,14 +91,14 @@ name** the dump file is imported to, must match.
 
     After the manifest is ready, submit it to the cluster as follows:
 
-    <pre class="prettyprint lang-sh">
-    kubectl apply -f <var>PATH_TO_EL_CARRO_RELEASE</var>/samples/v1alpha1_import_pdb1 -n <var>NAMESPACE</var>
-    </pre>
+    ```sh
+    kubectl apply -f $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_import_pdb1 -n $NAMESPACE
+    ```
 
 1.  (Optional) Inspect the result of creating an Import resource
 
     Check the Import custom resource status:
 
-    <pre class="prettyprint lang-sh">
-    kubectl get imports.oracle.db.anthosapis.com -n <var>NAMESPACE</var>
-    </pre>
+    ```sh
+    kubectl get imports.oracle.db.anthosapis.com -n $NAMESPACE
+    ```
