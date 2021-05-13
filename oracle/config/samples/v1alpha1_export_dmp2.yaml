@@ -1,0 +1,14 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Export
+metadata:
+  name: export-dmp2
+spec:
+  instance: mydb
+  databaseName: pdb1
+  type: DataPump
+  exportObjectType: Tables # 'Schemas' or 'Tables'
+  exportObjects:
+  - SCOTT.t1
+  - SCOTT.t2
+  gcsPath: "gs://bucket/export/pdb1/exportTable.dmp"
+  gcsLogPath: "gs://bucket/export/pdb1/exportTable.log" # optional

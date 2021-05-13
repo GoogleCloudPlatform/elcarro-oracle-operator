@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "configcontroller",
+    srcs = ["config_controller.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/configcontroller",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers",
+        "@com_github_go_logr_logr//:logr",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)
+
+go_test(
+    name = "configcontroller_test",
+    srcs = ["config_controller_test.go"],
+    embed = [":configcontroller"],
+    deps = [
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/testhelpers",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)

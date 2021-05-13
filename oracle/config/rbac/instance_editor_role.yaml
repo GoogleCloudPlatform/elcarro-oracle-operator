@@ -1,0 +1,26 @@
+# permissions to do edit instances.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: instance-editor-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - instances
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - instances/status
+  verbs:
+  - get
+  - patch
+  - update

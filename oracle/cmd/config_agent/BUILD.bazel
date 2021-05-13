@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "config_agent_lib",
+    srcs = ["config_agent.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/cmd/config_agent",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/agents/config_agent/server",
+        "//oracle/pkg/agents/consts",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "config_agent",
+    embed = [":config_agent_lib"],
+    visibility = ["//visibility:public"],
+)

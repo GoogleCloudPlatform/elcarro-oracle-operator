@@ -1,0 +1,122 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package agents.oracle;
+
+option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle;oracle";
+
+// DatabaseState represents different states of a database.
+enum DatabaseState {
+  // Not set.
+  DATABASE_STATE_UNSPECIFIED = 0;
+  // Being created.
+  CREATING = 1;
+  // Has been created and is fully usable.
+  READY = 2;
+  // Being stopped.
+  STOPPING = 3;
+  // Stopped.
+  STOPPED = 4;
+  // Being updated.
+  UPDATING = 5;
+  // Being deleted.
+  DELETING = 6;
+  // Being repaired and may be unusable.
+  DATABASE_STATE_ERROR = 7;
+}
+
+// ListenerState defines whether a listener is up, down or in error state.
+enum ListenerState {
+  LISTENER_STATE_UNSPECIFIED = 0;
+  UP = 1;
+  DOWN = 2;
+  // enum values use C++ scoping rules, meaning that enum values
+  // are siblings of their type, not children of it.
+  // Therefore an ERROR must be unique across all enums in this proto.
+  LISTENER_STATE_ERROR = 3;
+}
+
+message BounceDatabaseRequest {
+  // Allowed database bounce operations.
+  enum Operation {
+    // UNKNOWN is an unacceptable database operation
+    // to be rejected by the DatabaseDaemon.
+    UNKNOWN = 0;
+    // STARTUP is an operation that starts a database
+    // bringing it up to a state defined by OPTION
+    // (default OPTION is open).
+    STARTUP = 1;
+    // SHUTDOWN is an operation that stops a database.
+    // The way a database is stopped using SHUTDOWN
+    // operation is determined by OPTION
+    // (default OPTION is immediate).
+    SHUTDOWN = 2;
+  }
+
+  string database_name = 1;
+  // operation: startup / shutdown
+  Operation operation = 2;
+  // option: nomount/mount/open or immediate/transactional/abort
+  string option = 3;
+  // avoid_config_backup: by default we backup the config except for scenarios
+  // when it isn't possible (like bootstrapping)
+  bool avoid_config_backup = 4;
+}
+
+// BounceDatabaseResponse is a message containing
+// a response from a BounceDatabase request.
+// database_state is set to ERROR if an expected error
+// occurs (e.g. a security verification check fails).
+// Otherwise database_state is set to nil and an
+// unexpected error is returned via error.
+message BounceDatabaseResponse {
+  // Possible states: READY, STOPPED, ERROR.
+  DatabaseState database_state = 1;
+  repeated string error_msg = 2;
+}
+
+message BounceListenerRequest {
+  // Allowed listener bounce operations.
+  enum Operation {
+    // UNKNOWN is an unacceptable listener operation
+    // to be rejected by the DatabaseDaemon.
+    UNKNOWN = 0;
+    // START is an operation that starts a listener.
+    START = 1;
+    // STOP is an operation that stops a listener.
+    STOP = 2;
+  }
+
+  // The name of the listener process.
+
+  string listener_name = 1;
+  // TNS_ADMIN is the user specified path to Oracle configuration files.
+  string tns_admin = 2;
+  // operation: start / stop
+  Operation operation = 3;
+}
+
+// BounceListenerResponse is a message containing
+// a response from a BounceListener request.
+// listener_state is set to ERROR if an expected error
+// occurs (e.g. a security verification check fails).
+// Otherwise listener_state is set to nil and an
+// unexpected error is returned via error.
+message BounceListenerResponse {
+  // Possible states: READY, STOPPED, ERROR.
+  ListenerState listener_state = 1;
+  repeated string error_msg = 2;
+}

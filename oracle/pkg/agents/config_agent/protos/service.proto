@@ -1,0 +1,338 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Config Agent proto for gRPC communications from controllers.
+syntax = "proto3";
+
+package protos;
+
+import "google/longrunning/operations.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos;protos";
+
+service ConfigAgent {
+  rpc CreateDatabase(CreateDatabaseRequest) returns (CreateDatabaseResponse) {}
+  rpc CreateUsers(CreateUsersRequest) returns (CreateUsersResponse) {}
+  rpc CreateCDBUser(CreateCDBUserRequest) returns (CreateCDBUserResponse) {}
+  rpc UsersChanged(UsersChangedRequest) returns (UsersChangedResponse) {}
+  rpc UpdateUsers(UpdateUsersRequest) returns (UpdateUsersResponse) {}
+  rpc PhysicalBackup(PhysicalBackupRequest)
+      returns (google.longrunning.Operation) {}
+  rpc PhysicalRestore(PhysicalRestoreRequest)
+      returns (google.longrunning.Operation) {}
+  rpc CheckStatus(CheckStatusRequest) returns (CheckStatusResponse) {}
+  rpc CreateCDB(CreateCDBRequest) returns (google.longrunning.Operation) {}
+  rpc CreateListener(CreateListenerRequest) returns (CreateListenerResponse) {}
+  rpc DataPumpImport(DataPumpImportRequest)
+      returns (google.longrunning.Operation);
+  // Lists operations that match the specified filter in the request.
+  rpc ListOperations(google.longrunning.ListOperationsRequest)
+      returns (google.longrunning.ListOperationsResponse);
+  // Gets the latest state of a long-running operation.  Clients can use this
+  // method to poll the operation result.
+  rpc GetOperation(google.longrunning.GetOperationRequest)
+      returns (google.longrunning.Operation);
+  // Deletes a long-running operation. This method indicates that the client is
+  // no longer interested in the operation result. It does not cancel the
+  // operation.
+  rpc DeleteOperation(google.longrunning.DeleteOperationRequest)
+      returns (google.protobuf.Empty);
+  rpc BootstrapDatabase(BootstrapDatabaseRequest)
+      returns (google.longrunning.Operation) {};
+  rpc BootstrapStandby(BootstrapStandbyRequest)
+      returns (BootstrapStandbyResponse) {};
+  rpc DataPumpExport(DataPumpExportRequest)
+      returns (google.longrunning.Operation);
+  rpc SetParameter(SetParameterRequest) returns (SetParameterResponse) {}
+  rpc GetParameterTypeValue(GetParameterTypeValueRequest)
+      returns (GetParameterTypeValueResponse) {}
+  rpc BounceDatabase(BounceDatabaseRequest) returns (BounceDatabaseResponse) {}
+  rpc RecoverConfigFile(RecoverConfigFileRequest)
+      returns (RecoverConfigFileResponse) {}
+  rpc FetchServiceImageMetaData(FetchServiceImageMetaDataRequest)
+      returns (FetchServiceImageMetaDataResponse) {}
+}
+
+message CreateCDBRequest {
+  string oracle_home = 1;
+  string sid = 2;
+  string db_unique_name = 3;
+  string character_set = 4;
+  int32 memory_percent = 5;
+  repeated string additional_params = 6;
+  string version = 7;
+  string db_domain = 8;
+}
+
+message CreateListenerRequest {
+  string name = 1;
+  int32 port = 2;
+  string protocol = 3;
+  string oracle_home = 4;
+  string db_domain = 5;
+}
+
+message CreateListenerResponse {}
+
+message GsmSecretReference {
+  string project_id = 1;
+  string secret_id = 2;
+  string version = 3;
+  string last_version = 4;
+}
+
+message CreateDatabaseRequest {
+  string cdb_name = 1;
+  string name = 2;
+  // only being used for plaintext password scenario.
+  // GSM doesn't use this field.
+  string password = 3;
+  string db_domain = 4;
+  GsmSecretReference admin_password_gsm_secret_ref = 5;
+  // only being used for plaintext password scenario.
+  // GSM doesn't use this field.
+  string last_password = 6;
+}
+
+message CreateDatabaseResponse {
+  string status = 1;
+  string error_message = 2;
+}
+
+message CreateUsersRequest {
+  string cdb_name = 1;
+  string pdb_name = 2;
+  repeated string create_users_cmd = 3;
+  repeated string grant_privs_cmd = 4;
+  string db_domain = 5;
+  repeated User user = 6;
+}
+
+message CreateUsersResponse {
+  string status = 1;
+}
+
+message CreateCDBUserRequest {
+  string cdb_name = 1;
+  repeated string create_users_cmd = 3;
+  repeated string grant_privs_cmd = 4;
+}
+
+message CreateCDBUserResponse {
+  string status = 1;
+  string error_message = 2;
+}
+
+message User {
+  string name = 1;
+  // only being used for plaintext password scenario.
+  // GSM doesn't use this field.
+  string password = 2;
+  repeated string privileges = 3;
+  GsmSecretReference password_gsm_secret_ref = 4;
+  // only being used for plaintext password scenario.
+  // GSM doesn't use this field.
+  string last_password = 5;
+}
+
+message UsersChangedRequest {
+  string pdb_name = 1;
+  repeated User user_specs = 2;
+}
+
+message UsersChangedResponse {
+  enum Type {
+    UNKNOWN_TYPE = 0;
+    DELETE = 1;
+    CREATE = 2;
+  }
+
+  // Suppressed describes user creates/updates which will be suppressed in the
+  // current release.
+  message Suppressed {
+    Type suppress_type = 1;
+    string user_name = 2;
+    // sql is the suppressed cmd which can update the user to the spec defined
+    // state
+    string sql = 3;
+  }
+  bool changed = 1;
+  repeated Suppressed suppressed = 2;
+}
+
+message UpdateUsersRequest {
+  string pdb_name = 1;
+  repeated User user_specs = 2;
+}
+
+message UpdateUsersResponse {}
+
+message PhysicalBackupRequest {
+  enum Type {
+    UNKNOWN_TYPE = 0;
+    INSTANCE = 1;
+    DATABASE = 2;
+    TABLESPACE = 3;
+    DATAFILE = 4;
+  }
+
+  Type backup_sub_type = 1;
+  repeated string backup_items = 2;
+  bool backupset = 3;
+  bool compressed = 4;
+  bool check_logical = 5;
+
+  // DOP = degree of parallelism for physical backup.
+  int32 dop = 6;
+
+  int32 level = 7;
+  int32 filesperset = 8;
+  int32 section_size = 9;
+  string local_path = 10;
+  string gcs_path = 11;
+
+  LROInput lro_input = 12;
+}
+
+message PhysicalRestoreRequest {
+  string instance_name = 1;
+  string cdb_name = 2;
+
+  // DOP = degree of parallelism for a restore from a physical backup.
+  int32 dop = 3;
+  string local_path = 4;
+  string gcs_path = 5;
+
+  LROInput lro_input = 6;
+}
+
+message CheckStatusRequest {
+  enum Type {
+    UNKNOWN_TYPE = 0;
+    INSTANCE = 1;
+  }
+
+  string name = 1;
+  string cdb_name = 2;
+  Type check_status_type = 3;
+  string db_domain = 4;
+}
+
+message CheckStatusResponse {
+  string status = 1;
+  string error_message = 2;
+}
+
+message DataPumpImportRequest {
+  string pdb_name = 1;
+  string db_domain = 2;
+  // GCS path to input dump file
+  string gcs_path = 3;
+  // GCS path to output log file
+  string gcs_log_path = 4;
+
+  LROInput lro_input = 5;
+}
+
+message DataPumpExportRequest {
+  string pdb_name = 1;
+  string db_domain = 2;
+  string object_type = 3;
+  string objects = 4;
+  string gcs_path = 5;
+  string gcs_log_path = 6;
+  LROInput lro_input = 7;
+  string flashback_time = 8;
+}
+
+// LROInput is a common part of input requests for all Async operations.
+message LROInput {
+  string operation_id = 1;
+}
+
+message BootstrapDatabaseRequest {
+  string cdb_name = 1;
+  string version = 2;
+  string host = 3;
+  string db_unique_name = 4;
+  string dbdomain = 5;
+}
+
+message BootstrapDatabaseResponse {}
+
+message BootstrapStandbyRequest {
+  string cdb_name = 1;
+  string version = 2;
+  string dbdomain = 3;
+}
+
+message BootstrapStandbyResponse {
+  message User {
+    string user_name = 1;
+    repeated string privs = 2;
+  }
+  message PDB {
+    string pdb_name = 1;
+    repeated User users = 2;
+  }
+  repeated PDB pdbs = 1;
+}
+
+message SetParameterRequest {
+  string key = 1;
+  string value = 2;
+  Type type = 3;
+  enum Type {
+    DYNAMIC = 0;
+    STATIC = 1;
+    DEFERRED = 2;
+  }
+}
+
+message SetParameterResponse {
+  bool static = 1;
+}
+
+message GetParameterTypeValueRequest {
+  repeated string keys = 1;
+}
+
+message GetParameterTypeValueResponse {
+  repeated string types = 1;
+  repeated string values = 2;
+}
+
+message BounceDatabaseRequest {
+  string sid = 1;
+  // avoid_config_backup: by default we backup the config except for scenarios
+  // when it isn't possible (like bootstrapping)
+  bool avoid_config_backup = 2;
+}
+
+message BounceDatabaseResponse {}
+
+message RecoverConfigFileRequest {
+  string cdb_name = 1;
+}
+
+message RecoverConfigFileResponse {}
+
+message FetchServiceImageMetaDataRequest {}
+
+message FetchServiceImageMetaDataResponse {
+  string version = 1;
+  string cdb_name = 2;
+  string oracle_home = 3;
+}

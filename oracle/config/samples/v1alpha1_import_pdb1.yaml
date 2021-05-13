@@ -1,0 +1,18 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Import
+metadata:
+  name: import-pdb1
+spec:
+  instance: mydb
+  databaseName: pdb1
+  type: DataPump
+  # Service account should have read access to the destination bucket,
+  # sample command to grant read access (replace with actual SA email):
+  # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectViewer gs://ex-bucket
+  gcsPath: "gs://ex-bucket/import/pdb1/import.dmp"
+  # Uncomment to enable import log upload to GCS.
+  # Service account should have write access to the destination bucket,
+  # sample command to grant access (replace with actual SA email):
+  # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://ex-bucket
+  #  Add .gz as GCS object file extension to enable compression.
+#  gcsLogPath: "gs://ex-bucket/import/pdb1.log"

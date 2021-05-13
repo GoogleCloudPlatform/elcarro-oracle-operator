@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: db-monitor
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: agent-svc
+  namespaceSelector:
+    matchNames:
+    - db
+  endpoints:
+  - port: oracle-monitoring
+    interval: 10s
+    path: /metrics

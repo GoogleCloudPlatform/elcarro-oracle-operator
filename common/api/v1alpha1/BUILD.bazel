@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "v1alpha1",
+    srcs = [
+        "backup.go",
+        "credential.go",
+        "database.go",
+        "disk.go",
+        "instance.go",
+        "maintenancewindow.go",
+        "phase.go",
+        "user.go",
+        "zz_generated.deepcopy.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/resource",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+    ],
+)

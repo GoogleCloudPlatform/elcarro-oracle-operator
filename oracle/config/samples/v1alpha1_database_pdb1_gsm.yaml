@@ -1,0 +1,35 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Database
+metadata:
+  name: pdb1
+spec:
+  name: pdb1
+  instance: mydb
+  adminPasswordGsmSecretRef:
+    projectId: ${PROJECT_ID}
+    secretId: GPDB_ADMIN
+    version: "1"
+  users:
+    - name: superuser
+      passwordGsmSecretRef:
+        projectId: ${PROJECT_ID}
+        secretId: superuser
+        version: "1"
+      privileges:
+        - dba
+    - name: scott
+      passwordGsmSecretRef:
+        projectId: ${PROJECT_ID}
+        secretId: scott
+        version: "1"
+      privileges:
+        - connect
+        - resource
+        - unlimited tablespace
+    - name: proberuser
+      passwordGsmSecretRef:
+        projectId: ${PROJECT_ID}
+        secretId: proberuser
+        version: "1"
+      privileges:
+        - create session

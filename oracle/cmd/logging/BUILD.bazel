@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "logging_lib",
+    srcs = ["logging_main.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/cmd/logging",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "@com_github_hpcloud_tail//:tail",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "logging",
+    embed = [":logging_lib"],
+    visibility = ["//visibility:public"],
+)

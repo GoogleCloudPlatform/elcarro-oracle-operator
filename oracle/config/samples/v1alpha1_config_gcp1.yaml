@@ -1,0 +1,12 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Config
+metadata:
+  name: config
+spec:
+  platform: "GCP"
+  # Log levels for different components. The log level will print all log
+  # messages equal to or lower than the given level (0 is the default level).
+  # See "Verbose Logging" at http://rpg.ifi.uzh.ch/docs/glog.html for details.
+  logLevel:
+    config-agent: "3"
+    operator: "1"

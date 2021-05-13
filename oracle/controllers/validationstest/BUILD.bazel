@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "validationstest_test",
+    srcs = ["crd_validation_test.go"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/testhelpers",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@com_github_onsi_gomega//format",
+        "@com_github_onsi_gomega//types",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)

@@ -1,0 +1,20 @@
+{{ .DatabaseName }} =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = {{ .ListenerProtocol }})(HOST = localhost)(PORT = {{ .ListenerPort }}))
+      (CONNECT_DATA =
+        (SERVER = DEDICATED)
+        (SERVICE_NAME = {{ .DatabaseName }}{{ .DBDomain }})
+      )
+  )
+
+
+{{range .PluggableDatabaseNames -}}
+{{.}} =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = {{ $.ListenerProtocol }})(HOST = localhost)(PORT = {{ $.ListenerPort }}))
+      (CONNECT_DATA =
+        (SERVER = DEDICATED)
+        (SERVICE_NAME = {{.}}{{ $.DBDomain }})
+      )
+  )
+{{- end}}

@@ -1,0 +1,23 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Config
+metadata:
+  name: config
+spec:
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-unseeded"
+    config: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/configagent:latest"
+  platform: "GCP"
+  disks: [
+  {
+    name: "DataDisk",
+    type: "pd-standard",
+    size: "100Gi",
+  },
+  {
+    name: "LogDisk",
+    type: "pd-standard",
+    size: "150Gi",
+  }
+  ]
+  volumeSnapshotClass: "csi-gce-pd-snapshot-class"

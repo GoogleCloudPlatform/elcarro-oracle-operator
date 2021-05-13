@@ -1,0 +1,9 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: snap
+spec:
+  instance: mydb
+  type: Snapshot
+  subType: Instance
+  volumeSnapshotClass: "csi-hostpath-snapclass"

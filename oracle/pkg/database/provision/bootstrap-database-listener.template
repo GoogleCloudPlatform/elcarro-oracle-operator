@@ -1,0 +1,27 @@
+{{ .ListenerName }} =
+  (DESCRIPTION =
+     (ADDRESS = (PROTOCOL = IPC)(KEY = REGLSNR_{{ .ListenerPort }}))
+     (ADDRESS = (PROTOCOL = {{ .ListenerProtocol }})(HOST = {{ .DatabaseHost }})(PORT={{ .ListenerPort }}))
+  )
+
+
+SID_LIST_{{ .ListenerName }} =
+  (SID_LIST =
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{ .DatabaseName }}{{ .DBDomain }})
+      (ORACLE_HOME = {{ .DatabaseHome }})
+      (SID_NAME = {{ .DatabaseName }})
+    )
+{{- range .PluggableDatabaseNames}}
+    (SID_DESC =
+      (GLOBAL_DBNAME = {{.}}{{ $.DBDomain }})
+      (ORACLE_HOME = {{ $.DatabaseHome }})
+      (SID_NAME = {{ $.DatabaseName }})
+    )
+{{- end}}
+  )
+
+ADR_BASE_{{ .ListenerName }} = {{ .DatabaseBase }}
+SECURE_REGISTER_{{ .ListenerName }} = (IPC)
+
+VALID_NODE_CHECKING_REGISTRATION_{{ .ListenerName }}=SUBNET

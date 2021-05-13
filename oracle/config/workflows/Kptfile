@@ -1,0 +1,28 @@
+apiVersion: kpt.dev/v1alpha1
+kind: Kptfile
+metadata:
+  name: workflows
+packageMetadata:
+  tags:
+  - kpt.dev/app=YourApp
+  shortDescription: YourApp kpt package
+openAPI:
+  definitions:
+    io.k8s.cli.setters.services:
+      type: array
+      x-k8s-cli:
+        setter:
+          name: services
+          value: ""
+          listValues:
+          - <your-services>
+    io.k8s.cli.setters.namespace:
+      x-k8s-cli:
+        setter:
+          name: namespace
+          value: <your-ns>
+    io.k8s.cli.setters.dbimage:
+      x-k8s-cli:
+        setter:
+          name: dbimage
+          value: <your-db-GCR-location>

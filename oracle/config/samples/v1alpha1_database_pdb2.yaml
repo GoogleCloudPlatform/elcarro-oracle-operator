@@ -1,0 +1,19 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Database
+metadata:
+  name: pdb2
+spec:
+  name: pdb2
+  instance: mydb
+  admin_password: google
+  users:
+    - name: scott2
+      password: tiger2
+      privileges:
+        - connect
+        - resource
+    - name: scott3
+      password: tiger3
+      privileges:
+        - execute_catalog_role
+        - create session

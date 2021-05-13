@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "utils",
+    srcs = ["utils.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils",
+    visibility = ["//visibility:public"],
+    deps = ["//common/api/v1alpha1"],
+)

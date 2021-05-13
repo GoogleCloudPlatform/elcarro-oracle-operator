@@ -1,0 +1,26 @@
+load("//oracle:scripts/ginkgo_test.bzl", "ginkgo_test")
+
+# gazelle:map_kind go_test ginkgo_test //oracle:scripts/ginkgo_test.bzl
+
+ginkgo_test(
+    name = "snapbackuptest_test",
+    timeout = "eternal",  # 60m
+    srcs = ["snapshot_backup_test.go"],
+    nodes = 3,
+    tags = ["integration"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/testhelpers",
+        "//oracle/pkg/k8s",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_client_go//plugin/pkg/client/auth/gcp",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/envtest/printer",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+    ],
+)

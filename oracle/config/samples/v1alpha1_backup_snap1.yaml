@@ -1,0 +1,7 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: snap1
+spec:
+  instance: mydb
+  type: Snapshot

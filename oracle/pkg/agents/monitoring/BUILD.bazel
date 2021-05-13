@@ -1,0 +1,5 @@
+filegroup(
+    name = "monitoring_files",
+    srcs = ["default-metrics.yaml"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "dbdaemonproxy",
+    srcs = ["dbdaemon_proxy.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/dbdaemonproxy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/database/common",
+        "//oracle/pkg/database/provision",
+        "@com_github_godror_godror//:godror",
+        "@io_k8s_klog_v2//:klog",
+    ],
+)
+
+go_test(
+    name = "dbdaemonproxy_test",
+    srcs = ["dbdaemon_proxy_test.go"],
+    embed = [":dbdaemonproxy"],
+    deps = [
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "@com_github_godror_godror//:godror",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)

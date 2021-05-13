@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "backupcontroller",
+    srcs = ["backup_controller.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/backupcontroller",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers",
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/k8s",
+        "@com_github_go_logr_logr//:logr",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/labels",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/selection",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)
+
+go_test(
+    name = "backupcontroller_test",
+    srcs = ["backup_controller_test.go"],
+    embed = [":backupcontroller"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/testhelpers",
+        "//oracle/pkg/k8s",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/api/resource",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)

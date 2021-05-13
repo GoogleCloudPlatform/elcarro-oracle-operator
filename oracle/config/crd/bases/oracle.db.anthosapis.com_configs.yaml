@@ -1,0 +1,144 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (unknown)
+  creationTimestamp: null
+  name: configs.oracle.db.anthosapis.com
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.platform
+    name: Platform
+    type: string
+  - JSONPath: .spec.diskSizes
+    name: Disk Sizes
+    type: string
+  - JSONPath: .spec.storageClass
+    name: Storage Class
+    type: string
+  - JSONPath: .spec.volumeSnapshotClass
+    name: Volume Snapshot Class
+    type: string
+  group: oracle.db.anthosapis.com
+  names:
+    kind: Config
+    listKind: ConfigList
+    plural: configs
+    singular: config
+  scope: Namespaced
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: Config is the Schema for the configs API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: ConfigSpec defines the desired state of Config.
+          properties:
+            disks:
+              description: 'Disks slice describes at minimum two disks: data and log
+                (archive log), and optionally a backup disk.'
+              items:
+                description: DiskSpec defines the desired state of a disk. (the structure
+                  is deliberately designed to be flexible, as a slice, so that if
+                  we change a disk layout for different hosting platforms, the model
+                  can be also adjusted to reflect that).
+                properties:
+                  name:
+                    description: 'Name of a disk. Allowed values are: DataDisk,LogDisk,BackupDisk'
+                    enum:
+                    - DataDisk
+                    - LogDisk
+                    - BackupDisk
+                    type: string
+                  size:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: 'Disk size. If not specified, the defaults are: DataDisk:"100Gi",
+                      LogDisk:"150Gi",BackupDisk:"100Gi"'
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  storageClass:
+                    description: StorageClass points to a particular CSI driver and
+                      is used for disk provisioning.
+                    type: string
+                  type:
+                    description: Disk type. Depending on a deployment platform, DiskType
+                      may take different values. On GCP, support "HDD" and "SSD".
+                      Default to "HDD" if not specified.
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
+            hostAntiAffinityNamespaces:
+              description: HostAntiAffinityNamespaces is an optional list of namespaces
+                that need to be included in anti-affinity by hostname rule. The effect
+                of the rule is forbidding scheduling a database pod in the current
+                namespace on a host that already runs a database pod in any of the
+                listed namespaces.
+              items:
+                type: string
+              type: array
+            images:
+              additionalProperties:
+                type: string
+              description: Service agent and other data plane agent images. This is
+                an optional map that allows a customer to specify agent images different
+                from those chosen/provided by the Oracle Operator by default. See
+                an example of how this map can be used in config/samples/v1alpha1_config_gcp1.yaml
+              type: object
+            logLevel:
+              additionalProperties:
+                type: string
+              description: Log Levels for the various components. This is an optional
+                map for component -> log level See an example of how this map can
+                be used in config/samples/v1alpha1_config_gcp1.yaml
+              type: object
+            platform:
+              description: 'Deployment platform. Presently supported values are: GCP
+                (default), BareMetal.'
+              enum:
+              - GCP
+              - BareMetal
+              - Minikube
+              type: string
+            storageClass:
+              description: Storage class to use for dynamic provisioning. This value
+                varies depending on a platform. For GCP (and the default) it is "csi-gce-pd".
+              type: string
+            volumeSnapshotClass:
+              description: Volume Snapshot class to use for storage snapshots. This
+                value varies depending on a platform. For GCP (and the default) it
+                is "csi-gce-pd-snapshot-class".
+              type: string
+          type: object
+        status:
+          description: ConfigStatus defines the observed state of Config.
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

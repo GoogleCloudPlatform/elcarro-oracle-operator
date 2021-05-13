@@ -1,0 +1,41 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "server",
+    srcs = [
+        "configserver.go",
+        "user_repository.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/server",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/backup",
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/common/sql",
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/database/provision",
+        "@com_google_cloud_go//secretmanager/apiv1",
+        "@go_googleapis//google/cloud/secretmanager/v1:secretmanager_go_proto",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_bazel_rules_go//proto/wkt:empty_go_proto",
+        "@io_k8s_klog_v2//:klog",
+        "@org_bitbucket_creachadair_stringset//:stringset",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_test(
+    name = "server_test",
+    srcs = ["configserver_test.go"],
+    embed = [":server"],
+    deps = [
+        "//oracle/pkg/agents/common/sql",
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/agents/oracle",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)

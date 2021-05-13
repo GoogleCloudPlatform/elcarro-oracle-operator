@@ -1,0 +1,23 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Export
+metadata:
+  name: export-dmp1
+spec:
+  instance: mydb
+  databaseName: pdb1
+  type: DataPump
+  exportObjectType: Schemas # 'Schemas' or 'Tables'
+  exportObjects:
+  - SCOTT
+  # Uncomment to enable flashback time feature
+  # Time is in RFC3339 for datetime format,
+  # for example 1985-04-12T23:20:50.52Z represents 20 minutes and 50.52 seconds after the 23rd hour of April 12th, 1985 in UTC.
+  # before enabling make sure undo_retention settings are consistent with set time
+#  flashbackTime: "2021-01-05T15:00:00Z"  # optional
+
+  # Service account should have write access to the destination bucket,
+  # sample command to grant access (replace with actual SA email):
+  # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://ex-bucket
+  #  Add .gz as GCS object file extension to enable compression.
+  gcsPath: "gs://ex-bucket/export/pdb1/exportSchema.dmp"
+  gcsLogPath: "gs://ex-bucket/export/pdb1/exportSchema.log" # optional

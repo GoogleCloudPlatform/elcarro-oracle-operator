@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "v1alpha1",
+    srcs = [
+        "backup_types.go",
+        "backupschedule_types.go",
+        "config_types.go",
+        "cronanything_types.go",
+        "database_types.go",
+        "export_types.go",
+        "groupversion_info.go",
+        "import_types.go",
+        "instance_types.go",
+        "release_types.go",
+        "zz_generated.deepcopy.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1",
+    deps = [
+        "//common/api/v1alpha1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_sigs_controller_runtime//pkg/scheme",
+    ],
+)

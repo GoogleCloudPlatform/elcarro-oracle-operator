@@ -1,0 +1,300 @@
+diff --git .gitignore .gitignore
+index 43efe71..ac0505d 100644
+--- .gitignore
++++ .gitignore
+@@ -5,3 +5,4 @@
+ *.swp
+ env.sh
+ ?
++bazel-*
+diff --git BUILD.bazel BUILD.bazel
+new file mode 100644
+index 0000000..bc33f73
+--- /dev/null
++++ BUILD.bazel
+@@ -0,0 +1,156 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++load("@bazel_gazelle//:def.bzl", "gazelle")
++
++# gazelle:prefix github.com/godror/godror
++gazelle(name = "gazelle")
++
++go_library(
++    name = "godror",
++    srcs = [
++        "conn.go",
++        "conn_go15.go",
++        "data.go",
++        "drv.go",
++        "drv_posix.go",
++        "lob.go",
++        "obj.go",
++        "orahlp.go",
++        "queue.go",
++        "require.go",
++        "rows.go",
++        "stmt.go",
++        "stmt_go11.go",
++        "stmt_go13.go",
++        "subscr.c",
++        "subscr.go",
++        "version.go",
++    ],
++    cdeps = [
++        ":odpi",
++    ],
++    cgo = True,
++    clinkopts = select({
++        "@io_bazel_rules_go//go/platform:aix": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:android": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:darwin": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:dragonfly": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:freebsd": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:illumos": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:ios": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:js": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:linux": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:nacl": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:netbsd": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:openbsd": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:plan9": [
++            "-ldl -lpthread",
++        ],
++        "@io_bazel_rules_go//go/platform:solaris": [
++            "-ldl -lpthread",
++        ],
++        "//conditions:default": [],
++    }),
++    copts = ["-Iodpi/include -Iodpi/src -Iodpi/embed"],
++    importpath = "github.com/godror/godror",
++    visibility = ["//visibility:public"],
++    deps = [
++        "@com_github_go_logfmt_logfmt//:go_default_library",
++        "@org_golang_x_xerrors//:go_default_library",
++    ],
++)
++
++cc_library(
++    name = "odpi",
++    srcs = [
++        "odpi/src/dpiConn.c",
++        "odpi/src/dpiContext.c",
++        "odpi/src/dpiData.c",
++        "odpi/src/dpiDebug.c",
++        "odpi/src/dpiDeqOptions.c",
++        "odpi/src/dpiEnqOptions.c",
++        "odpi/src/dpiEnv.c",
++        "odpi/src/dpiError.c",
++        "odpi/src/dpiGen.c",
++        "odpi/src/dpiGlobal.c",
++        "odpi/src/dpiHandleList.c",
++        "odpi/src/dpiHandlePool.c",
++        "odpi/src/dpiImpl.h",
++        "odpi/src/dpiLob.c",
++        "odpi/src/dpiMsgProps.c",
++        "odpi/src/dpiObject.c",
++        "odpi/src/dpiObjectAttr.c",
++        "odpi/src/dpiObjectType.c",
++        "odpi/src/dpiOci.c",
++        "odpi/src/dpiOracleType.c",
++        "odpi/src/dpiPool.c",
++        "odpi/src/dpiQueue.c",
++        "odpi/src/dpiRowid.c",
++        "odpi/src/dpiSodaColl.c",
++        "odpi/src/dpiSodaCollCursor.c",
++        "odpi/src/dpiSodaDb.c",
++        "odpi/src/dpiSodaDoc.c",
++        "odpi/src/dpiSodaDocCursor.c",
++        "odpi/src/dpiStmt.c",
++        "odpi/src/dpiSubscr.c",
++        "odpi/src/dpiUtils.c",
++        "odpi/src/dpiVar.c",
++    ],
++    hdrs = [
++        "odpi/include/dpi.h",
++        "odpi/src/dpiErrorMessages.h",
++        "odpi/src/dpiImpl.h",
++    ],
++    includes = [
++        "odpi/include",
++        "odpi/src",
++    ],
++)
++
++go_test(
++    name = "godror_test",
++    srcs = [
++        "conn_test.go",
++        "data_test.go",
++        "drv_test.go",
++        "example_shutdown_test.go",
++        "orahlp_test.go",
++        "queue_test.go",
++        "z_bench_test.go",
++        "z_conncut_test.go",
++        "z_heterogeneous_test.go",
++        "z_lob_test.go",
++        "z_plsql_types_test.go",
++        "z_qrcn_test.go",
++        "z_test.go",
++    ],
++    embed = [":godror"],
++    deps = [
++        "@com_github_go_logfmt_logfmt//:go_default_library",
++        "@com_github_google_go_cmp//cmp:go_default_library",
++        "@org_golang_x_sync//errgroup:go_default_library",
++    ],
++)
+diff --git WORKSPACE WORKSPACE
+new file mode 100644
+index 0000000..3bba372
+--- /dev/null
++++ WORKSPACE
+@@ -0,0 +1,32 @@
++load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++
++http_archive(
++    name = "io_bazel_rules_go",
++    sha256 = "b725e6497741d7fc2d55fcc29a276627d10e43fa5d0bb692692890ae30d98d00",
++    urls = [
++        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.24.3/rules_go-v0.24.3.tar.gz",
++        "https://github.com/bazelbuild/rules_go/releases/download/v0.24.3/rules_go-v0.24.3.tar.gz",
++    ],
++)
++
++http_archive(
++    name = "bazel_gazelle",
++    sha256 = "72d339ff874a382f819aaea80669be049069f502d6c726a07759fdca99653c48",
++    urls = [
++        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.1/bazel-gazelle-v0.22.1.tar.gz",
++        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.1/bazel-gazelle-v0.22.1.tar.gz",
++    ],
++)
++
++load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
++load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
++load("//:deps.bzl", "go_dependencies")
++
++# gazelle:repository_macro deps.bzl%go_dependencies
++go_dependencies()
++
++go_rules_dependencies()
++
++go_register_toolchains()
++
++gazelle_dependencies()
+diff --git deps.bzl deps.bzl
+new file mode 100644
+index 0000000..0f4f5ee
+--- /dev/null
++++ deps.bzl
+@@ -0,0 +1,27 @@
++load("@bazel_gazelle//:deps.bzl", "go_repository")
++
++def go_dependencies():
++    go_repository(
++        name = "com_github_go_logfmt_logfmt",
++        importpath = "github.com/go-logfmt/logfmt",
++        sum = "h1:TrB8swr/68K7m9CcGut2g3UOihhbcbiMAYiuTXdEih4=",
++        version = "v0.5.0",
++    )
++    go_repository(
++        name = "com_github_google_go_cmp",
++        importpath = "github.com/google/go-cmp",
++        sum = "h1:xsAVV57WRhGj6kEIi8ReJzQlHHqcBYCElAvkovg3B/4=",
++        version = "v0.4.0",
++    )
++    go_repository(
++        name = "org_golang_x_sync",
++        importpath = "golang.org/x/sync",
++        sum = "h1:vcxGaoTs7kV8m5Np9uUNQin4BrLOthgV7252N8V+FwY=",
++        version = "v0.0.0-20190911185100-cd5d95a43a6e",
++    )
++    go_repository(
++        name = "org_golang_x_xerrors",
++        importpath = "golang.org/x/xerrors",
++        sum = "h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=",
++        version = "v0.0.0-20191204190536-9bdfabe68543",
++    )
+diff --git drv.go drv.go
+index 8b03df0..6e674d0 100644
+--- drv.go
++++ drv.go
+@@ -46,9 +46,9 @@
+ package godror
+ 
+ /*
+-#cgo CFLAGS: -I./odpi/include -I./odpi/src -I./odpi/embed
++#include <stdlib.h>
+ 
+-#include "dpi.c"
++#include "dpiImpl.h"
+ */
+ import "C"
+ 
+diff --git sid/BUILD.bazel sid/BUILD.bazel
+new file mode 100644
+index 0000000..ad16633
+--- /dev/null
++++ sid/BUILD.bazel
+@@ -0,0 +1,15 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "sid",
++    srcs = ["sid.go"],
++    importpath = "github.com/godror/godror/sid",
++    visibility = ["//visibility:public"],
++    deps = ["@org_golang_x_xerrors//:go_default_library"],
++)
++
++go_test(
++    name = "sid_test",
++    srcs = ["sid_test.go"],
++    embed = [":sid"],
++)
+diff --git a/orahlp_go12.go b/orahlp_go12.go
+index 4475950..0c73a90 100644
+--- orahlp_go12.go
++++ orahlp_go12.go
+@@ -1,4 +1,4 @@
+-// +build !go1.13
++// +build go1.12 go1.11 go1.10
+ 
+ // Copyright 2017, 2020 The Godror Authors
+ //
+diff --git a/orahlp_go13.go b/orahlp_go13.go
+index a0f0462..1bc6e6a 100644
+--- orahlp_go13.go
++++ orahlp_go13.go
+@@ -1,4 +1,4 @@
+-// +build go1.13
++// +build !go1.12 !go1.11 !go1.10
+ 
+ // Copyright 2017, 2020 The Godror Authors
+ //
+

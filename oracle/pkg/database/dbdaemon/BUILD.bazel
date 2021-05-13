@@ -1,0 +1,45 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "dbdaemon",
+    srcs = [
+        "dbdaemon_server.go",
+        "utils.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/dbdaemon",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/agents/security",
+        "//oracle/pkg/database/lib/lro",
+        "//oracle/pkg/database/provision",
+        "@com_github_godror_godror//:godror",
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@com_github_pkg_errors//:errors",
+        "@com_google_cloud_go_storage//:storage",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_bazel_rules_go//proto/wkt:empty_go_proto",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_api//iterator",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_test(
+    name = "dbdaemon_test",
+    srcs = [
+        "dbdaemon_server_test.go",
+        "utils_test.go",
+    ],
+    embed = [":dbdaemon"],
+    deps = [
+        "//oracle/pkg/agents/oracle",
+        "@com_github_godror_godror//:godror",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)

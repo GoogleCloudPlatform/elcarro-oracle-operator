@@ -1,0 +1,265 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (unknown)
+  creationTimestamp: null
+  name: databases.oracle.db.anthosapis.com
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.instance
+    name: Instance
+    type: string
+  - JSONPath: .status.usernames
+    name: Users
+    type: string
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].status
+    name: DatabaseReadyStatus
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].reason
+    name: DatabaseReadyReason
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].message
+    name: DatabaseReadyMessage
+    priority: 1
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="UserReady")].status
+    name: UserReadyStatus
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="UserReady")].reason
+    name: UserReadyReason
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="UserReady")].message
+    name: UserReadyMessage
+    priority: 1
+    type: string
+  group: oracle.db.anthosapis.com
+  names:
+    categories:
+    - genericdatabases
+    kind: Database
+    listKind: DatabaseList
+    plural: databases
+    shortNames:
+    - gdb
+    singular: database
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Database is the Schema for the databases API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: DatabaseSpec defines the desired state of Database.
+          properties:
+            admin_password:
+              description: AdminPassword is the password for the sys admin of the
+                database.
+              maxLength: 30
+              minLength: 5
+              type: string
+            adminPasswordGsmSecretRef:
+              description: AdminPasswordGsmSecretRef is a reference to the secret
+                object containing sensitive information to pass to config agent. This
+                field is optional, and may be empty if plaintext password is used.
+              properties:
+                projectId:
+                  description: ProjectId identifies the project where the secret resource
+                    is.
+                  type: string
+                secretId:
+                  description: SecretId identifies the secret.
+                  type: string
+                version:
+                  description: Version is the version of the secret. If "latest" is
+                    specified, underlying the latest SecretId is used.
+                  type: string
+              type: object
+            instance:
+              description: Name of the instance that the database belongs to.
+              type: string
+            name:
+              description: Name of the database.
+              type: string
+            users:
+              description: Users specifies an optional list of users to be created
+                in this database.
+              items:
+                description: UserSpec defines the desired state of the Database Users.
+                properties:
+                  gsmSecretRef:
+                    description: A reference to a GSM secret.
+                    properties:
+                      projectId:
+                        description: ProjectId identifies the project where the secret
+                          resource is.
+                        type: string
+                      secretId:
+                        description: SecretId identifies the secret.
+                        type: string
+                      version:
+                        description: Version is the version of the secret. If "latest"
+                          is specified, underlying the latest SecretId is used.
+                        type: string
+                    type: object
+                  name:
+                    description: Name of the User.
+                    type: string
+                  password:
+                    description: Plaintext password.
+                    type: string
+                  privileges:
+                    description: Privileges specifies an optional list of privileges
+                      to grant to the user.
+                    items:
+                      description: PrivilegeSpec defines the desired state of roles
+                        and privileges.
+                      type: string
+                    type: array
+                  secretRef:
+                    description: A reference to a k8s secret.
+                    properties:
+                      name:
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                type: object
+              type: array
+          type: object
+        status:
+          description: DatabaseStatus defines the observed state of Database.
+          properties:
+            UserResourceVersions:
+              additionalProperties:
+                type: string
+              description: 'UserResourceVersions is a map of username to user resource
+                version (plaintext or GSM). For GSM Resource version, use format:
+                "projects/{ProjectId}/secrets/{SecretId}/versions/{Version}".'
+              type: object
+            conditions:
+              description: Conditions represents the latest available observations
+                of the Database's current state.
+              items:
+                description: "Condition contains details for one aspect of the current
+                  state of this API Resource. --- This struct is intended for direct
+                  use as an array at the field path .status.conditions.  For example,
+                  type FooStatus struct{     // Represents the observations of a foo's
+                  current state.     // Known .status.conditions.type are: \"Available\",
+                  \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     //
+                  +patchStrategy=merge     // +listType=map     // +listMapKey=type
+                  \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                  patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
+                  \n     // other fields }"
+                properties:
+                  lastTransitionTime:
+                    description: lastTransitionTime is the last time the condition
+                      transitioned from one status to another. This should be when
+                      the underlying condition changed.  If that is not known, then
+                      using the time when the API field changed is acceptable.
+                    format: date-time
+                    type: string
+                  message:
+                    description: message is a human readable message indicating details
+                      about the transition. This may be an empty string.
+                    maxLength: 32768
+                    type: string
+                  observedGeneration:
+                    description: observedGeneration represents the .metadata.generation
+                      that the condition was set based upon. For instance, if .metadata.generation
+                      is currently 12, but the .status.conditions[x].observedGeneration
+                      is 9, the condition is out of date with respect to the current
+                      state of the instance.
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  reason:
+                    description: reason contains a programmatic identifier indicating
+                      the reason for the condition's last transition. Producers of
+                      specific condition types may define expected values and meanings
+                      for this field, and whether the values are considered a guaranteed
+                      API. The value should be a CamelCase string. This field may
+                      not be empty.
+                    maxLength: 1024
+                    minLength: 1
+                    pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                    type: string
+                  status:
+                    description: status of the condition, one of True, False, Unknown.
+                    enum:
+                    - "True"
+                    - "False"
+                    - Unknown
+                    type: string
+                  type:
+                    description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      --- Many .condition.type values are consistent across resources
+                      like Available, but because arbitrary conditions can be useful
+                      (see .node.status.conditions), the ability to deconflict is
+                      important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                    maxLength: 316
+                    pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                    type: string
+                required:
+                - lastTransitionTime
+                - message
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+              x-kubernetes-list-map-keys:
+              - type
+              x-kubernetes-list-type: map
+            isChangeApplied:
+              description: IsChangeApplied indicates whether database changes have
+                been applied
+              type: string
+            observedGeneration:
+              description: ObservedGeneration is the latest generation observed by
+                the controller.
+              format: int64
+              type: integer
+            phase:
+              description: Phase is a summary of the current state of the Database.
+              type: string
+            usernames:
+              description: List of user names.
+              items:
+                type: string
+              type: array
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

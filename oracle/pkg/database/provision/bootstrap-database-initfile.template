@@ -1,0 +1,5 @@
+*.control_files='/u01/app/oracle/oradata/{{ .SourceDBName }}/control01.ctl','/u01/app/oracle/fast_recovery_area/{{ .SourceDBName }}/control02.ctl'
+*.db_name='{{ .DestDBName }}'
+*.enable_pluggable_database=true
+*.nls_language='AMERICAN'
+*.nls_territory='AMERICA'

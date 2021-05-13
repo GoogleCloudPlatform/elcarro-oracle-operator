@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "init_oracle_lib",
+    srcs = ["init_oracle.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/cmd/init_oracle",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/database/provision",
+        "@com_google_cloud_go//compute/metadata",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "init_oracle",
+    embed = [":init_oracle_lib"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "init_oracle_files",
+    srcs = [
+        "init_oracle.sh",
+        "stop_oracle.sh",
+    ],
+    visibility = ["//visibility:public"],
+)

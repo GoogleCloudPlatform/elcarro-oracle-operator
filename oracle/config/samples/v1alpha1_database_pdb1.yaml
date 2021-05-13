@@ -1,0 +1,23 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Database
+metadata:
+  name: pdb1
+spec:
+  name: pdb1
+  instance: mydb
+  admin_password: google
+  users:
+    - name: superuser
+      password: superpassword
+      privileges:
+        - dba
+    - name: scott
+      password: tiger
+      privileges:
+        - connect
+        - resource
+        - unlimited tablespace
+    - name: proberuser
+      password: proberpassword
+      privileges:
+        - create session

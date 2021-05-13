@@ -1,0 +1,272 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: (unknown)
+  creationTimestamp: null
+  name: backups.oracle.db.anthosapis.com
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.instance
+    name: Instance Name
+    type: string
+  - JSONPath: .spec.type
+    name: Backup Type
+    type: string
+  - JSONPath: .spec.subType
+    name: Backup SubType
+    type: string
+  - JSONPath: .spec.dop
+    name: DOP
+    type: integer
+  - JSONPath: .spec.backupset
+    name: BS/IC
+    type: boolean
+  - JSONPath: .spec.gcsPath
+    name: GCS Path
+    type: string
+  - JSONPath: .status.phase
+    name: Phase
+    type: string
+  - JSONPath: .status.backupid
+    name: Backup ID
+    type: string
+  - JSONPath: .status.backuptime
+    name: Backup Time
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].status
+    name: ReadyStatus
+    priority: 1
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].reason
+    name: ReadyReason
+    priority: 1
+    type: string
+  - JSONPath: .status.conditions[?(@.type=="Ready")].message
+    name: ReadyMessage
+    priority: 1
+    type: string
+  group: oracle.db.anthosapis.com
+  names:
+    kind: Backup
+    listKind: BackupList
+    plural: backups
+    singular: backup
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Backup is the Schema for the backups API.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: BackupSpec defines the desired state of Backup.
+          properties:
+            backupItems:
+              description: For a Physical backup this slice can be used to indicate
+                what PDBs, schemas, tablespaces or tables to back up.
+              items:
+                type: string
+              type: array
+            backupset:
+              description: For a Physical backup the choices are Backupset and Image
+                Copies. Backupset is the default, but if Image Copies are required,
+                flip this flag to false.
+              type: boolean
+            checkLogical:
+              description: For a Physical backup, optionally turn on an additional
+                "check logical" option. The default is off.
+              type: boolean
+            compressed:
+              description: For a Physical backup, optionally turn on compression,
+                by flipping this flag to true. The default is false.
+              type: boolean
+            dop:
+              description: For a Physical backup, optionally indicate a degree of
+                parallelism also known as DOP.
+              format: int32
+              maximum: 100
+              minimum: 1
+              type: integer
+            filesperset:
+              description: For a Physical backup, optionally specify filesperset.
+                The default depends on a type of backup, generally 64.
+              format: int32
+              type: integer
+            gcsPath:
+              description: If set up ahead of time, the backup sets of a physical
+                backup can be optionally transferred to a GCS bucket. A user is to
+                ensure proper write access to the bucket from within the Oracle Operator.
+              type: string
+            instance:
+              description: Instance is a name of an instance to take a backup for.
+              type: string
+            keepDataOnDeletion:
+              description: KeepDataOnDeletion defines whether to keep backup data
+                when backup resource is removed. The default value is false.
+              type: boolean
+            level:
+              description: For a Physical backup, optionally specify an incremental
+                level. The default is 0 (the whole database).
+              format: int32
+              type: integer
+            localPath:
+              description: For a Physical backup, optionally specify a local backup
+                dir. If omitted, /u03/app/oracle/rman is assumed.
+              type: string
+            sectionSize:
+              description: For a Physical backup, optionally specify a section size
+                in MB. Don't include the unit (MB), just the integer.
+              format: int32
+              type: integer
+            subType:
+              description: 'Backup sub-type, which is only relevant for a Physical
+                backup type (e.g. RMAN). If omitted, the default of Instance(Level)
+                is assumed. Supported options at this point are: Instance or Database
+                level backups.'
+              enum:
+              - Instance
+              - Database
+              - Tablespace
+              - Datafile
+              type: string
+            timeLimitMinutes:
+              description: For a Physical backup, optionally specify the time threshold.
+                If a threshold is reached, the backup request would time out and error
+                out. The threshold is expressed in minutes. Don't include the unit
+                (minutes), just the integer.
+              format: int32
+              type: integer
+            type:
+              description: "Type describes a type of a backup to take. Immutable.
+                Available options are: - Snapshot: storage level disk snapshot. -
+                Physical: database engine specific backup that relies on a redo stream
+                /             continuous archiving (WAL) and may allow a PITR.             Examples
+                include pg_backup, pgBackRest, mysqlbackup.             A Physical
+                backup may be file based or database block based \t       (e.g. Oracle
+                RMAN). - Logical: database engine specific backup that relies on running
+                SQL            statements, e.g. mysqldump, pg_dump, expdp. If not
+                specified, the default of Snapshot is assumed."
+              enum:
+              - Snapshot
+              - Physical
+              - Logical
+              type: string
+            volumeSnapshotClass:
+              description: VolumeSnapshotClass points to a particular CSI driver and
+                is used for taking a volume snapshot. If requested here at the Backup
+                level, this setting overrides the platform default as well as the
+                default set via the Config (global user preferences).
+              type: string
+          type: object
+        status:
+          description: BackupStatus defines the observed state of Backup.
+          properties:
+            backupid:
+              type: string
+            backuptime:
+              type: string
+            conditions:
+              description: Conditions represents the latest available observations
+                of the backup's current state.
+              items:
+                description: "Condition contains details for one aspect of the current
+                  state of this API Resource. --- This struct is intended for direct
+                  use as an array at the field path .status.conditions.  For example,
+                  type FooStatus struct{     // Represents the observations of a foo's
+                  current state.     // Known .status.conditions.type are: \"Available\",
+                  \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     //
+                  +patchStrategy=merge     // +listType=map     // +listMapKey=type
+                  \    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                  patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`
+                  \n     // other fields }"
+                properties:
+                  lastTransitionTime:
+                    description: lastTransitionTime is the last time the condition
+                      transitioned from one status to another. This should be when
+                      the underlying condition changed.  If that is not known, then
+                      using the time when the API field changed is acceptable.
+                    format: date-time
+                    type: string
+                  message:
+                    description: message is a human readable message indicating details
+                      about the transition. This may be an empty string.
+                    maxLength: 32768
+                    type: string
+                  observedGeneration:
+                    description: observedGeneration represents the .metadata.generation
+                      that the condition was set based upon. For instance, if .metadata.generation
+                      is currently 12, but the .status.conditions[x].observedGeneration
+                      is 9, the condition is out of date with respect to the current
+                      state of the instance.
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  reason:
+                    description: reason contains a programmatic identifier indicating
+                      the reason for the condition's last transition. Producers of
+                      specific condition types may define expected values and meanings
+                      for this field, and whether the values are considered a guaranteed
+                      API. The value should be a CamelCase string. This field may
+                      not be empty.
+                    maxLength: 1024
+                    minLength: 1
+                    pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                    type: string
+                  status:
+                    description: status of the condition, one of True, False, Unknown.
+                    enum:
+                    - "True"
+                    - "False"
+                    - Unknown
+                    type: string
+                  type:
+                    description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      --- Many .condition.type values are consistent across resources
+                      like Available, but because arbitrary conditions can be useful
+                      (see .node.status.conditions), the ability to deconflict is
+                      important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                    maxLength: 316
+                    pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                    type: string
+                required:
+                - lastTransitionTime
+                - message
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+              x-kubernetes-list-map-keys:
+              - type
+              x-kubernetes-list-type: map
+            phase:
+              description: Phase is a summary of current state of the Backup.
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

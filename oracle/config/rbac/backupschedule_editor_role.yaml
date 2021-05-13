@@ -1,0 +1,24 @@
+# permissions for end users to edit backupschedules.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backupschedule-editor-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - backupschedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - backupschedules/status
+  verbs:
+  - get

@@ -1,0 +1,92 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_layer", "container_push")
+
+go_binary(
+    name = "operator",
+    embed = [":oracle_lib"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "configs",
+    srcs = glob(["config/**"]),
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "oracle_lib",
+    srcs = [
+        "main.go",
+        "version.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers",
+        "//oracle/controllers/backupcontroller",
+        "//oracle/controllers/backupschedulecontroller",
+        "//oracle/controllers/configcontroller",
+        "//oracle/controllers/cronanythingcontroller",
+        "//oracle/controllers/databasecontroller",
+        "//oracle/controllers/exportcontroller",
+        "//oracle/controllers/importcontroller",
+        "//oracle/controllers/instancecontroller",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_client_go//kubernetes/scheme",
+        "@io_k8s_client_go//plugin/pkg/client/auth/gcp",
+        "@io_k8s_klog_v2//:klog",
+        "@io_k8s_klog_v2//klogr",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)
+
+# Read in workspace status values to configure _push targets.
+# REGISTRY = "${PROW_IMAGE_REPO}".split("/")[0]
+REGISTRY = "gcr.io"
+
+# PROJECT = "${PROW_IMAGE_REPO}".split("/")[1]
+PROJECT = "{PROW_PROJECT}"
+
+TAG = "{PROW_IMAGE_TAG}"
+
+container_image(
+    name = "base_image_with_busybox",
+    tars = [
+        "@distroless//image:000.tar.gz",
+        "@distroless//image:001.tar.gz",
+        "@distroless//image:002.tar.gz",
+        "@busybox//image:000.tar.gz",  # duplicated files will be retained from the lowest layer.
+    ],
+    user = "nonroot:nonroot",
+    visibility = ["//visibility:public"],
+)
+
+container_image(
+    name = "base_image",
+    base = "@distroless//image",
+    user = "nonroot:nonroot",
+    visibility = ["//visibility:public"],
+)
+
+container_image(
+    name = "operator_image",
+    base = ":base_image",
+    files = [
+        ":operator",
+    ],
+    symlinks = {"/manager": "/operator"},
+)
+
+container_push(
+    name = "operator_image_push",
+    format = "OCI",
+    image = ":operator_image",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/operator",
+    tag = TAG,
+)

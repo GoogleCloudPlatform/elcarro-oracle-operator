@@ -1,0 +1,9 @@
+# Bare bones physical backup config.
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: rman1-inst
+spec:
+  instance: mydb
+  type: Physical
+  subType: Instance

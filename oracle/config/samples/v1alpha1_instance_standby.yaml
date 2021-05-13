@@ -1,0 +1,22 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
+metadata:
+  name: mydb
+spec:
+  type: Oracle
+  version: "12.2"
+  edition: Enterprise
+  services:
+    Backup: true
+    Monitoring: true
+    Logging: true
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    # It is preferable to use unseeded images to set up standby instance.
+    # Database is expected to be created in the process of manual standby setup.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-unseeded"
+
+  sourceCidrRanges: [0.0.0.0/0]
+  # Oracle SID character limit is 8, anything > gets truncated by Oracle
+  cdbName: "GOOG"
+  mode: "ManuallySetUpStandby"

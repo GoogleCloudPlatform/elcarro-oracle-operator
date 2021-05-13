@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "functest_test",
+    srcs = ["backupschedule_controller_functional_test.go"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/backupschedulecontroller",
+        "//oracle/controllers/cronanythingcontroller",
+        "//oracle/controllers/testhelpers",
+        "//oracle/pkg/k8s",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+        "@io_k8s_utils//pointer",
+    ],
+)

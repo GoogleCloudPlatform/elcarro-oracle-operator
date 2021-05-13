@@ -1,0 +1,50 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "provision",
+    srcs = [
+        "bootstrap_database_task.go",
+        "cdb.go",
+        "common.go",
+        "init_file_generator.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/agents/security",
+        "//oracle/pkg/database/common",
+        "@com_github_godror_godror//:godror",
+        "@io_k8s_klog_v2//:klog",
+    ],
+)
+
+go_test(
+    name = "provision_test",
+    srcs = [
+        "bootstrap_database_task_test.go",
+        "common_test.go",
+    ],
+    data = [":provision_files"],
+    embed = [":provision"],
+    deps = [
+        "//oracle/pkg/agents/oracle",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)
+
+filegroup(
+    name = "provision_files",
+    srcs = [
+        "bootstrap-database-crcf.template",
+        "bootstrap-database-initfile.template",
+        "bootstrap-database-initfile-oracle-xe.template",
+        "bootstrap-database-listener.template",
+        "bootstrap-database-tnsnames.template",
+        "sqlnet.ora",
+    ],
+    visibility = ["//visibility:public"],
+)

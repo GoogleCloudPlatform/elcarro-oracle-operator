@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "monitoring",
+    srcs = ["monitoring.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/third_party/monitoring",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/oracle",
+        "@com_github_prometheus_client_golang//prometheus",
+        "@in_gopkg_yaml_v2//:yaml_v2",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)

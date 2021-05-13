@@ -1,0 +1,13 @@
+sqlnet.crypto_checksum_server = REQUIRED
+sqlnet.encryption_server = REQUIRED
+sqlnet.crypto_checksum_types_server = (SHA1)
+sqlnet.encryption_types_server = (AES256)
+# to specify a the time interval, in minutes, to send a probe
+# to verify that client/server connections are active
+sqlnet.expire_time = 15
+# to specify the time, in seconds, for a client to connect with the database
+# server and provide the necessary authentication information.
+sqlnet.inbound_connect_timeout = 180
+default_sdu_size=16384
+SQLNET.ALLOWED_LOGON_VERSION_SERVER=12a
+SQLNET.ALLOWED_LOGON_VERSION_CLIENT=12a

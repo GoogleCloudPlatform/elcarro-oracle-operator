@@ -1,0 +1,16 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: BackupSchedule
+metadata:
+  name: backupschedule-sample
+spec:
+  # Add fields here
+  backupSpec:
+    instance: mydb
+    type: Physical
+    subType: Instance
+    # Optionally transfer to GCS.
+    gcsPath: "gs://bucket/rman"
+  schedule: "*/5 * * * *"
+  startingDeadlineSeconds: 60
+  backupRetentionPolicy:
+    backupRetention: 3

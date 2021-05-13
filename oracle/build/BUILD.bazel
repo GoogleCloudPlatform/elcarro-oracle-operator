@@ -1,0 +1,114 @@
+load("@io_bazel_rules_docker//container:container.bzl", "container_image", "container_push")
+
+# Create the full tarball by building :name.tar, the default target
+# is just the name-layer.tar and cannot be imported.
+# E.G:
+# bazel build //build:dbinit.tar
+# buildah pull docker-archive:bazel-bin/build/dbinit.tar
+
+# Read in workspace status values to configure _push targets.
+# REGISTRY = "${PROW_IMAGE_REPO}".split("/")[0]
+REGISTRY = "gcr.io"
+
+# PROJECT = "${PROW_IMAGE_REPO}".split("/")[1]
+PROJECT = "{PROW_PROJECT}"
+
+TAG = "{PROW_IMAGE_TAG}"
+
+container_image(
+    name = "dbinit",
+    base = "//oracle:base_image_with_busybox",
+    directory = "agent_repo",
+    files = [
+        "//oracle/cmd/dbdaemon",
+        "//oracle/cmd/dbdaemon_proxy",
+        "//oracle/cmd/init_oracle",
+        "//oracle/cmd/init_oracle:init_oracle_files",
+        "//oracle/pkg/database/provision:provision_files",
+    ],
+)
+
+container_push(
+    name = "dbinit_push",
+    format = "OCI",
+    image = ":dbinit",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/dbinit",
+    tag = TAG,
+)
+
+container_image(
+    name = "configagent",
+    base = "//oracle:base_image",
+    entrypoint = ["/config_agent"],
+    files = [
+        "//oracle/cmd/config_agent",
+    ],
+    symlinks = {"/configagent": "/config_agent"},
+)
+
+container_push(
+    name = "configagent_push",
+    format = "OCI",
+    image = ":configagent",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/configagent",
+    tag = TAG,
+)
+
+container_image(
+    name = "dbdaemon_client",
+    base = "//oracle:base_image_with_busybox",
+    files = [
+        "//oracle/cmd/dbdaemon_client",
+    ],
+    symlinks = {"/dbdaemonclient": "/dbdaemon_client"},
+)
+
+container_push(
+    name = "dbdaemon_client_push",
+    format = "OCI",
+    image = ":dbdaemon_client",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/dbdaemonclient",
+    tag = TAG,
+)
+
+container_image(
+    name = "loggingsidecar",
+    base = "//oracle:base_image",
+    files = [
+        "//oracle/cmd/logging",
+    ],
+    symlinks = {"/logging_main": "/logging"},
+)
+
+container_push(
+    name = "loggingsidecar_push",
+    format = "OCI",
+    image = ":loggingsidecar",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/loggingsidecar",
+    tag = TAG,
+)
+
+container_image(
+    name = "monitoring",
+    base = "//oracle:base_image_with_busybox",
+    entrypoint = ["/monitoring"],
+    files = [
+        "//oracle/cmd/monitoring",
+        "//oracle/pkg/agents/monitoring:monitoring_files",
+    ],
+    ports = ["9161"],
+    symlinks = {"/monitoring_agent": "/monitoring"},
+)
+
+container_push(
+    name = "monitoring_push",
+    format = "OCI",
+    image = ":monitoring",
+    registry = REGISTRY,
+    repository = PROJECT + "/oracle.db.anthosapis.com/monitoring",
+    tag = TAG,
+)

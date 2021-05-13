@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "detach",
+    srcs = ["detach.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/lib/detach",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "detach_test",
+    srcs = ["detach_test.go"],
+    embed = [":detach"],
+)

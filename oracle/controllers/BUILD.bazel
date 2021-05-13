@@ -1,0 +1,58 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "controllers",
+    srcs = [
+        "common.go",
+        "config_agent_helpers.go",
+        "exec.go",
+        "grpc_error.go",
+        "resources.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/database/common",
+        "@com_github_go_logr_logr//:logr",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_k8s_api//apps/v1:apps",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/resource",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_apimachinery//pkg/util/intstr",
+        "@io_k8s_apimachinery//pkg/util/wait",
+        "@io_k8s_client_go//kubernetes",
+        "@io_k8s_client_go//kubernetes/scheme",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/remotecommand",
+        "@io_k8s_client_go//util/retry",
+        "@io_k8s_klog_v2//:klog",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+    ],
+)
+
+go_test(
+    name = "controllers_test",
+    srcs = [
+        "common_test.go",
+        "resources_test.go",
+    ],
+    embed = [":controllers"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+    ],
+)

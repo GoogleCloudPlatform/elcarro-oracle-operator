@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "maintenance",
+    srcs = ["windows.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/maintenance",
+    visibility = ["//visibility:public"],
+    deps = ["//common/api/v1alpha1"],
+)
+
+go_test(
+    name = "maintenance_test",
+    srcs = ["windows_test.go"],
+    embed = [":maintenance"],
+    deps = [
+        "//common/api/v1alpha1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+    ],
+)

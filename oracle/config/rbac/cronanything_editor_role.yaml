@@ -1,0 +1,24 @@
+# permissions for end users to edit cronanythings.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cronanything-editor-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - cronanythings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - cronanythings/status
+  verbs:
+  - get

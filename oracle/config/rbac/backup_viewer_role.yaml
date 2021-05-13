@@ -1,0 +1,20 @@
+# permissions to do viewer backups.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: backup-viewer-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - backups
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - backups/status
+  verbs:
+  - get

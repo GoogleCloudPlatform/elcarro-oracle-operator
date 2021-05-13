@@ -1,0 +1,459 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Database Daemon is used for privileged database ops, e.g.
+// run sqlplus rman. It is intended to be used by the agents running on the
+// database sidecar container(via *nix domain socket protocol).
+syntax = "proto3";
+
+package agents.oracle;
+
+import "oracle/pkg/agents/oracle/oracle.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/longrunning/operations.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle;oracle";
+
+// DatabaseDaemon defines the API for a daemon running together with
+// a database in the same container.
+service DatabaseDaemon {
+  // CreateDir RPC call to create a directory named path, along with any
+  // necessary parents.
+  rpc CreateDir(CreateDirRequest) returns (CreateDirResponse);
+
+  // ReadDir RPC call to read the directory named by path and returns Fileinfos
+  // for the path and children.
+  rpc ReadDir(ReadDirRequest) returns (ReadDirResponse);
+
+  // DeleteDir RPC to call remove path.
+  rpc DeleteDir(DeleteDirRequest) returns (DeleteDirResponse);
+
+  // BounceDatabase RPC call to start/stop a database.
+  rpc BounceDatabase(BounceDatabaseRequest) returns (BounceDatabaseResponse);
+
+  // BounceListener RPC call to start/stop a listener.
+  rpc BounceListener(BounceListenerRequest) returns (BounceListenerResponse);
+
+  // CheckDatabaseState RPC call verifies the database is running.
+  rpc CheckDatabaseState(CheckDatabaseStateRequest)
+      returns (CheckDatabaseStateResponse);
+
+  // RunSQLPlus RPC call executes Oracle's sqlplus utility.
+  rpc RunSQLPlus(RunSQLPlusCMDRequest) returns (RunCMDResponse);
+
+  // RunSQLPlusFormatted RPC is similar to RunSQLPlus, but for queries.
+  rpc RunSQLPlusFormatted(RunSQLPlusCMDRequest) returns (RunCMDResponse);
+
+  // KnownPDBs RPC call returns a list of known PDBs.
+  rpc KnownPDBs(KnownPDBsRequest) returns (KnownPDBsResponse);
+
+  // RunRMAN RPC call executes Oracle's rman utility.
+  rpc RunRMAN(RunRMANRequest) returns (RunRMANResponse);
+
+  // RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
+  rpc RunRMANAsync(RunRMANAsyncRequest) returns (google.longrunning.Operation);
+
+  // NID changes a database id and/or database name.
+  rpc NID(NIDRequest) returns (NIDResponse);
+
+  // GetDatabaseType returns database type(eg. ORACLE_12_2_ENTERPRISE_NONCDB)
+  rpc GetDatabaseType(GetDatabaseTypeRequest) returns (GetDatabaseTypeResponse);
+
+  // GetDatabaseName returns database name.
+  rpc GetDatabaseName(GetDatabaseNameRequest) returns (GetDatabaseNameResponse);
+
+  // CreatePasswordFile creates a password file for the database.
+  rpc CreatePasswordFile(CreatePasswordFileRequest)
+      returns (CreatePasswordFileResponse);
+
+  // CreateReplicaInitOraFile creates init.ora file using the template and the
+  // provided parameters.
+  rpc CreateReplicaInitOraFile(CreateReplicaInitOraFileRequest)
+      returns (CreateReplicaInitOraFileResponse);
+
+  // SetListenerRegistration sets a static listener registration and restarts
+  // the listener.
+  rpc SetListenerRegistration(SetListenerRegistrationRequest)
+      returns (BounceListenerResponse);
+
+  // BootstrapStandby performs bootstrap tasks that have to be done by dbdaemon.
+  rpc BootstrapStandby(BootstrapStandbyRequest)
+      returns (BootstrapStandbyResponse);
+
+  // CreateCDB creates a database instance.
+  rpc CreateCDB(CreateCDBRequest) returns (CreateCDBResponse);
+
+  // CreateCDBAsync creates a database instance asynchronously.
+  rpc CreateCDBAsync(CreateCDBAsyncRequest)
+      returns (google.longrunning.Operation);
+
+  // CreateListener creates a database listener.
+  rpc CreateListener(CreateListenerRequest) returns (CreateListenerResponse);
+
+  // FileExists runs a simple check to confirm whether a requested file
+  // exists in a database container or not.
+  // An example of where FileExists is used is a check on
+  // the provisioning_successful file, but any file (nor a dir) can be
+  // checked via this RPC call.
+  rpc FileExists(FileExistsRequest) returns (FileExistsResponse);
+
+  // PhysicalRestoreAsync runs RMAN and SQL queries in sequence to restore
+  // a database from an RMAN backup.
+  rpc PhysicalRestoreAsync(PhysicalRestoreAsyncRequest)
+      returns (google.longrunning.Operation);
+
+  // DataPumpImportAsync imports data from a .dmp file to an existing PDB.
+  rpc DataPumpImportAsync(DataPumpImportAsyncRequest)
+      returns (google.longrunning.Operation);
+
+  // DataPumpExportAsync exports data to a .dmp file using expdp
+  rpc DataPumpExportAsync(DataPumpExportAsyncRequest)
+      returns (google.longrunning.Operation);
+
+  // ListOperations lists operations that match the specified filter in the
+  // request.
+  rpc ListOperations(google.longrunning.ListOperationsRequest)
+      returns (google.longrunning.ListOperationsResponse);
+
+  // GetOperation gets the latest state of a long-running operation. Clients can
+  // use this method to poll the operation result.
+  rpc GetOperation(google.longrunning.GetOperationRequest)
+      returns (google.longrunning.Operation);
+
+  // DeleteOperation deletes a long-running operation. This method indicates
+  // that the client is no longer interested in the operation result. It does
+  // not cancel the operation.
+  rpc DeleteOperation(google.longrunning.DeleteOperationRequest)
+      returns (google.protobuf.Empty);
+
+  // RecoverConfigFile creates a binary pfile from the backed up spfile
+  rpc RecoverConfigFile(RecoverConfigFileRequest)
+      returns (RecoverConfigFileResponse);
+
+  // DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
+  // path.
+  rpc DownloadDirectoryFromGCS(DownloadDirectoryFromGCSRequest)
+      returns (DownloadDirectoryFromGCSResponse);
+
+  // FetchServiceImageMetaData returns the service image metadata.
+  rpc FetchServiceImageMetaData(FetchServiceImageMetaDataRequest)
+      returns (FetchServiceImageMetaDataResponse) {}
+}
+
+message CreateDirRequest {
+  // path is a directory name.
+  string path = 1;
+  // perm is the permission bits perm (before umask) are used for all
+  // directories CreateDir creates.
+  uint32 perm = 2;
+}
+
+message CreateDirResponse {}
+
+message ReadDirRequest {
+  // path is a directory name.
+  string path = 1;
+  // set recursive to true if collect all files and directories metadata in the
+  // file tree rooted at path. set recursive to false if only collect the first
+  // level files and directories metadata.
+  bool recursive = 2;
+}
+
+message ReadDirResponse {
+  // FileInfo describes a file and is returned by Stat.
+  message FileInfo {
+    string name = 1;
+    int64 size = 2;
+    uint32 mode = 3;
+    google.protobuf.Timestamp modTime = 4;
+    bool isDir = 5;
+    string absPath = 6;
+  }
+  FileInfo currPath = 1;
+  repeated FileInfo subPaths = 2;
+}
+
+message DeleteDirRequest {
+  // path is a directory name to be deleted.
+  string path = 1;
+  // set force to false if removes a file or (empty) directory
+  // DeleteDir removes path and any children it contains if force set to true
+  bool force = 2;
+}
+
+message DeleteDirResponse {}
+
+message RunCMDResponse {
+  repeated string msg = 1;
+}
+
+message LocalConnection {}
+
+message RunSQLPlusCMDRequest {
+  repeated string commands = 1;
+
+  // Optional TnsAdmin location for custom sql env settings.
+  string tns_admin = 2;
+
+  bool suppress = 3;
+
+  // Connection target.
+  oneof connectInfo {
+    // Connect to local database.
+    LocalConnection local = 4;
+
+    // dsn string used to connect to an external database. This is to support
+    // connecting to an external server from the DB container. Formats
+    // supported are listed here
+    // https://github.com/godror/godror/blob/main/README.md#connect
+    string dsn = 5;
+
+    // Connect to local by non-local database.
+    // Explicitly sets the ORACLE_SID. This is required to
+    // to support an ES replica.
+    string database_name = 6;
+  }
+
+  // Quiet mode, suppress all output.
+  bool quiet = 7;
+}
+
+message CheckDatabaseStateRequest {
+  string database_name = 1;
+  bool is_cdb = 2;
+  string db_domain = 3;
+}
+
+message CheckDatabaseStateResponse {}
+
+message CreatePasswordFileRequest {
+  string database_name = 1;
+  string sys_password = 2;
+  string dir = 3;
+}
+
+message CreatePasswordFileResponse {}
+
+message CreateReplicaInitOraFileRequest {
+  string em_host = 1;
+  int32 em_port = 2;
+  string em_db_name = 3;
+  string em_db_unique_name = 4;
+  string em_db_domain = 5;
+  string log_file_dir_list = 6;
+  string data_file_dir_list = 7;
+  string em_compatibility = 8;
+  string init_ora_dir = 9;
+  string init_ora_file_name = 10;
+}
+
+message CreateReplicaInitOraFileResponse {
+  string init_ora_file_content = 1;
+}
+
+// KnownPDBsRequest is a message used for getting
+// a list of known PDBs in a CDB.
+message KnownPDBsRequest {
+  // By default a SEED PDB is not included, but a caller can override it here.
+  bool include_seed = 1;
+  // By default a state of a PDB is ignored, but a caller may request a list
+  // of PDBs only in the OPEN state (as opposed to just MOUNTED).
+  bool only_open = 2;
+}
+
+// KnownPDBsResponse is a message returning a list of known PDBs.
+message KnownPDBsResponse {
+  repeated string known_pdbs = 1;
+}
+
+message RunRMANRequest {
+  // Scripts to be executed by RMAN in sequence.
+  repeated string scripts = 1;
+  // sets TNS_ADMIN to override location for network configuration.
+  string tns_admin = 2;
+  bool suppress = 3;
+  // target is the primary database to connect to. This is usually
+  // the source database in clone operations. This would be the
+  // ES primary for the ES setup.
+  string target = 4;
+  // auxiliary is the secondary database to connect to.
+  // this is the ES replica database in the ES setup
+  string auxiliary = 5;
+  // gcs_path is the destination gcs bucket for the backup
+  string gcs_path = 6;
+  // local_path is the destination directory for the backup
+  string local_path = 7;
+  // rman command to run, currently support backup and restore
+  string cmd = 8;
+}
+
+// LROInput is a common part of input requests for all Async operations.
+message LROInput {
+  // Optional identifier of requested operation.
+  // If not provided a random id will be generated.
+  string operation_id = 1;
+}
+
+message RunRMANAsyncRequest {
+  RunRMANRequest sync_request = 1;
+  LROInput lro_input = 2;
+}
+
+message RunRMANResponse {
+  // Output of each script executed by RMAN.
+  repeated string output = 1;
+}
+
+message NIDRequest {
+  // ORACLE_SID env value
+  string sid = 1;
+  // Optional new database name if rename of database is also required.
+  string database_name = 2;
+}
+
+message NIDResponse {}
+
+message GetDatabaseTypeRequest {}
+
+message GetDatabaseTypeResponse {
+  enum DatabaseType {
+    UNKNOWN_DATABASE_TYPE = 0;
+    ORACLE_12_2_ENTERPRISE = 1;
+    ORACLE_12_2_ENTERPRISE_NONCDB = 2;
+  }
+  DatabaseType database_type = 1;
+}
+
+message GetDatabaseNameRequest {}
+
+message GetDatabaseNameResponse {
+  string database_name = 1;
+}
+
+message SetListenerRegistrationRequest {
+  // global_database_name is the name of the database
+  // unique name with domain name.
+  string global_database_name = 1;
+  // database_name is the name of the database. This is same
+  // between ES primary and replica
+  string database_name = 2;
+}
+
+message BootstrapStandbyRequest {
+  string cdb_name = 1;
+}
+
+message BootstrapStandbyResponse {}
+
+message CreateCDBRequest {
+  string oracle_home = 1;
+  string database_name = 2;
+  string db_unique_name = 3;
+  string character_set = 4;
+  int32 memory_percent = 5;
+  repeated string additional_params = 6;
+  string version = 7;
+  string db_domain = 8;
+}
+
+message CreateCDBAsyncRequest {
+  CreateCDBRequest sync_request = 1;
+  LROInput lro_input = 2;
+}
+
+message CreateCDBResponse {}
+
+message CreateListenerRequest {
+  string database_name = 1;
+  int32 port = 2;
+  string protocol = 3;
+  string oracle_home = 4;
+  string db_domain = 5;
+}
+
+message CreateListenerResponse {}
+
+message FileExistsRequest {
+  string name = 1;
+}
+
+message FileExistsResponse {
+  bool exists = 1;
+}
+
+message PhysicalRestoreRequest {
+  string restore_statement = 1;
+  string latest_recoverable_scn_query = 2;
+  string recover_statement_template = 3;
+}
+
+message PhysicalRestoreAsyncRequest {
+  PhysicalRestoreRequest sync_request = 1;
+  LROInput lro_input = 2;
+}
+
+message DataPumpImportRequest {
+  string pdb_name = 1;
+  string db_domain = 2;
+  repeated string command_params = 3;
+  // GCS path to input dump file
+  string gcs_path = 4;
+  // GCS path to output log file
+  string gcs_log_path = 5;
+}
+
+message DataPumpImportAsyncRequest {
+  DataPumpImportRequest sync_request = 1;
+  LROInput lro_input = 2;
+}
+
+message DataPumpImportResponse {}
+
+message DataPumpExportRequest {
+  string pdb_name = 1;
+  string db_domain = 2;
+  string object_type = 3;
+  string objects = 4;
+  repeated string command_params = 5;
+  string gcs_path = 6;
+  string gcs_log_path = 7;
+  string flashback_time = 8;
+}
+
+message DataPumpExportAsyncRequest {
+  DataPumpExportRequest sync_request = 1;
+  LROInput lro_input = 2;
+}
+
+message DataPumpExportResponse {}
+
+message RecoverConfigFileRequest {
+  string cdbName = 1;
+}
+message RecoverConfigFileResponse {}
+
+message DownloadDirectoryFromGCSRequest {
+  string gcs_path = 1;
+  string local_path = 2;
+}
+message DownloadDirectoryFromGCSResponse {}
+
+message FetchServiceImageMetaDataRequest {}
+
+message FetchServiceImageMetaDataResponse {
+  string version = 1;
+  string cdb_name = 2;
+  string oracle_home = 3;
+}

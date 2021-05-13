@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "lro",
+    srcs = [
+        "job.go",
+        "server.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/lib/lro",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/database/lib/detach",
+        "@com_github_google_uuid//:uuid",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@go_googleapis//google/rpc:status_go_proto",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/emptypb",
+    ],
+)
+
+go_test(
+    name = "lro_test",
+    srcs = [
+        "job_test.go",
+        "server_test.go",
+    ],
+    embed = [":lro"],
+    deps = [
+        "//oracle/pkg/agents/oracle",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_uuid//:uuid",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//testing/protocmp",
+        "@org_golang_google_protobuf//types/known/anypb",
+    ],
+)

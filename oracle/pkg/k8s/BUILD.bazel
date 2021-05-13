@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "k8s",
+    srcs = [
+        "condition.go",
+        "event.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/api/v1alpha1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+    ],
+)
+
+go_test(
+    name = "k8s_test",
+    srcs = ["condition_test.go"],
+    embed = [":k8s"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+    ],
+)

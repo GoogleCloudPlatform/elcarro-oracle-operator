@@ -1,0 +1,63 @@
+// Copyright 2021 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Database Daemon proxy is used for privileged database ops,
+// e.g. bouncing a database and the listeners. It is intended to be used by the
+// agents running locally on the same database container.
+syntax = "proto3";
+
+package agents.oracle;
+
+import "oracle/pkg/agents/oracle/oracle.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle;oracle";
+
+// DatabaseDaemonProxy defines the API for a daemon proxy running together with
+// a database in the same container.
+service DatabaseDaemonProxy {
+  // BounceDatabase RPC call to start/stop a database.
+  rpc BounceDatabase(BounceDatabaseRequest) returns (BounceDatabaseResponse);
+  // BounceListener RPC call to start/stop a listener.
+  rpc BounceListener(BounceListenerRequest) returns (BounceListenerResponse);
+  // ProxyRunDbca execute the dbca command with the given parameters
+  rpc ProxyRunDbca(ProxyRunDbcaRequest) returns (ProxyRunDbcaResponse);
+  // ProxyRunNID RPC call executes database rename operations
+  rpc ProxyRunNID(ProxyRunNIDRequest) returns (ProxyRunNIDResponse);
+  // SetEnv RPC call moves/relinks oracle config files within oracledb container
+  rpc SetEnv(SetEnvRequest) returns (SetEnvResponse);
+}
+
+message SetEnvRequest {
+  string oracle_home = 1;
+  string cdb_name = 2;
+  string spfile_path = 3;
+}
+
+message SetEnvResponse {}
+
+message ProxyRunNIDRequest {
+  string source_db_name = 1;
+  string dest_db_name = 2;
+  repeated string params = 3;
+}
+
+message ProxyRunNIDResponse {}
+
+message ProxyRunDbcaRequest {
+  string oracle_home = 1;
+  string database_name = 2;
+  repeated string params = 3;
+}
+
+message ProxyRunDbcaResponse {}

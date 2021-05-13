@@ -1,0 +1,22 @@
+# Physical backup config for the whole Instance with all the options.
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: rman3-inst-opts
+spec:
+  instance: mydb
+  type: Physical
+  subType: Instance
+  backupset: true
+  checkLogical: true
+  compressed: true
+  # DOP = Degree of Parallelism.
+  dop: 4
+  # Level: 0=Full Backup, 1=Incremental, 2=Cumulative
+  # level: 0
+  filesperset: 10
+  # Backup Section Size in MB (don't specify the unit, just the integer).
+  sectionSize: 100
+  # Backup threshold is expressed in minutes (don't specify the unit, just the integer).
+  timeLimitMinutes: 30
+  localPath: "/u03/app/oracle/rman"

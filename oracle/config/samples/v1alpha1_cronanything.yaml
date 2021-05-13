@@ -1,0 +1,21 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: CronAnything
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: cronanything-sample
+spec:
+  schedule: "*/5 * * * *"
+  totalResourceLimit: 10
+  historyCountLimit: 2
+  concurrencyPolicy: Allow
+  template:
+    apiVersion: oracle.db.anthosapis.com/v1alpha1
+    kind: Backup
+    spec:
+      instance: mydb
+      type: Physical
+      subType: Instance
+      # Optionally transfer to GCS.
+      gcsPath: "gs://bucket/rman"
+

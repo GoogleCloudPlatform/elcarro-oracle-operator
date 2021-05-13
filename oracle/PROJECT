@@ -1,0 +1,25 @@
+domain: db.anthosapis.com
+repo: github.com/GoogleCloudPlatform/elcarro-oracle-operator
+resources:
+- group: oracle
+  kind: Instance
+  version: v1alpha1
+- group: oracle
+  kind: Database
+  version: v1alpha1
+- group: oracle
+  kind: Backup
+  version: v1alpha1
+- group: oracle
+  kind: Config
+  version: v1alpha1
+- group: oracle
+  kind: Release
+  version: v1alpha1
+- group: oracle
+  kind: CronAnything
+  version: v1alpha1
+- group: oracle
+  kind: BackupSchedule
+  version: v1alpha1
+version: "2"

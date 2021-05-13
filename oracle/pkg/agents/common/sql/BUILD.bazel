@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sql",
+    srcs = ["sql.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "sql_test",
+    srcs = ["sql_test.go"],
+    embed = [":sql"],
+)

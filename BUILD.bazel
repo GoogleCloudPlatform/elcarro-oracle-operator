@@ -1,0 +1,27 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/GoogleCloudPlatform/elcarro-oracle-operator
+# gazelle:exclude **/*.pb.go
+# gazelle:resolve go github.com/godror/godror @com_github_godror_godror//:godror
+gazelle(name = "gazelle")
+
+# To use gazelle you need to use `fix` to fix BUILD rules, and `update-repos` to sync deps.bzl with go.mod
+# bazel run //:gazelle -- fix
+# bazel run //:gazelle -- update-repos -from_file=go.mod -to_macro=deps.bzl%go_dependencies
+
+# tools.go tools can be used via these aliases.
+alias(
+    name = "kustomize",
+    actual = "@io_k8s_sigs_kustomize_kustomize_v4//:v4",
+)
+
+alias(
+    name = "controller-gen",
+    actual = "@io_k8s_sigs_controller_tools//cmd/controller-gen",
+)
+
+# cc tools from WORKSPACE
+alias(
+    name = "protoc",
+    actual = "@com_google_protobuf//:protoc",
+)

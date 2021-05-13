@@ -1,0 +1,47 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
+metadata:
+  name: mydb
+spec:
+  type: Oracle
+  version: "12.2"
+  edition: Enterprise
+  dbDomain: "gke"
+  disks:
+  - name: DataDisk
+    size: 45Gi
+    type: pd-standard
+  - name: LogDisk
+    size: 55Gi
+    type: pd-standard
+
+  services:
+    Backup: true
+    Monitoring: true
+    Logging: true
+
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-unseeded"
+
+  sourceCidrRanges: [0.0.0.0/0]
+  # Oracle SID character limit is 8, anything > gets truncated by Oracle
+  cdbName: "GOOG"
+  # dbUniqueName character constraints are [a-zA-Z0-9_#$]
+  dbUniqueName: "GOOG_gke"
+  memoryPercent: 25
+  characterSet: "US7ASCII"
+
+# Uncomment this section to trigger a restore.
+#  restore:
+#    backupType: "Snapshot"
+#    backupId: "mydb-20201030-snap-538716798"
+#    force: True
+#    force: True
+#    # once applied, new requests with same or older time will be ignored,
+#    # current time can be generated using the command: date -u '+%Y-%m-%dT%H:%M:%SZ'
+#    requestTime: "2000-01-19T01:23:45Z"
+#    # Physical backup specific attributes:
+#    dop: 2
+#    # The unit for time limit is minutes (but specify just an integer).
+#    timeLimitMinutes: 180

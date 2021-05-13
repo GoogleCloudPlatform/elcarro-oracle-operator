@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "backup",
+    srcs = [
+        "backup.go",
+        "restore.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_k8s_klog_v2//:klog",
+    ],
+)

@@ -1,0 +1,9 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Config
+metadata:
+  name: config
+spec:
+  platform: "BareMetal"
+  storageClass: "trident-nfs-csi"
+  volumeSnapshotClass: "trident-nfs-csi-volume-snapshot"
+

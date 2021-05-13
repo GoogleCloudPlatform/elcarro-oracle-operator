@@ -1,0 +1,5 @@
+*.control_files='/opt/oracle/oradata/{{ .SourceDBName }}/control01.ctl'
+*.db_name='{{ .DestDBName }}'
+*.enable_pluggable_database=true
+*.nls_language='AMERICAN'
+*.nls_territory='AMERICA'

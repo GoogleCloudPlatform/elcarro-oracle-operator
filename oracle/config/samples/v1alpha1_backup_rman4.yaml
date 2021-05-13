@@ -1,0 +1,28 @@
+# Physical backup config for the (subset) of Pluggable Databases with all the options.
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: rman4-db
+spec:
+  instance: mydb
+  type: Physical
+  # Note the subType here is Database, not Instance, which requires backupItems settings.
+  subType: Database
+  # The items listed here have to exists, e.g. pdb1 and pdb2 listed below have to be valid PDBs.
+  backupItems: ["pdb1", "pdb2"]
+  backupset: true
+  checkLogical: true
+  compressed: true
+  # DOP = Degree of Parallelism.
+  dop: 4
+  # Level: 0=Full Backup, 1=Incremental, 2=Cumulative
+  # level: 0
+  # filesperset: 10
+  # Backup Section Size in MB (don't specify the unit, just the integer).
+  sectionSize: 500
+  # Backup threshold is expressed in minutes (don't specify the unit, just the integer).
+  timeLimitMinutes: 30
+  # For RMAN backup to gcs bucket, localPath will be ignored.
+  # Replace example-bucket with the bucket that contains a full RMAN backup (currently restore
+  # from gcs bucket is only supported for full backups).
+  gcsPath: "gs://example-bucket/rman"

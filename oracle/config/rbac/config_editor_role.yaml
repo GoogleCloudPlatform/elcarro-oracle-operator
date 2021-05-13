@@ -1,0 +1,26 @@
+# permissions to do edit configs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: config-editor-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - configs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - configs/status
+  verbs:
+  - get
+  - patch
+  - update

@@ -1,0 +1,26 @@
+# permissions to do edit exports.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: export-editor-role
+rules:
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - exports
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - exports/status
+  verbs:
+  - get
+  - patch
+  - update

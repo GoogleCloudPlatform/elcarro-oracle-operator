@@ -1,0 +1,16 @@
+# Similar to the bare bones physical backup config, but requesting Image Copy, not a Backupset.
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Backup
+metadata:
+  name: rman2-inst-ic
+spec:
+  instance: mydb
+  type: Physical
+  subType: Instance
+  # Requesting specifically an image copy, not a backupset (currently it is not
+  # supported to restore declaratively from backups created with backupset = false)
+  backupset: false
+  # For RMAN backup to gcs bucket, localPath will be ignored.
+  # Replace example-bucket with the bucket that contains a full RMAN backup (currently restore
+  # from gcs bucket is only supported for full backups).
+  gcsPath: "gs://example-bucket/rman"
