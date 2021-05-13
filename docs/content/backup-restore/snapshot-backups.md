@@ -20,8 +20,8 @@ The choice between RMAN and a storage based snapshot is completely up to you.
 The following variables used in the examples below:
 
 ```sh
-export NAMESPACE = <kubernetes namespace where the instance was created>
-export PATH_TO_EL_CARRO_RELEASE = <the complete path to the downloaded release directory>
+export NAMESPACE=<kubernetes namespace where the instance was created>
+export PATH_TO_EL_CARRO_RELEASE=<the complete path to the downloaded release directory>
 ```
 
 ### Locate an instance in ready state

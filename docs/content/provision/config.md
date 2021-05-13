@@ -73,7 +73,7 @@ To get El Carro up and running, you need to do one the following:
     supports a single Instance per cluster/namespace, but it's a good practice
     to set these attributes globally in the Config CR.
 
-1.  Submit the Config CR {: #submit-cr}
+1.  Submit the Config CR
 
     After completing the Config manifest, submit it to the local cluster as
     follows:

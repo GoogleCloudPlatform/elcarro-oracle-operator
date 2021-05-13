@@ -1,4 +1,4 @@
-# Appendix A: Create an El Carro Instance: Advanced  {: #appendix-a}
+# Appendix A: Create an El Carro Instance: Advanced
 
 The `samples` directory provided with the El Carro release contains a set of
 useful manifests to get you started. As you start rolling out El Carro services
@@ -14,16 +14,16 @@ can be hydrated:
 
 ```sh
 kpt cfg create-setter ${PATH_TO_EL_CARRO_RELEASE}/workflows namespace "<your-ns>"
-<br>
+
 kpt cfg create-setter ${PATH_TO_EL_CARRO_RELEASE}/workflows services --type array --field spec.services
-<br>
+
 kpt cfg create-setter ${PATH_TO_EL_CARRO_RELEASE}/workflows dbimage "<db-GCR-location>"
 ```
 
 The result of running this command is a fully hydrated and ready to apply
 Instance manifest:
 
-```sh
+```yaml
 apiVersion: oracle.db.anthosapis.com/v1alpha1
 kind: Instance
 metadata:
@@ -72,6 +72,5 @@ spec:
 
 Given that this manifest is the same as the one provided in the `samples`
 directory (but hydrated dynamically by way of the safe variable substitution),
-the process
-[described earlier](#submit-cr)
+the process [described here](../provision/config.md)
 of applying this manifest fully applies.

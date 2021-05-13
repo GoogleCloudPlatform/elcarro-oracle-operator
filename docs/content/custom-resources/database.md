@@ -1,4 +1,4 @@
-# Appendix B: Change a Database (PDB): users/privs {: #appendix-b}
+# Appendix B: Change a Database (PDB): users/privs
 
 El Carro provides support for declarative user/schema and roles/privilege
 management through the changes in a Database manifest.
