@@ -22,7 +22,7 @@ The following variables will be used in this quickstart:
 export DBNAME=<Must consist of only uppercase letters, and digits. For example: MYDB>
 export PROJECT_ID=<your GCP project id>
 export SERVICE_ACCOUNT_ID=<The ID for the service account to be used by El Carro>
-export SERVICE_ACCOUNT=<fully qualified name of the compute service account to be used by El Carro (i.e. SERVICE_ACCOUNT@PROJECT_NAME.iam.gserviceaccount.com)>
+export SERVICE_ACCOUNT=<fully qualified name of the compute service account to be used by El Carro (i.e. SERVICE_ACCOUNT_ID@PROJECT_ID.iam.gserviceaccount.com)>
 export PATH_TO_EL_CARRO_RELEASE=<the complete path to the downloaded release directory>
 export ZONE=<for example: us-central1-a>
 export CLUSTER_NAME=<for example: cluster1>
