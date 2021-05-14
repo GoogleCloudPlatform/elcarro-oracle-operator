@@ -21,7 +21,8 @@ The following variables will be used in this quickstart:
 ```sh
 export DBNAME=<Must consist of only uppercase letters, and digits. For example: MYDB>
 export PROJECT_ID=<your GCP project id>
-export SERVICE_ACCOUNT=<fully qualified name of the compute service account to be used by El Carro (i.e. SERVICE_ACCOUNT@PROJECT_NAME.iam.gserviceaccount.com)>
+export SERVICE_ACCOUNT_ID=<The ID for the service account to be used by El Carro>
+export SERVICE_ACCOUNT=<fully qualified name of the compute service account to be used by El Carro (i.e. SERVICE_ACCOUNT_ID@PROJECT_NAME.iam.gserviceaccount.com)>
 export PATH_TO_EL_CARRO_RELEASE=<the complete path to the downloaded release directory>
 export GCS_BUCKET=<your globally unique Google Cloud Storage bucket name>
 export ZONE=<for example: us-central1-a>
@@ -44,13 +45,12 @@ using [gsutil](https://cloud.google.com/storage/docs/gsutil).
 gsutil -m cp -r gs://elcarro/latest $PATH_TO_EL_CARRO_RELEASE
 ```
 
-
 [Create a new GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
-or reuse an existing one to install El Carro.
+or reuse an existing one to install El Carro. GCP provides [free tier products](https://cloud.google.com/free).
+So if you are not already a GCP user, you can sign up for a free trial. :)
 
 ```sh
 gcloud projects create $PROJECT_ID [--folder [...]]
-gcloud beta billing projects link $PROJECT_ID --billing-account [...]
 ```
 
 Set gcloud config project to $PROJECT_ID
@@ -63,6 +63,10 @@ Check gcloud config project
 gcloud config get-value project
 ```
 
+Create a new service account or reuse an existing one in your GCP project to
+install El Carro. Check out
+[Creating and Managing Service Accounts](https://cloud.google.com/iam/docs/creating-managing-service-accounts)
+if you need help creating or locating an existing service account.
 
 To get El Carro up and running, you need to do one of the following:
 
@@ -79,10 +83,6 @@ Optionally set CDB name, GKE cluster name, GKE zone
 ```sh
 $PATH_TO_EL_CARRO_RELEASE/deploy/install.sh --gcs_oracle_binaries_path $GCS_BUCKET --service_account $SERVICE_ACCOUNT --cdb_name $DBNAME --cluster_name $CLUSTER_NAME --gke_zone $ZONE
 ```
-
-Check out
-[Creating and Managing Service Accounts](https://cloud.google.com/iam/docs/creating-managing-service-accounts)
-if you need help creating or locating an existing service account.
 
 OR
 
@@ -149,8 +149,6 @@ Cloud Build or building the image locally using Docker.
 
     ```sh
     gcloud projects create $PROJECT_ID [--folder [...]]
-    gcloud beta billing projects link $PROJECT_ID --billing-account [...]
-
     gcloud services enable container.googleapis.com anthos.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com --project $PROJECT_ID
     ```
 
@@ -158,7 +156,7 @@ Cloud Build or building the image locally using Docker.
     recommend creating a dedicated one as follows:
 
     ```sh
-    gcloud iam service-accounts create $SERVICE_ACCOUNT --project $PROJECT_ID
+    gcloud iam service-accounts create $SERVICE_ACCOUNT_ID --project $PROJECT_ID
     export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
     gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:service-${PROJECT_NUMBER}@containerregistry.iam.gserviceaccount.com --role=roles/containerregistry.ServiceAgent
     ```
