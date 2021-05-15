@@ -69,6 +69,7 @@ cat $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_instance.yaml
 
 ```yaml
 apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
 metadata:
   name: mydb
 spec:
@@ -89,31 +90,25 @@ spec:
     Backup: true
     Monitoring: true
     Logging: true
-    Patching: true
   sourceCidrRanges: [ 0.0.0.0/0 ]
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-seeded-${DB}"
+  cdbName: ${DB}
   minMemoryForDBContainer: 4.0Gi
-  maintenanceWindow:
-    timeRanges:
-    - start: "2121-04-20T15:45:30Z"
-      duration: "168h"
-
-#  parameters:
-#    parallel_servers_target: "15"
-#    disk_asynch_io: "true"
-#    memory_max_target: "0"
 
 # Uncomment this section to trigger a restore.
-#  restore:
-#    backupType: "Snapshot" #(or "Physical")
-#    backupId: "mydb-20200705-snap-996678001"
-#    force: True
+  restore:
+    backupType: "Snapshot"
+    backupId: "mydb-20200705-snap-996678001"
+    force: True
 #    # once applied, new requests with same or older time will be ignored,
 #    # current time can be generated using the command: date -u '+%Y-%m-%dT%H:%M:%SZ'
-#    requestTime: "2000-01-19T01:23:45Z"
+    requestTime: "2021-05-12T01:23:45Z"
 #    # Physical backup specific attributes:
 #    dop: 2
 #    # The unit for time limit is minutes (but specify just an integer).
-#    timeLimit: 180
+#    timeLimitMinutes: 180
 ```
 
 ### Limitations

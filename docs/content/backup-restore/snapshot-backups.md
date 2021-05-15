@@ -13,7 +13,9 @@ snapshot-based backup, but is likely to get detected in the RMAN backupset.
 Also, snapshots inherently rely on the same storage device, making it a
 potential point of failure.
 
-The choice between RMAN and a storage based snapshot is completely up to you.
+The choice between RMAN and a storage based snapshot for backup is completely up
+to you. This guide is intended for snapshot based backups. If you want to use
+RMAN based backups, please follow the guide for [Backup: RMAN](rman-backups.md) instead.
 
 ## Steps to create Oracle Snapshot backup
 
@@ -99,3 +101,8 @@ Note that there might be multiple disks used in an El Carro instance and the
 snapshots of all three have to finish successfully for the Backup CR's status to
 turn from InProgress to Ready. The latest backup ID is also copied to the
 Instance CR.
+
+## What's Next?
+
+Check out the [restore guide](restore-from-backups.md) to learn how to restore
+your instance from backups.
