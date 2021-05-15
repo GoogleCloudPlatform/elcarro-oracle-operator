@@ -1,5 +1,12 @@
 # DataPump: Import data from one PDB into another one
 
+The following variables used in the examples below:
+
+```sh
+export NAMESPACE=<kubernetes namespace where the instance was created>
+export PATH_TO_EL_CARRO_RELEASE=<the complete path to the downloaded release directory>
+```
+
 Running Oracle Data Pump import utility - `impdp` - is supported via a
 declarative Kubernetes-based API. An import operation takes a dump file at a
 [Google Cloud Storage](https://cloud.google.com/storage/docs) location and
@@ -18,11 +25,11 @@ name** the dump file is imported to, must match.
     Carro operator has read access to the bucket containing the dump file:
 
     a. If you're not using
-    <a href="/kubernetes-engine/docs/how-to/workload-identity#alternatives">workload
+    <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity">workload
     identity</a>, use the Compute Engine default service account for GCS access.
 
     b. If you have enabled workload identity on GKE, you can
-    <a href="/kubernetes-engine/docs/how-to/workload-identity#concepts">configure
+    <a href="https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity#authenticating_to">configure
     the Kubernetes service account to act as a Google service account</a>.
 
     You can run the following command to see whether workload identity is
@@ -64,7 +71,7 @@ name** the dump file is imported to, must match.
     cat $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_import_pdb1.yaml
     ```
 
-    ```sh
+    ```yaml
     apiVersion: oracle.db.anthosapis.com/v1alpha1
     kind: Import
     metadata:
