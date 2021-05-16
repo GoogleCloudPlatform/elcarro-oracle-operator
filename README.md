@@ -111,7 +111,7 @@ more information, check [logging](docs/content/monitoring/logging.md),
 [connectivity](docs/content/monitoring/connectivity.md),
 [UI](docs/content/monitoring/ui.md), etc.
 
-## Contributions
+## Contributing
 
 You're very welcome to contribute to the El Carro Project!
 

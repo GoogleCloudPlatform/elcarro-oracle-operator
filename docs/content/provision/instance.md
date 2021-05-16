@@ -1,4 +1,4 @@
-# Create an El Carro Instance: Basic
+# Create El Carro Instance(s): Basic
 
 This step depends on the previous one of successfully creating a containerized
 database image in GCR. Once the image is ready, you need to tell El Carro the

@@ -1,4 +1,4 @@
-# Create an El Carro Database(s)
+# Create El Carro Database(s)
 
 This step depends on the previous step of successfully created Instance CR.
 The preflight checks ensure that the Database Controller doesn't reconcile until
