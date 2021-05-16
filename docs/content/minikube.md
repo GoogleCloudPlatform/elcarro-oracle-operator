@@ -1,7 +1,7 @@
 # Running El Carro Operator on local clusters with minikube
 
 This guide helps you run El Carro Operator locally on minikube on your personal
-computer. If you prefer to use GKE (Google Kurbernetes Engine) to deploy the El
+computer. If you prefer to use GKE (Google Kubernetes Engine) to deploy the El
 Carro Operator, stop here and refer to our [Quickstart Guide](quickstart.md) or
 [Quickstart Guide for Oracle 18c XE](quickstart-18c-xe.md).
 
@@ -54,12 +54,12 @@ You should set these variables in your environment.
     minikube addons enable volumesnapshots
     ```
 
-4.  Enable the registry addon to allow docker to push images to minikube's registry:
+4.  Enable the registry addon to allow Docker to push images to minikube's registry:
     ```sh
     minikube addons enable registry
     ```
 
-5.  In a a separate terminal, redirect port 5000 from Docker to port 5000 on
+5.  In a separate terminal, redirect port 5000 from Docker to port 5000 on
     your host by following this
     [guide](https://minikube.sigs.k8s.io/docs/handbook/registry/) or running:
 
@@ -130,7 +130,7 @@ minikube tunnel
 
 ### Oracle database image
 
-Follow the [Quickstart](quickstart) guide to build an oracle database image
+Follow the [Quickstart Guide](quickstart.md) to build an oracle database image
 locally, then tag and push the image to the local registry:
 
 ```sh
@@ -202,14 +202,15 @@ kubectl create namespace $NS
 
 ## Creating a minikube config CR:
 
-To override the default csi driver and image settings used for GKE, apply the minikube specific config CR by running:
+To override the default csi driver and image settings used for GKE, apply the
+minikube specific config CR by running:
 
 ```sh
 kubectl apply -f $PATH_TO_EL_CARRO_REPO/oracle/config/samples/v1alpha1_config_minikube.yaml -n $NS
 ```
 
-You must apply the config CR before you create El Carro instances so minikube specific
-configurations can be picked up by El Carro.
+You must apply the config CR before you create El Carro instances so minikube
+specific configurations can be picked up by El Carro.
 
 ### Creating an El Carro instance:
 
