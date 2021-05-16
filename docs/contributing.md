@@ -23,7 +23,14 @@ You generally only need to submit a CLA once, so if you've already submitted one
 (even if it was for a different project), you probably don't need to do it
 again.
 
-## Pull Requests
+## Community Guidelines
+
+This project follows
+[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
+
+## Developer Guidance
+
+### Pull Requests
 
 Once you are ready to submit a Pull Request, please ensure you do the following:
 
@@ -31,3 +38,21 @@ Once you are ready to submit a Pull Request, please ensure you do the following:
 referencing an issue, please be sure to include the issue in your pull request.
 
 * Please ensure you have added testing where appropriate.
+
+### Testing
+
+Ensure the following passes:
+
+```
+cd oracle
+make check
+make unit-test
+```
+and commit any resultant changes to `go.mod` and `go.sum`.
+
+### Code Reviews
+
+All submissions, including submissions by project members, require review. We
+use GitHub pull requests for this purpose. Consult
+[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
+information on using pull requests.

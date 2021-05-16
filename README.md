@@ -116,10 +116,7 @@ more information, check [logging](docs/content/monitoring/logging.md),
 You're very welcome to contribute to the El Carro Project!
 
 We've put together a set of contributing and development guidelines that you can
-review here:
-
-*   [Contributing Guidelines](docs/content/contributing/contributing.md)
-*   [Development Guidance](docs/content/contributing/development.md)
+review in [this guide](docs/contributing.md).
 
 ## Support
 
