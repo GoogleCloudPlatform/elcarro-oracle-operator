@@ -3,7 +3,7 @@
 The preparation steps consist of the following:
 
 1.  [Set up a GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects).
-1.  Create a containerized database image.
+1.  Download the El Carro software.
 1.  [Create a Kubernetes cluster](https://kubernetes.io/docs/setup/).
 1.  Deploy the El Carro Operator.
 
@@ -13,7 +13,6 @@ Either create a new project or use an existing one with the following settings:
 
 ```bash
 gcloud projects create $PROJECT_ID [--folder [...]
-gcloud beta billing projects link $PROJECT_ID --billing-account [...]
 
 gcloud services enable \
 container.googleapis.com \
@@ -139,9 +138,9 @@ The top level files and directories are:
 * The `ui.yaml` is a collection of manifests that is used to deploy the El
   Carro UI.
 * The `dbimage` directory contains a set of files for building a containerized
-  database image described in the next section.
+  database image described in [this guide](provision/image.md).
 * The `samples` directory contains the manifests for creating Custom Resources
-  (CRs) mentioned in this user guide.
+  (CRs) mentioned in the user guide.
 * The `workflows` directory is similar to samples, but the manifests there are the
   DRY templates that can be hydrated with
   [kpt](https://googlecontainertools.github.io/kpt/) to create/manage the same
@@ -164,9 +163,9 @@ fully managed K8s cluster, which can be provisioned with a single command:
 ```sh
 export ZONE=<for example: us-central1-a>
 export CLUSTER_NAME=<for example: cluster1>
-export SERVICE_ACCOUNT=<service account used on the signup form>
+export SERVICE_ACCOUNT=<service account created earlier for the GKE cluster>
 
-gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone ${ZONE} --project ${PROJECT_ID} --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account ${SERVICE_ACCOUNT}
+gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone ${ZONE} --project ${PROJECT_ID} --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account ${SERVICE_ACCOUNT} --addons GcePersistentDiskCsiDriver
 ```
 
 If backups using the storage snapshots are required (El Carro recommended),
@@ -223,3 +222,11 @@ namespace should be created prior to creating an El Carro Instance as follows:
 $ export NS=<namespace of user choice, for example: "db">
 $ kubectl create namespace $NS
 ```
+
+## What's Next
+Check out [Create a Containerized Database Image](provision/image.md) to
+start provisioning Instances and Databases.
+
+You can optionally create a default Config to set namespace-wide defaults for
+configuring your databases, following
+[this guide](provision/config.md).

@@ -7,7 +7,6 @@ export NAMESPACE=<kubernetes namespace where the instance was created>
 export PATH_TO_EL_CARRO_RELEASE=<the complete path to the downloaded release directory>
 ```
 
-
 Data Pump export uses the Oracle `expdp` utility for exporting data and metadata
 into a set of operating system files called a dump file set. El Carro allows you
 to declaratively initiate a Data Pump export. To do so:

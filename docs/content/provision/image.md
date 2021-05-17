@@ -1,4 +1,4 @@
-# Create a Containerized Database Image
+# Create Containerized Database Image(s)
 
 This guide is only valid for Oracle Database 12c. To build an Oracle Database
 18c XE image, refer to the [18c XE quickstart guide](../quickstart-18c-xe.md).
@@ -17,8 +17,8 @@ export GCS_BUCKET=<your globally unique Google Cloud Storage bucket name>
 
 You should set these variables in your environment.
 
-**There are two options to build the actual container database image: Using
-Google Cloud Build or building the image locally using Docker.**
+There are two options to build the actual container database image: *Using
+Google Cloud Build* or *building the image locally using Docker*.
 
 ### Using Google Cloud Build to create a containerized Oracle database image (Recommended)
 
@@ -114,8 +114,8 @@ Google Cloud Build or building the image locally using Docker.**
             container images.
 
     To proceed with creating a seed database as part of the container image
-    build, add --create_cdb true and optionally specify a seed database name,
-    e.g. --cdb_name ORCL (Note that if a seed database name is not provided,
+    build, add `--create_cdb=true` and optionally specify a seed database name,
+    e.g. `--cdb_name=MYDB` (Note that if a seed database name is not provided,
     image_build.sh defaults it to GCLOUD. This value can be changed at runtime)
 
     Set PATH_TO_EL_CARRO_RELEASE to the directory where the El Carro release was
@@ -128,7 +128,7 @@ Google Cloud Build or building the image locally using Docker.**
     ```
 
     If you prefer to create a database container image without a seed database,
-    set --create_cdb false.
+    set `--create_cdb=false`.
 
     ```sh
     cd ${PATH_TO_EL_CARRO_RELEASE}/dbimage
@@ -171,6 +171,10 @@ containerized database image, you can build an image locally using
 registry that your Kubernetes cluster can pull images from. You must have Docker
 installed before proceeding with a local containerized database image build.
 
+Note that in the current release, local build only works with Linux systems.
+Additional support for other operating systems like Windows, Mac OS, etc. will
+be added in future releases.
+
 1.  Copy the Oracle binaries you downloaded earlier to
     ${PATH_TO_EL_CARRO_RELEASE}/dbimage
 
@@ -189,7 +193,7 @@ installed before proceeding with a local containerized database image build.
     cloudbuild.yaml
     p32228578_122010_Linux-x86-64.zip
     p6880880_200000_Linux-x86-64.zip
-    V839960-01.zip
+    linuxx64_12201_database.zip
     ```
 
 2.  Trigger the image creation script.
@@ -225,7 +229,7 @@ installed before proceeding with a local containerized database image build.
     ```sh
     docker images
     REPOSITORY                                                                               TAG       IMAGE ID       CREATED       SIZE
-    gcr.io/local-build/oracle-database-images/oracle-12.2-ee-seeded-${DBNAME}        latest    c766d980c9a0   2 hours ago   17.4GB
+    gcr.io/local-build/oracle-database-images/oracle-12.2-ee-seeded-${DBNAME}                latest    c766d980c9a0   2 hours ago   17.4GB
     ```
 
 4.  Retag your locally built image if necessary and push it to a registry that

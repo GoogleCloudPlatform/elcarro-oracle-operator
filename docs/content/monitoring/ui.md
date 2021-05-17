@@ -1,8 +1,8 @@
 # User Interface
 
-### Installation
+## Installation
 
-Run the following command to install El Carro ui.
+Run the following command to install El Carro UI.
 
 ```sh
 kubectl apply -f ${PATH_TO_EL_CARRO_RELEASE}/ui.yaml
@@ -17,7 +17,7 @@ deployment.apps/ui created
 service/ui created
 ```
 
-### Visit the Web UI
+## Visit the Web UI
 
 Forward the port of Web UI to [http://localhost:8080](http://localhost:8080).
 
@@ -31,6 +31,6 @@ Backup, click on the side menu on the left.
 
 ## GCP
 
-There's no special El Carro UI available in the Preview release other than the
+There's no special El Carro UI available in this release other than the
 Google Cloud Console to view and manage a GKE cluster with the El Carro Operator
 and database in it.

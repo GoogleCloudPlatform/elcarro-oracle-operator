@@ -1,13 +1,13 @@
 # Monitoring and Dashboards
 
-In the Preview release only basic OS, cluster and Oracle metrics are collected
+In this release only basic OS, cluster and Oracle metrics are collected
 through Prometheus and can be visualized with Grafana.
 
 ## Monitoring Containers Setup
 
-To setup monitoring, run the installation script. This will deploy Prometheus,
-alert manager, node-exporter and grafana on your Kubernetes cluster. The
-deployment will be in a separate namespace called "monitoring"
+To set up monitoring, run the installation script. This will deploy Prometheus,
+alert manager, node-exporter and Grafana on your Kubernetes cluster. The
+deployment will be in a separate namespace called "monitoring".
 
 ```sh
 cd ${PATH_TO_EL_CARRO_RELEASE}
@@ -37,7 +37,7 @@ Apply the configuration:
 kubectl apply -f ${PATH_TO_EL_CARRO_RELEASE}/samples/v1alpha1_instance.yaml -n $NS
 ```
 
-## Setup OracleDB As Monitor Target
+## Set up OracleDB As Monitor Target
 
 This step points Prometheus to start scraping the Oracle DB monitoring agent.
 

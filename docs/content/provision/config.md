@@ -14,7 +14,7 @@ designed to achieve the following:
 
 ## Before you begin
 
-The following variables will be used in this quickstart:
+The following variables will be used in this guide:
 
 ```sh
 export PROJECT_ID=<your GCP project id>
@@ -60,7 +60,7 @@ To get El Carro up and running, you need to do one the following:
       volumeSnapshotClass: "csi-gce-pd-snapshot-class"
     ```
 
-    For the Preview release El Carro relies on three storage volumes to host the
+    For this release El Carro relies on three storage volumes to host the
     following:
 
     *   Oracle binary tree.
@@ -117,3 +117,7 @@ To get El Carro up and running, you need to do one the following:
       Volume Snapshot Class:  csi-gce-pd-snapshot-class
     Events:                   <none>
     ```
+
+## What's Next
+
+Check out [this guide](instance.md) to start provisioning your El Carro Instance.
