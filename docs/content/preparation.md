@@ -166,7 +166,7 @@ export ZONE=<for example: us-central1-a>
 export CLUSTER_NAME=<for example: cluster1>
 export SERVICE_ACCOUNT=<service account used on the signup form>
 
-gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone ${ZONE} --project ${PROJECT_ID} --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account ${SERVICE_ACCOUNT}  --addons GcePersistentDiskCsiDriver
+gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone ${ZONE} --project ${PROJECT_ID} --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account ${SERVICE_ACCOUNT}
 ```
 
 If backups using the storage snapshots are required (El Carro recommended),
