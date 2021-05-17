@@ -70,7 +70,7 @@ UNLIMITED TABLESPACE
 
 ## Case 2: Delete a User
 
-In the Preview release El Carro doesn't delete users (or schemas) in a database.
+In this release El Carro doesn't delete users (or schemas) in a database.
 If a user is removed from a manifest submitted against an existing Database CR,
 El Carro flags this and sets the UsersReady condition type to False.
 

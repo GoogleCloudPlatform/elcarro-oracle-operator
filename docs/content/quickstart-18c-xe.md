@@ -88,12 +88,12 @@ OR
 
 **Perform the manual install steps:**
 
-*   Download El Carro software
+*   Check downloaded El Carro software
 *   Create a containerized database image
 *   Provision a kubernetes cluster. We recommend a cluster running
     Kubernetes/GKE version 1.17 or above.
 *   Deploy the El Carro Operator to your Kubernetes cluster
-*   Create a CDB and PDB (Database) via the El Carro Operator
+*   Create an Instance (CDB) and Database (PDB) via the El Carro Operator
 
 ## Check downloaded El Carro software
 
@@ -183,6 +183,10 @@ containerized database image, you can build an image locally using
 [Docker](https://www.docker.com). You need to push your locally built image to a
 registry that your Kubernetes cluster can pull images from. You must have Docker
 installed before proceeding with a local containerized database image build.
+
+Note that in the current release, local build only works with Linux systems.
+Additional support for other operating systems like Windows, Mac OS, etc. will
+be added in future releases.
 
 1.  Trigger the image creation script
 

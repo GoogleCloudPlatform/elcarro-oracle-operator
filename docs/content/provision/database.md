@@ -80,7 +80,7 @@ mydb     Oracle      12.2      Enterprise   mydb-svc.db     34.122.76.205:6021  
    ```
 
    The above steps can be repeated to create additional Databases (in particular,
-   the samples supplied with El Carro Preview release includes v1alpha1_database_pdb2.yaml).
+   the samples supplied with El Carro release includes v1alpha1_database_pdb2.yaml).
 
 
 1. Connect to a Database
