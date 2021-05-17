@@ -333,7 +333,7 @@ To provision a Kubernetes cluster on Google Kubernetes Engine (GKE), run the
 following command:
 
 ```sh
-gcloud container clusters create $CLUSTER_NAME --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone $ZONE --project $PROJECT_ID --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account $SERVICE_ACCUNT  --addons GcePersistentDiskCsiDriver
+gcloud container clusters create $CLUSTER_NAME --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone $ZONE --project $PROJECT_ID --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account $SERVICE_ACCOUNT
 ```
 
 To get the cluster ready for El Carro, create a k8s storage class and a volume
