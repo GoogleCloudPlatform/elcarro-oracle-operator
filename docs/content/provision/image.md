@@ -40,7 +40,7 @@ Google Cloud Build* or *building the image locally using Docker*.
         [Oracle eDelivery Cloud](https://edelivery.oracle.com).
     -   A recent PSU. The Jan 2021 PSU can be downloaded
         [here](https://support.oracle.com/epmos/faces/PatchDetail?_adf.ctrl-state=bsblgctta_4&patch_name=32228578&releaseId=600000000018520&patchId=32228578&languageId=0&platformId=226&_afrLoop=314820757336783).
-    -   Latest available OPatch that can be downloaded from here. We recommend
+    -   Latest available OPatch that can be downloaded from [here](https://updates.oracle.com/download/6880880.html). We recommend
         choosing the following download parameters:
         -   Release: OPatch 20.0.0.0.0
         -   Platform: Linux x86_64
