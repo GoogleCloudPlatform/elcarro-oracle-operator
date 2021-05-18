@@ -92,8 +92,9 @@ CRD_OPTIONS ?= "crd"
 # allow builds outside $GOPATH/src
 export GO111MODULE=on
 
+# Unit and functional tests
 unit-test:
-	bazel test --test_tag_filters="-integration" ...
+	bazel test --test_output=errors --test_tag_filters="-integration" ...
 
 # Run test, if we are in prow and ARTIFACTS is set, copy junit xmls and test logs for upload.
 test:
@@ -241,6 +242,11 @@ operator-presubmit: prepare-prow
 # Prow canary test job entry point: operator-canary
 operator-canary: prepare-prow
 	$(MAKE) operator-presubmit
+
+# Github presubmit Prow job entry point
+operator-oss-presubmit: prepare-prow
+	$(MAKE) check
+	$(MAKE) unit-test
 
 # Louhi test job entry point: louhi-operator-canary
 louhi-operator-canary: prepare-prow
