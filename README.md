@@ -120,8 +120,9 @@ review in [this guide](docs/contributing.md).
 
 ## Support
 
-To report a bug or log a feature request, please open a GitHub issue and follow
-the guidelines for submitting a bug.
+To report a bug or log a feature request, please open a
+[GitHub issue](https://github.com/GoogleCloudPlatform/elcarro-oracle-operator/issues)
+and follow the guidelines for submitting a bug.
 
 For general questions or community support, we welcome you to join the
 [El Carro community mailing list](https://groups.google.com/forum/#!forum/el-carro)
