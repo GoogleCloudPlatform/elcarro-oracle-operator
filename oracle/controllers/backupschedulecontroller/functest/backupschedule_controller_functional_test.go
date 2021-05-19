@@ -103,7 +103,7 @@ var _ = Describe("BackupSchedule controller", func() {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.InstanceSpec{
-				GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",

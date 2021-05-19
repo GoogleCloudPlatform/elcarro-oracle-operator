@@ -21,16 +21,16 @@ import (
 )
 
 // This is the contract. This Instance is Anthos DB Operator compliant.
-var _ commonv1alpha1.GenericInstance = &Instance{}
+var _ commonv1alpha1.Instance = &Instance{}
 
-// GenericInstanceSpec defines the common specifications for a Generic Instance.
-func (i *Instance) GenericInstanceSpec() commonv1alpha1.GenericInstanceSpec {
-	return i.Spec.GenericInstanceSpec
+// InstanceSpec defines the common specifications for an Instance.
+func (i *Instance) InstanceSpec() commonv1alpha1.InstanceSpec {
+	return i.Spec.InstanceSpec
 }
 
-// GenericInstanceStatus defines the common status for a Generic Instance.
-func (i *Instance) GenericInstanceStatus() commonv1alpha1.GenericInstanceStatus {
-	return i.Status.GenericInstanceStatus
+// InstanceStatus defines the common status for an Instance.
+func (i *Instance) InstanceStatus() commonv1alpha1.InstanceStatus {
+	return i.Status.InstanceStatus
 }
 
 // Service is an Oracle Operator provided service.
@@ -38,9 +38,9 @@ type Service string
 
 // InstanceSpec defines the desired state of Instance.
 type InstanceSpec struct {
-	// GenericInstanceSpec represents the database engine agnostic
+	// InstanceSpec represents the database engine agnostic
 	// part of the spec describing the desired state of an Instance.
-	commonv1alpha1.GenericInstanceSpec `json:",inline"`
+	commonv1alpha1.InstanceSpec `json:",inline"`
 
 	// Restore and recovery request details.
 	// This section should normally be commented out unless an actual
@@ -154,9 +154,9 @@ type DBNetworkServiceOptionsGCP struct {
 
 // InstanceStatus defines the observed state of Instance.
 type InstanceStatus struct {
-	// GenericInstanceStatus represents the database engine agnostic
+	// InstanceStatus represents the database engine agnostic
 	// part of the status describing the observed state of an Instance.
-	commonv1alpha1.GenericInstanceStatus `json:",inline"`
+	commonv1alpha1.InstanceStatus `json:",inline"`
 
 	// List of database names (e.g. PDBs) hosted in the Instance.
 	DatabaseNames []string `json:"databasenames,omitempty"`

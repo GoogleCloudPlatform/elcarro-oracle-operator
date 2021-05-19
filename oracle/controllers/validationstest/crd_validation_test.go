@@ -103,7 +103,7 @@ var _ = Describe("Instance CRD Validation rules", func() {
 				instance := &v1alpha1.Instance{
 					ObjectMeta: instanceMeta,
 					Spec: v1alpha1.InstanceSpec{
-						GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+						InstanceSpec: commonv1alpha1.InstanceSpec{
 							Type: tc.dbType,
 						},
 					},
@@ -239,7 +239,7 @@ var _ = Describe("Instance CRD Validation rules", func() {
 				instance := &v1alpha1.Instance{
 					ObjectMeta: instanceMeta,
 					Spec: v1alpha1.InstanceSpec{
-						GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+						InstanceSpec: commonv1alpha1.InstanceSpec{
 							Disks: tc.disks,
 						},
 					},

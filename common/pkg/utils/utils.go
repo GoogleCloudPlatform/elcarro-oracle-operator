@@ -23,8 +23,8 @@ import (
 
 // DiskSpaceTotal is a helper function to calculate the total amount
 // of allocated space across all disks requested for an instance.
-func DiskSpaceTotal(inst commonv1alpha1.GenericInstance) (int64, error) {
-	spec := inst.GenericInstanceSpec()
+func DiskSpaceTotal(inst commonv1alpha1.Instance) (int64, error) {
+	spec := inst.InstanceSpec()
 	if spec.Disks == nil {
 		return -1, fmt.Errorf("failed to detect requested disks for inst: %v", spec)
 	}
