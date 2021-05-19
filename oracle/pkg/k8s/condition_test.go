@@ -29,18 +29,18 @@ func TestUpsertNew(t *testing.T) {
 
 	InstanceUpsertCondition(&iStatus, "TestName", v1.ConditionTrue, "reason", "message")
 
-	if len(iStatus.GenericInstanceStatus.Conditions) != 1 {
+	if len(iStatus.Conditions) != 1 {
 		t.Errorf("TestUpsertNew")
 	}
 
-	if iStatus.GenericInstanceStatus.Conditions[0].Type != "TestName" {
+	if iStatus.Conditions[0].Type != "TestName" {
 		t.Errorf("TestUpsertNew 2")
 	}
 }
 
 func TestUpsertOld(t *testing.T) {
 	iStatus := v1alpha1.InstanceStatus{
-		GenericInstanceStatus: commonv1alpha1.GenericInstanceStatus{
+		InstanceStatus: commonv1alpha1.InstanceStatus{
 			Conditions: []v1.Condition{
 				{
 					Type:   "TestName",
@@ -63,7 +63,7 @@ func TestUpsertOld(t *testing.T) {
 
 func TestUpsertDoNotDelete(t *testing.T) {
 	iStatus := v1alpha1.InstanceStatus{
-		GenericInstanceStatus: commonv1alpha1.GenericInstanceStatus{
+		InstanceStatus: commonv1alpha1.InstanceStatus{
 			Conditions: []v1.Condition{
 				{
 					Type:   "TestName",
@@ -166,7 +166,7 @@ func TestInstanceUpsertCondition(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			iStatus := &v1alpha1.InstanceStatus{
-				GenericInstanceStatus: commonv1alpha1.GenericInstanceStatus{
+				InstanceStatus: commonv1alpha1.InstanceStatus{
 					Conditions: tc.ExistingConds,
 				},
 			}

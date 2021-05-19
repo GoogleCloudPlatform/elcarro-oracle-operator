@@ -49,9 +49,9 @@ const (
 
 //+kubebuilder:object:generate=true
 
-// GenericInstanceSpec represents the database engine agnostic
+// InstanceSpec represents the database engine agnostic
 // part of the spec describing the desired state of an Instance.
-type GenericInstanceSpec struct {
+type InstanceSpec struct {
 	// Type of a database engine.
 	// +required
 	// +kubebuilder:validation:Enum=Oracle
@@ -134,10 +134,10 @@ type PatchingSpec struct {
 
 //+kubebuilder:object:generate=true
 
-// GenericInstanceStatus defines the observed state of Instance
-type GenericInstanceStatus struct {
+// InstanceStatus defines the observed state of Instance
+type InstanceStatus struct {
 	// Conditions represents the latest available observations
-	// of the GenericInstance's current state.
+	// of the Instance's current state.
 	// +listType=map
 	// +listMapKey=type
 	// +optional
@@ -165,10 +165,10 @@ type GenericInstanceStatus struct {
 	IsChangeApplied metav1.ConditionStatus `json:"isChangeApplied,omitempty"`
 }
 
-// GenericInstance represents the contract for the Anthos DB Operator compliant
+// Instance represents the contract for the Anthos DB Operator compliant
 // database Operator providers to abide by.
-type GenericInstance interface {
+type Instance interface {
 	runtime.Object
-	GenericInstanceSpec() GenericInstanceSpec
-	GenericInstanceStatus() GenericInstanceStatus
+	InstanceSpec() InstanceSpec
+	InstanceStatus() InstanceStatus
 }

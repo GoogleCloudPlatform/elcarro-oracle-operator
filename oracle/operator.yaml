@@ -1979,7 +1979,7 @@ spec:
               type: string
             conditions:
               description: Conditions represents the latest available observations
-                of the GenericInstance's current state.
+                of the Instance's current state.
               items:
                 description: "Condition contains details for one aspect of the current
                   state of this API Resource. --- This struct is intended for direct

@@ -79,7 +79,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 					// Keep the CDBName in the spec different from the CDB name in the image (GCLOUD).
 					// Doing this implicitly test the CDB renaming feature.
 					CDBName: "mydb",
-					GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+					InstanceSpec: commonv1alpha1.InstanceSpec{
 						Version: version,
 						Disks: []commonv1alpha1.DiskSpec{
 							{
