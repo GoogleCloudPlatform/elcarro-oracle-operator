@@ -97,7 +97,7 @@ var _ = Describe("Instance controller", func() {
 				},
 				Spec: v1alpha1.InstanceSpec{
 					CDBName: "GCLOUD",
-					GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+					InstanceSpec: commonv1alpha1.InstanceSpec{
 						Images: images,
 					},
 				},
@@ -149,7 +149,7 @@ var _ = Describe("Instance controller", func() {
 				},
 				Spec: v1alpha1.InstanceSpec{
 					CDBName: "GCLOUD",
-					GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+					InstanceSpec: commonv1alpha1.InstanceSpec{
 						Images: images,
 					},
 				},
@@ -251,7 +251,7 @@ var _ = Describe("Instance controller", func() {
 				},
 				Spec: v1alpha1.InstanceSpec{
 					CDBName: "GCLOUD",
-					GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+					InstanceSpec: commonv1alpha1.InstanceSpec{
 						Images: images,
 					},
 				},
@@ -279,7 +279,7 @@ var _ = Describe("Instance controller", func() {
 					return err
 				}
 				instance.Status = v1alpha1.InstanceStatus{
-					GenericInstanceStatus: commonv1alpha1.GenericInstanceStatus{
+					InstanceStatus: commonv1alpha1.InstanceStatus{
 						Conditions: []metav1.Condition{
 							{
 								Type:               k8s.Ready,
@@ -612,7 +612,7 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 
 	for _, tc := range tests {
 		instanceSpec := v1alpha1.InstanceSpec{
-			GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+			InstanceSpec: commonv1alpha1.InstanceSpec{
 				Parameters:        map[string]string{tc.parameterKey: tc.parameterVal},
 				MaintenanceWindow: &tc.maintenanceWindow,
 			},
@@ -675,7 +675,7 @@ func createSimpleInstance(ctx context.Context, instanceName string, namespace st
 		},
 		Spec: v1alpha1.InstanceSpec{
 			CDBName: "GCLOUD",
-			GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+			InstanceSpec: commonv1alpha1.InstanceSpec{
 				Images: images,
 			},
 		},
