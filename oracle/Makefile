@@ -264,8 +264,8 @@ prepare-release:
 	echo "Generating version"
 	./scripts/generate_version.sh "main" > version.go
 	echo "updating projects"
-	sed -i "s/gcr.io\/elcarro/${PROW_IMAGE_REPO}/g" operator.yaml
-	sed -i "s/gcr.io\/elcarro/${PROW_IMAGE_REPO}/g" main.go
+	sed -i "s/gcr.io\/elcarro/gcr.io\/${PROW_PROJECT}/g" operator.yaml
+	sed -i "s/gcr.io\/elcarro/gcr.io\/${PROW_PROJECT}/g" main.go
 	echo "updating image tags for operator.yaml..."
 	sed -i "s/operator:latest/operator:${RELEASE_NAME}/g" operator.yaml
 	echo "updating image tags for main.go..."
