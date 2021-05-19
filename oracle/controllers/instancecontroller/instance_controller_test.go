@@ -379,12 +379,15 @@ var _ = Describe("Instance controller", func() {
 
 			By("checking that instance is Ready on restore LRO completion")
 			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
-			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 
 			Eventually(func() (metav1.ConditionStatus, error) {
 				return getConditionStatus(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(Equal(1))
+
+			// There might be more than one call to DeleteOperation
+			// from the reconciler loop with the same LRO id.
+			// This should be expected and not harmful.
+			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(BeNumerically(">=", 1))
 
 			By("checking that instance Restore section is deleted")
 			Eventually(func() error {
@@ -473,12 +476,17 @@ var _ = Describe("Instance controller", func() {
 
 			By("checking that instance is Ready on restore LRO completion")
 			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
-			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() (metav1.ConditionStatus, error) {
 				return getConditionStatus(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(Equal(1))
-			Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt).Should(Equal(1))
+			// There might be more than one call to DeleteOperation
+			// from the reconciler loop with the same LRO id.
+			// This should be expected and not harmful.
+			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(BeNumerically(">=", 1))
+
+			Eventually(func() int {
+				return fakeConfigAgentClient.PhysicalRestoreCalledCnt
+			}, timeout, interval).Should(Equal(1))
 
 			By("checking Status.LastRestoreTime was updated")
 			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
@@ -497,7 +505,10 @@ var _ = Describe("Instance controller", func() {
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.RestoreFailed))
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
+			// There might be more than one call to DeleteOperation
+			// from the reconciler loop with the same LRO id.
+			// This should be expected and not harmful.
+			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(BeNumerically(">=", 1))
 
 			By("checking that instance Restore section is deleted")
 			Eventually(func() error {
