@@ -159,7 +159,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
 				CDBName: "GCLOUD",
-				GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
@@ -183,15 +183,15 @@ var _ = Describe("Instance and Database provisioning", func() {
 		}
 
 		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "12.2"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "12.2"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
 			}
 			BackupTest(testCase)
 		})
 		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "18c"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "18c"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
 			}
 			BackupTest(testCase)
@@ -206,7 +206,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
 				CDBName: "GCLOUD",
-				GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
@@ -234,15 +234,15 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "12.2"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "12.2"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
 			}
 			BackupTest(testCase)
 		})
 		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "18c"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "18c"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
 			}
 			BackupTest(testCase)
@@ -256,7 +256,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
 				CDBName: "GCLOUD",
-				GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
@@ -282,15 +282,15 @@ var _ = Describe("Instance and Database provisioning", func() {
 		}
 
 		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "12.2"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "12.2"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
 			}
 			BackupTest(testCase)
 		})
 		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.GenericInstanceSpec.Version = "18c"
-			testCase.instanceSpec.GenericInstanceSpec.Images = map[string]string{
+			testCase.instanceSpec.Version = "18c"
+			testCase.instanceSpec.Images = map[string]string{
 				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
 			}
 			BackupTest(testCase)

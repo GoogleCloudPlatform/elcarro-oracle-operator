@@ -729,7 +729,7 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 		},
 		Spec: v1alpha1.InstanceSpec{
 			CDBName: "GCLOUD",
-			GenericInstanceSpec: commonv1alpha1.GenericInstanceSpec{
+			InstanceSpec: commonv1alpha1.InstanceSpec{
 				Version: version,
 				Disks: []commonv1alpha1.DiskSpec{
 					{
