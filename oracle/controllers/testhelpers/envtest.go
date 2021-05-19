@@ -197,10 +197,15 @@ func initK8sCluster(namespace *string) (envtest.Environment, context.Context, cl
 	if targetZone = os.Getenv("PROW_CLUSTER_ZONE"); targetZone == "" {
 		Expect(errors.New("PROW_CLUSTER_ZONE envar was not set. Did you try to test without make?")).NotTo(HaveOccurred())
 	}
-	cmdGetCreds := exec.Command("gcloud", "container", "clusters", "get-credentials", targetCluster, "--project="+targetProject, "--zone="+targetZone)
-	out, err := cmdGetCreds.CombinedOutput()
-	log.Info("gcloud get-credentials", "output", string(out))
-	Expect(err).NotTo(HaveOccurred())
+
+	// Set up k8s credentials.
+	// This operation might need retrying when executing tests in parallel.
+	Expect(retry.OnError(retry.DefaultBackoff, func(error) bool { return true }, func() error {
+		cmdGetCreds := exec.Command("gcloud", "container", "clusters", "get-credentials", targetCluster, "--project="+targetProject, "--zone="+targetZone)
+		out, err := cmdGetCreds.CombinedOutput()
+		log.Info("gcloud get-credentials", "output", string(out))
+		return err
+	})).Should(Succeed())
 
 	// load the test gcp project config
 	cfg, err := config.GetConfig()
