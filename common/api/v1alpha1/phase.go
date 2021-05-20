@@ -34,6 +34,16 @@ const (
 	DatabaseReady    DatabasePhase = "Ready"
 )
 
+type UserPhase string
+
+const (
+	UserPending  UserPhase = "Pending"
+	UserCreating UserPhase = "Creating"
+	UserUpdating UserPhase = "Updating"
+	UserDeleting UserPhase = "Deleting"
+	UserReady    UserPhase = "Ready"
+)
+
 type BackupPhase string
 
 const (
@@ -41,4 +51,13 @@ const (
 	BackupInProgress BackupPhase = "InProgress"
 	BackupFailed     BackupPhase = "Failed"
 	BackupSucceeded  BackupPhase = "Succeeded"
+)
+
+type RestorePhase string
+
+const (
+	RestorePending    RestorePhase = "Pending"
+	RestoreInProgress RestorePhase = "InProgress"
+	RestoreFailed     RestorePhase = "Failed"
+	RestoreSucceeded  RestorePhase = "Succeeded"
 )

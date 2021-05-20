@@ -447,6 +447,9 @@ spec:
                 the controller.
               format: int64
               type: integer
+            phase:
+              description: Phase is a summary of current state of the Instance.
+              type: string
             url:
               description: URL represents an IP and a port number info needed in order
                 to establish a database connection from outside a cluster.
