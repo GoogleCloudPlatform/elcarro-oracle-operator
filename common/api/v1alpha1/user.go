@@ -14,10 +14,17 @@
 
 package v1alpha1
 
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 //+kubebuilder:object:generate=true
 
 // UserSpec defines the common desired state of User.
 type UserSpec struct {
+	// Name of the Instance that the User belongs to. Immutable.
+	Instance string `json:"instance,omitempty"`
+
 	// Name of the User.
 	// +required
 	Name string `json:"name,omitempty"`
@@ -25,4 +32,22 @@ type UserSpec struct {
 	// Credential of the User. See definition for 'CredentialSpec'.
 	// +required
 	CredentialSpec `json:",inline"`
+}
+
+//+kubebuilder:object:generate=true
+
+// UserStatus defines the observed state of User
+type UserStatus struct {
+	// Phase defines where the User is in its lifecycle.
+	// +optional
+	Phase UserPhase `json:"phase,omitempty"`
+
+	// Conditions represent the current state of the User.
+	// +listType=map
+	// +listMapKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+
+	// Description is for a human consumption.
+	Description string `json:"description,omitempty"`
 }
