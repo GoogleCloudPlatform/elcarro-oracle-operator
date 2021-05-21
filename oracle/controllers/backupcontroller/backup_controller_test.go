@@ -219,7 +219,7 @@ var _ = Describe("Backup controller", func() {
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupReady))
-			Expect(fakeClientFactory.Caclient.PhysicalBackupCalledCnt).Should(Equal(1))
+			Expect(fakeClientFactory.Caclient.PhysicalBackupCalledCnt()).Should(Equal(1))
 		})
 	})
 
@@ -233,8 +233,8 @@ var _ = Describe("Backup controller", func() {
 
 			// configure fake ConfigAgent to be in LRO mode
 			fakeConfigAgentClient := fakeClientFactory.Caclient
-			fakeConfigAgentClient.AsyncPhysicalBackup = true
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusRunning
+			fakeConfigAgentClient.SetAsyncPhysicalBackup(true)
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 
 			By("By creating a RMAN type backup of the instance")
 			backup := &v1alpha1.Backup{
@@ -260,14 +260,14 @@ var _ = Describe("Backup controller", func() {
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupInProgress))
-			Expect(fakeConfigAgentClient.PhysicalBackupCalledCnt).Should(Equal(1))
+			Expect(fakeConfigAgentClient.PhysicalBackupCalledCnt()).Should(Equal(1))
 
 			By("By checking that reconciler watches backup LRO status")
-			getOperationCallsCntBefore := fakeConfigAgentClient.GetOperationCalledCnt
+			getOperationCallsCntBefore := fakeConfigAgentClient.GetOperationCalledCnt()
 
 			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() int {
-				return fakeConfigAgentClient.GetOperationCalledCnt
+				return fakeConfigAgentClient.GetOperationCalledCnt()
 			}, timeout, interval).ShouldNot(Equal(getOperationCallsCntBefore))
 
 			var updatedBackup v1alpha1.Backup
@@ -275,7 +275,7 @@ var _ = Describe("Backup controller", func() {
 			Expect(k8s.FindCondition(updatedBackup.Status.Conditions, k8s.Ready).Reason).Should(Equal(k8s.BackupInProgress))
 
 			By("By checking that physical backup is Ready on backup LRO completion")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
@@ -294,8 +294,8 @@ var _ = Describe("Backup controller", func() {
 			// configure fake ConfigAgent to be in LRO mode with a
 			// failed operation result.
 			fakeConfigAgentClient := fakeClientFactory.Caclient
-			fakeConfigAgentClient.AsyncPhysicalBackup = true
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDoneWithError
+			fakeConfigAgentClient.SetAsyncPhysicalBackup(true)
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
 
 			By("By creating a RMAN type backup of the instance")
 			backup := &v1alpha1.Backup{

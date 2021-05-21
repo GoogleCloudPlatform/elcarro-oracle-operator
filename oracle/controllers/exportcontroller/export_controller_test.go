@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
@@ -177,7 +177,7 @@ var _ = Describe("Export controller", func() {
 			SetDatabaseReadyStatus(metav1.ConditionTrue)
 
 			By("setting LRO status to Done")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
 			CreateExport()
 
@@ -195,7 +195,7 @@ var _ = Describe("Export controller", func() {
 			SetDatabaseReadyStatus(metav1.ConditionTrue)
 
 			By("setting LRO status to DoneWithError")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDoneWithError
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
 
 			CreateExport()
 

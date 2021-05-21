@@ -226,7 +226,7 @@ var _ = Describe("Instance controller", func() {
 			fakeClientFactory.Reset()
 			fakeConfigAgentClient = fakeClientFactory.Caclient
 
-			fakeConfigAgentClient.AsyncPhysicalRestore = true
+			fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 			restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconciler, namespace, instName string) error {
 				return nil
 			}
@@ -342,7 +342,7 @@ var _ = Describe("Instance controller", func() {
 			By("invoking RMAN restore for the an Instance")
 
 			// configure fake ConfigAgent to be in requested mode
-			fakeConfigAgentClient.NextGetOperationStatus = mode
+			fakeConfigAgentClient.SetNextGetOperationStatus(mode)
 			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				if err := k8sClient.Get(ctx, objKey, instance); err != nil {
 					return err
@@ -374,11 +374,11 @@ var _ = Describe("Instance controller", func() {
 			Expect(instance.Status.LastRestoreTime.UnixNano()).Should(Equal(restoreRequestTime.Rfc3339Copy().UnixNano()))
 
 			Eventually(func() int {
-				return fakeConfigAgentClient.PhysicalRestoreCalledCnt
+				return fakeConfigAgentClient.PhysicalRestoreCalledCnt()
 			}, timeout, interval).Should(Equal(1))
 
 			By("checking that instance is Ready on restore LRO completion")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 
 			Eventually(func() (metav1.ConditionStatus, error) {
@@ -414,8 +414,8 @@ var _ = Describe("Instance controller", func() {
 		It("it should NOT attempt to restore with the same RequestTime", func() {
 			instance, backup := testCaseHappyPathLRORestore()
 
-			oldPhysicalRestoreCalledCnt := fakeConfigAgentClient.PhysicalRestoreCalledCnt
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusRunning
+			oldPhysicalRestoreCalledCnt := fakeConfigAgentClient.PhysicalRestoreCalledCnt()
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 
 			By("restoring from same backup with same RequestTime")
 			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -435,7 +435,7 @@ var _ = Describe("Instance controller", func() {
 			Eventually(func() (metav1.ConditionStatus, error) {
 				return getConditionStatus(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
-			Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt).Should(Equal(oldPhysicalRestoreCalledCnt))
+			Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(oldPhysicalRestoreCalledCnt))
 
 			Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
 			Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
@@ -447,10 +447,10 @@ var _ = Describe("Instance controller", func() {
 
 			// reset method call counters used later
 			fakeConfigAgentClient.Reset()
-			fakeConfigAgentClient.AsyncPhysicalRestore = true
+			fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 
 			By("restoring from same backup with later RequestTime")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusRunning
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 			secondRestoreRequestTime := metav1.NewTime(restoreRequestTime.Rfc3339Copy().Add(time.Second))
 
 			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -472,13 +472,13 @@ var _ = Describe("Instance controller", func() {
 			}, timeout, interval).Should(Equal(k8s.RestoreInProgress))
 
 			By("checking that instance is Ready on restore LRO completion")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() (metav1.ConditionStatus, error) {
 				return getConditionStatus(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(Equal(1))
-			Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt).Should(Equal(1))
+			Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(1))
 
 			By("checking Status.LastRestoreTime was updated")
 			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
@@ -521,7 +521,7 @@ var _ = Describe("Instance controller", func() {
 
 		It("it should restore successfully in sync mode", func() {
 
-			fakeConfigAgentClient.AsyncPhysicalRestore = false
+			fakeConfigAgentClient.SetAsyncPhysicalRestore(false)
 			instance, backup := createInstanceAndStartRestore(testhelpers.StatusNotFound)
 
 			By("checking that instance status is Ready")
