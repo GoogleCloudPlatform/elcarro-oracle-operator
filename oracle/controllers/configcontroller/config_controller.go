@@ -48,7 +48,7 @@ var (
 
 // Reconcile looks for the config upload requests and populates
 // Operator config with the customer requested values.
-func (r *ConfigReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *ConfigReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Config", req.NamespacedName)
 

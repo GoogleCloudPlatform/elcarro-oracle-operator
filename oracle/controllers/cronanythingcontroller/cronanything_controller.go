@@ -18,6 +18,7 @@ package cronanythingcontroller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -25,6 +26,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/robfig/cron"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	cronanything "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 )
@@ -50,10 +51,8 @@ import (
 
 var controllerKind = schema.GroupVersion{Group: "oracle.db.anthosapis.com", Version: "v1alpha1"}.WithKind("CronAnything")
 
-var log = logf.Log.WithName("cronanything-controller")
-
 type resourceResolver interface {
-	Start(refreshInterval time.Duration, stopCh <-chan struct{})
+	Start(refreshInterval time.Duration, stopCh <-chan struct{}, log logr.Logger)
 	Resolve(gvk schema.GroupVersionKind) (schema.GroupVersionResource, bool)
 }
 
@@ -71,7 +70,7 @@ type resourceControl interface {
 }
 
 // NewCronAnythingReconciler returns a new CronAnything Reconciler.
-func NewCronAnythingReconciler(mgr manager.Manager) (*ReconcileCronAnything, error) {
+func NewCronAnythingReconciler(mgr manager.Manager, log logr.Logger) (*ReconcileCronAnything, error) {
 	recorder := mgr.GetEventRecorderFor("cronanything-controller")
 
 	dynClient, err := dynamic.NewForConfig(mgr.GetConfig())
@@ -81,9 +80,10 @@ func NewCronAnythingReconciler(mgr manager.Manager) (*ReconcileCronAnything, err
 
 	resolver := NewResourceResolver(mgr.GetConfig())
 	stopCh := make(chan struct{})
-	resolver.Start(30*time.Second, stopCh)
+	resolver.Start(30*time.Second, stopCh, log)
 
-	return &ReconcileCronAnything{
+	r := &ReconcileCronAnything{
+		Log: log,
 		cronanythingControl: &realCronAnythingControl{
 			kubeClient: mgr.GetClient(),
 		},
@@ -95,7 +95,9 @@ func NewCronAnythingReconciler(mgr manager.Manager) (*ReconcileCronAnything, err
 		eventRecorder: recorder,
 		nextTrigger:   make(map[string]time.Time),
 		currentTime:   time.Now,
-	}, nil
+	}
+
+	return r, nil
 }
 
 // SetupWithManager configures the reconciler.
@@ -109,6 +111,7 @@ var _ reconcile.Reconciler = &ReconcileCronAnything{}
 
 // ReconcileCronAnything reconciles a CronAnything object.
 type ReconcileCronAnything struct {
+	Log                 logr.Logger
 	cronanythingControl cronAnythingControl
 	scheme              *runtime.Scheme
 	resourceControl     resourceControl
@@ -124,7 +127,8 @@ type ReconcileCronAnything struct {
 // Reconcile loop for CronAnything. The CronAnything controller does not watch child reosources.
 // To make sure the reconcile loop are triggered when a cron expression triggers, the controller
 // uses RequeueAfter.
-func (r *ReconcileCronAnything) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCronAnything) Reconcile(_ context.Context, request reconcile.Request) (reconcile.Result, error) {
+	log := r.Log.WithValues("cronanything-controller", request.NamespacedName)
 	instance, err := r.cronanythingControl.Get(request.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -242,7 +246,7 @@ func (r *ReconcileCronAnything) Reconcile(request reconcile.Request) (reconcile.
 		}
 	}
 
-	activeChildResources := findActiveChildResources(instance, childResources)
+	activeChildResources := findActiveChildResources(instance, childResources, log)
 	log.Info("Found active child resources", "caName", canonicalName, "numActiveChildResources", len(activeChildResources))
 	if len(activeChildResources) > 0 {
 		switch instance.Spec.ConcurrencyPolicy {
@@ -395,11 +399,11 @@ func (r *ReconcileCronAnything) updateTriggerTimes(canonicalName string, nextSch
 	defer r.nextTriggerMutex.Unlock()
 	triggerTime, found := r.nextTrigger[canonicalName]
 	if found && triggerTime.Equal(nextScheduleTime) {
-		log.Info("Next trigger already queued", "caName", canonicalName, "nextScheduleTime", nextScheduleTime.Format(time.RFC3339))
+		r.Log.Info("Next trigger already queued", "caName", canonicalName, "nextScheduleTime", nextScheduleTime.Format(time.RFC3339))
 		return reconcile.Result{}
 	}
 	r.nextTrigger[canonicalName] = nextScheduleTime
-	log.Info("Next trigger time queued", "caName", canonicalName, "nextScheduleTime", nextScheduleTime.Format(time.RFC3339))
+	r.Log.Info("Next trigger time queued", "caName", canonicalName, "nextScheduleTime", nextScheduleTime.Format(time.RFC3339))
 	return reconcile.Result{
 		RequeueAfter: nextScheduleTime.Sub(r.currentTime()),
 	}
@@ -467,7 +471,7 @@ func (r *ReconcileCronAnything) cleanupHistory(ca *cronanything.CronAnything, ch
 	for _, child := range childResources {
 		finished, err := isFinished(ca, child)
 		if err != nil {
-			log.Error(err, "Error checking if resource is finished", "childName", child.GetName())
+			r.Log.Error(err, "Error checking if resource is finished", "childName", child.GetName())
 			continue
 		}
 		if !finished {
@@ -476,7 +480,7 @@ func (r *ReconcileCronAnything) cleanupHistory(ca *cronanything.CronAnything, ch
 
 		timestamp, err := getResourceTimestamp(ca, child)
 		if err != nil {
-			log.Error(err, "Error looking up finish time on resource", "childName", child.GetName())
+			r.Log.Error(err, "Error looking up finish time on resource", "childName", child.GetName())
 			continue
 		}
 
@@ -503,11 +507,11 @@ func (r *ReconcileCronAnything) deleteInactiveResources(ca *cronanything.CronAny
 		if child.GetDeletionTimestamp() != nil {
 			continue
 		}
-		log.Info("Deleting inactive resource", "childName", child.GetName())
+		r.Log.Info("Deleting inactive resource", "childName", child.GetName())
 		err := r.resourceControl.Delete(resource, child.GetNamespace(), child.GetName())
 		if err != nil {
 			r.eventRecorder.Eventf(ca, v1.EventTypeWarning, "FailedDeleteFinished", "Error deleting finished resource: %v", err)
-			log.Error(err, "Error deleting finished resource", "childName", child.GetName())
+			r.Log.Error(err, "Error deleting finished resource", "childName", child.GetName())
 		} else {
 			deleted[child.GetName()] = true
 		}
@@ -524,16 +528,16 @@ func (r *ReconcileCronAnything) deleteInactiveResources(ca *cronanything.CronAny
 }
 
 // Filters the list of resources to only the resources that have not finished.
-func findActiveChildResources(ca *cronanything.CronAnything, childResources []*unstructured.Unstructured) []*unstructured.Unstructured {
+func findActiveChildResources(ca *cronanything.CronAnything, childResources []*unstructured.Unstructured, log logr.Logger) []*unstructured.Unstructured {
 	return filterChildResources(ca, childResources, func(ca *cronanything.CronAnything, resource *unstructured.Unstructured) (bool, error) {
 		finished, err := isFinished(ca, resource)
 		return !finished, err
-	})
+	}, log)
 }
 
 type filterFunc func(ca *cronanything.CronAnything, resource *unstructured.Unstructured) (bool, error)
 
-func filterChildResources(ca *cronanything.CronAnything, childResources []*unstructured.Unstructured, include filterFunc) []*unstructured.Unstructured {
+func filterChildResources(ca *cronanything.CronAnything, childResources []*unstructured.Unstructured, include filterFunc, log logr.Logger) []*unstructured.Unstructured {
 	var filtered []*unstructured.Unstructured
 	for _, resource := range childResources {
 		shouldInclude, err := include(ca, resource)

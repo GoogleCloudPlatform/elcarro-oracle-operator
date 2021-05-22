@@ -24,10 +24,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/klogr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -39,7 +39,8 @@ import (
 )
 
 func TestParameterUpdate(t *testing.T) {
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+	klog.SetOutput(GinkgoWriter)
+	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ParameterUpdate")
 }
@@ -53,7 +54,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("ParameterUpdate", func() {
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+	klog.SetOutput(GinkgoWriter)
+	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	log := logf.Log
 	pod := "mydb-sts-0"
 	instanceName := "mydb"
@@ -91,7 +93,7 @@ var _ = Describe("ParameterUpdate", func() {
 			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
-				func(obj *runtime.Object) {
+				func(obj *client.Object) {
 					instanceToUpdate := (*obj).(*v1alpha1.Instance)
 					// Add the required parameters spec to the spec file
 					oneHourBefore := metav1.NewTime(time.Now().Add(-1 * time.Hour))
@@ -135,7 +137,7 @@ var _ = Describe("ParameterUpdate", func() {
 			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
-				func(obj *runtime.Object) {
+				func(obj *client.Object) {
 					instanceToUpdate := (*obj).(*v1alpha1.Instance)
 					// Add the required parameters spec to the spec file
 					oneHourBefore := metav1.NewTime(time.Now().Add(-1 * time.Hour))

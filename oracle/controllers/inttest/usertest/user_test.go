@@ -24,13 +24,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/klogr"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
@@ -39,7 +39,8 @@ import (
 )
 
 func TestUser(t *testing.T) {
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+	klog.SetOutput(GinkgoWriter)
+	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "User operations")
 }
@@ -184,7 +185,7 @@ var _ = Describe("User operations", func() {
 			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				objKey,
 				createdDatabase,
-				func(obj *runtime.Object) {
+				func(obj *client.Object) {
 					databaseToUpdate := (*obj).(*v1alpha1.Database)
 					databaseToUpdate.Spec.AdminPasswordGsmSecretRef = &commonv1alpha1.GsmSecretReference{
 						ProjectId: projectId,

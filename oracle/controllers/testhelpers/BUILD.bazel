@@ -6,7 +6,10 @@ go_library(
         "envtest.go",
         "grpcmocks.go",
     ],
-    data = ["//oracle:configs"],
+    data = [
+        "//oracle:configs",
+        "@kubebuilder_tools//:binaries",
+    ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers",
     visibility = ["//visibility:public"],
     deps = [
@@ -21,6 +24,7 @@ go_library(
         "@com_github_onsi_gomega//:gomega",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@go_googleapis//google/rpc:status_go_proto",
+        "@io_bazel_rules_go//go/tools/bazel:go_default_library",
         "@io_bazel_rules_go//proto/wkt:empty_go_proto",
         "@io_k8s_api//apps/v1:apps",
         "@io_k8s_api//core/v1:core",
@@ -35,15 +39,30 @@ go_library(
         "@io_k8s_client_go//plugin/pkg/client/auth/gcp",
         "@io_k8s_client_go//rest",
         "@io_k8s_client_go//util/retry",
+        "@io_k8s_klog_v2//:klog",
+        "@io_k8s_klog_v2//klogr",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/client/config",
         "@io_k8s_sigs_controller_runtime//pkg/envtest",
         "@io_k8s_sigs_controller_runtime//pkg/envtest/printer",
         "@io_k8s_sigs_controller_runtime//pkg/log",
-        "@io_k8s_sigs_controller_runtime//pkg/log/zap",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//codes",
         "@org_golang_google_grpc//status",
     ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
 )

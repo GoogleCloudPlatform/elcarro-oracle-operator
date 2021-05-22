@@ -47,7 +47,7 @@ type fakeBackupReconiler struct {
 	client.Client
 }
 
-func (f *fakeBackupReconiler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (f *fakeBackupReconiler) Reconcile(_ context.Context, req reconcile.Request) (reconcile.Result, error) {
 	ctx := context.TODO()
 	var backup v1alpha1.Backup
 	if err := f.Get(ctx, req.NamespacedName, &backup); err != nil {
@@ -73,7 +73,7 @@ func TestBackupsScheduleController(t *testing.T) {
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "BackupSchedule controller", func() []testhelpers.Reconciler {
 		backupReconciler := &fakeBackupReconiler{k8sClient}
 		backupScheduleReconciler := backupschedulecontroller.NewBackupScheduleReconciler(k8sManager)
-		cronanythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(k8sManager)
+		cronanythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(k8sManager, ctrl.Log.WithName("controllers").WithName("CronAnything"))
 		if err != nil {
 			t.Fatalf("failed to create cronanythingcontroller for backup schedule test")
 		}

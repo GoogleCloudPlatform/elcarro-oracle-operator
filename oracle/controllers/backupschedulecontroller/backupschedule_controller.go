@@ -15,6 +15,7 @@
 package backupschedulecontroller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -84,7 +85,7 @@ type BackupScheduleReconciler struct {
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=backups,verbs=list;delete
 
 // Reconcile is a generic reconcile function for BackupSchedule resources.
-func (r *BackupScheduleReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *BackupScheduleReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("backupschedule", req.NamespacedName)
 	backupSchedule, err := r.backupScheduleCtrl.Get(req.Name, req.Namespace)
 	if err != nil {

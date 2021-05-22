@@ -1,0 +1,22 @@
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//oracle/controllers/inttest/datapumptest:all-srcs",
+        "//oracle/controllers/inttest/instancetest:all-srcs",
+        "//oracle/controllers/inttest/parameterupdatetest:all-srcs",
+        "//oracle/controllers/inttest/physbackuptest:all-srcs",
+        "//oracle/controllers/inttest/releasetest:all-srcs",
+        "//oracle/controllers/inttest/snapbackuptest:all-srcs",
+        "//oracle/controllers/inttest/usertest:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

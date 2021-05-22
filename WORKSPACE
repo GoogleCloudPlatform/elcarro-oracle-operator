@@ -110,3 +110,17 @@ container_pull(
     repository = "distroless/cc",  # /base is also an option for glibc+openssl, see https://github.com/GoogleContainerTools/distroless
     tag = "nonroot",
 )
+
+# Kubebuilder binaries used in controller tests.
+http_archive(
+    name = "kubebuilder_tools",
+    build_file_content = """
+filegroup(
+    name = "binaries",
+    srcs = glob(["**"]),
+    visibility = ["//visibility:public"],
+)""",
+    sha256 = "fb13a93a800389029b06fcc74ab6a3b969ff74178252709a040e4756251739d2",
+    strip_prefix = "kubebuilder",
+    urls = ["https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.19.2-linux-amd64.tar.gz"],
+)

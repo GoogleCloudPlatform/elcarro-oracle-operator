@@ -386,7 +386,7 @@ func (r *InstanceReconciler) updateIsChangeApplied(ctx context.Context, inst *v1
 	r.Log.Info("change applied", "observedGeneration", inst.Status.ObservedGeneration, "generation", inst.Generation)
 }
 
-func (r *InstanceReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, respErr error) {
+func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Instance", req.NamespacedName)
 

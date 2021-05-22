@@ -106,7 +106,7 @@ func (r *DatabaseReconciler) updateIsChangeApplied(ctx context.Context, db *v1al
 // +kubebuilder:rbac:groups="",resources=pods/log,verbs=get;list
 
 // Reconcile is the main method that reconciles the Database resource.
-func (r *DatabaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *DatabaseReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Database", req.NamespacedName)
 
@@ -226,22 +226,21 @@ func (r *DatabaseReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
+func (r *DatabaseReconciler) instanceToDatabases(obj client.Object) []ctrl.Request {
+	var requests []ctrl.Request
+	for _, name := range obj.(*v1alpha1.Instance).Status.DatabaseNames {
+		requests = append(requests, reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      name,
+				Namespace: obj.GetNamespace(),
+			}})
+	}
+	r.Log.Info("Instance event triggered reconcile ", "requests", requests)
+	return requests
+}
+
 // SetupWithManager starts the reconciler loop.
 func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Define a mapping from the object in the event to one or more objects to Reconcile
-	mapFunc := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
-			requests := []reconcile.Request{}
-			for _, name := range a.Object.(*v1alpha1.Instance).Status.DatabaseNames {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      name,
-						Namespace: a.Meta.GetNamespace(),
-					}})
-			}
-			r.Log.Info("Instance event triggered reconcile ", "requests", requests)
-			return requests
-		})
 
 	// UpdateFunc is used to judge if instance event is a 'DatabaseInstanceReady' event. If that is true, the event will be processed by the database reconciler
 	databaseInstanceReadyPredicate := predicate.Funcs{
@@ -277,7 +276,7 @@ func (r *DatabaseReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Watches(
 			&source.Kind{Type: &v1alpha1.Instance{}},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: mapFunc},
+			handler.EnqueueRequestsFromMapFunc(r.instanceToDatabases),
 			builder.WithPredicates(databaseInstanceReadyPredicate),
 		).
 		Complete(r)

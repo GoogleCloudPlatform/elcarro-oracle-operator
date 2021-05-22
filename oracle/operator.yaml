@@ -9,7 +9,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: backups.oracle.db.anthosapis.com
 spec:
@@ -280,7 +280,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: backupschedules.oracle.db.anthosapis.com
 spec:
@@ -575,7 +575,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: configs.oracle.db.anthosapis.com
 spec:
@@ -718,7 +718,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: cronanythings.oracle.db.anthosapis.com
 spec:
@@ -1004,7 +1004,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: databases.oracle.db.anthosapis.com
 spec:
@@ -1268,7 +1268,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: exports.oracle.db.anthosapis.com
 spec:
@@ -1474,7 +1474,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: imports.oracle.db.anthosapis.com
 spec:
@@ -1649,7 +1649,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: instances.oracle.db.anthosapis.com
 spec:
@@ -2117,7 +2117,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: (unknown)
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: releases.oracle.db.anthosapis.com
 spec:

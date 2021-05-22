@@ -82,14 +82,14 @@ var _ = Describe("Config controller", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		_, err := reconciler.Reconcile(ctrl.Request{NamespacedName: objKey})
+		_, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: objKey})
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Delete(context.Background(), config)).Should(Succeed())
 	})
 
 	It("Should success when config doesn't exist", func() {
-		_, err := reconciler.Reconcile(ctrl.Request{NamespacedName: objKey})
+		_, err := reconciler.Reconcile(context.Background(), ctrl.Request{NamespacedName: objKey})
 		Expect(err).ToNot(HaveOccurred())
 	})
 })

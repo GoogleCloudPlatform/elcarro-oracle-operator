@@ -17,6 +17,7 @@ limitations under the License.
 package cronanythingcontroller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,12 +27,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -58,6 +61,7 @@ func createReconciler() (*ReconcileCronAnything, *fakeCronAnythingControl, *fake
 	}
 	fakeResourceResolver := &fakeResourceResolver{}
 	return &ReconcileCronAnything{
+		Log:                 ctrl.Log.WithName("controllers").WithName("CronAnything"),
 		cronanythingControl: fakeCronAnythingControl,
 		scheme:              runtime.NewScheme(),
 		resourceResolver:    fakeResourceResolver,
@@ -147,7 +151,7 @@ func TestCreateNewResourceOnTrigger(t *testing.T) {
 				newUnstructuredResource(ca, "resource2"),
 			}
 
-			result, err := reconciler.Reconcile(reconcile.Request{
+			result, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -196,7 +200,7 @@ func TestAlreadyDeletedCronAnythingResource(t *testing.T) {
 	}
 	fakeCronAnythingControl.getCronAnything = ca
 
-	result, err := reconciler.Reconcile(reconcile.Request{
+	result, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
@@ -226,7 +230,7 @@ func TestSuspended(t *testing.T) {
 	}
 	fakeCronAnythingControl.getCronAnything = ca
 
-	result, err := reconciler.Reconcile(reconcile.Request{
+	result, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
@@ -285,7 +289,7 @@ func TestScheduleTrigger(t *testing.T) {
 
 			fakeCronAnythingControl.getCronAnything = ca
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -314,7 +318,7 @@ func TestTriggerDeadline(t *testing.T) {
 	ca.Spec.TriggerDeadlineSeconds = &twenty
 	fakeCronAnythingControl.getCronAnything = ca
 
-	result, err := reconciler.Reconcile(reconcile.Request{
+	result, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
@@ -597,7 +601,7 @@ func TestConcurrencyPolicy(t *testing.T) {
 			}
 			fakeResourceControl.listResult = resourceListResult
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -629,7 +633,7 @@ func TestReplaceConcurrentIgnoreResourcesMarkedForDeletion(t *testing.T) {
 	unstructured.SetNestedField(resource.Object, baseTime.Format(time.RFC3339), "metadata", "deletionTimestamp")
 	fakeResourceControl.listResult = []*unstructured.Unstructured{resource}
 
-	_, err := reconciler.Reconcile(reconcile.Request{
+	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
@@ -810,7 +814,7 @@ func TestCleanupHistory(t *testing.T) {
 			}
 			fakeResourceControl.listResult = resourceListResult
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -923,7 +927,7 @@ func TestTotalResourceLimit(t *testing.T) {
 			}
 			fakeResourceControl.listResult = resourceListResult
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -974,7 +978,7 @@ func TestCreateResourceAndUpdateCronAnything(t *testing.T) {
 	times, _, _ := getScheduleTimes(ca, baseTime)
 	expectedTriggerTime := times[len(times)-1]
 
-	_, err := reconciler.Reconcile(reconcile.Request{
+	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Namespace: namespace,
 			Name:      name,
@@ -1217,7 +1221,7 @@ func TestTriggerHistory(t *testing.T) {
 			fakeResourceControl.listResult = createUnstructuredSlice(ca, tc.ExistingResourceCount)
 			fakeResourceControl.createError = tc.CreateResourceError
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: namespace,
 					Name:      name,
@@ -1386,7 +1390,8 @@ func (r *fakeResourceControl) List(resource schema.GroupVersionResource, _ strin
 type fakeResourceResolver struct {
 }
 
-func (r *fakeResourceResolver) Start(interval time.Duration, stopCh <-chan struct{}) {}
+func (r *fakeResourceResolver) Start(interval time.Duration, stopCh <-chan struct{}, log logr.Logger) {
+}
 
 func (r *fakeResourceResolver) Resolve(gvk schema.GroupVersionKind) (schema.GroupVersionResource, bool) {
 	return schema.GroupVersionResource{}, true
