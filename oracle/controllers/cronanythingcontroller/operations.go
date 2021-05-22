@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -96,14 +97,14 @@ type realResourceResolver struct {
 	resourceMapping map[schema.GroupVersionKind]schema.GroupVersionResource
 }
 
-func (r *realResourceResolver) Start(refreshInterval time.Duration, stopCh <-chan struct{}) {
+func (r *realResourceResolver) Start(refreshInterval time.Duration, stopCh <-chan struct{}, log logr.Logger) {
 	go func() {
 
 		ticker := time.NewTicker(refreshInterval)
 		defer ticker.Stop()
 
 		for {
-			r.refresh()
+			r.refresh(log)
 
 			select {
 			case <-stopCh:
@@ -114,7 +115,7 @@ func (r *realResourceResolver) Start(refreshInterval time.Duration, stopCh <-cha
 	}()
 }
 
-func (r *realResourceResolver) refresh() {
+func (r *realResourceResolver) refresh(log logr.Logger) {
 	resources, err := r.dc.ServerResources()
 	if err != nil {
 		log.Error(err, "Unable to fetch server resources")

@@ -167,7 +167,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	cronAnythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(mgr)
+	cronAnythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(
+		mgr, ctrl.Log.WithName("controllers").WithName("CronAnything"))
 	if err != nil {
 		setupLog.Error(err, "unable to build controller", "controller", "CronAnything")
 		os.Exit(1)

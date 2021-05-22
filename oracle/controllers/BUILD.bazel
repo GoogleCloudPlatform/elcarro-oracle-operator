@@ -56,3 +56,30 @@ go_test(
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
     ],
 )
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//oracle/controllers/backupcontroller:all-srcs",
+        "//oracle/controllers/backupschedulecontroller:all-srcs",
+        "//oracle/controllers/configcontroller:all-srcs",
+        "//oracle/controllers/cronanythingcontroller:all-srcs",
+        "//oracle/controllers/databasecontroller:all-srcs",
+        "//oracle/controllers/exportcontroller:all-srcs",
+        "//oracle/controllers/importcontroller:all-srcs",
+        "//oracle/controllers/instancecontroller:all-srcs",
+        "//oracle/controllers/inttest:all-srcs",
+        "//oracle/controllers/testhelpers:all-srcs",
+        "//oracle/controllers/validationstest:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

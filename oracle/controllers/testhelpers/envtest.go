@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bazelbuild/rules_go/go/tools/bazel"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	. "github.com/onsi/ginkgo"
 	ginkgoconfig "github.com/onsi/ginkgo/config"
@@ -48,13 +49,14 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/klogr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
@@ -115,8 +117,14 @@ func RunReconcilerTestSuite(t *testing.T, k8sClient *client.Client, k8sManager *
 		ControlPlaneStartTimeout: 60 * time.Second, // Default 20s may not be enough for test pods.
 	}
 
+	if runfiles, err := bazel.RunfilesPath(); err == nil {
+		// Running with bazel test, find binary assets in runfiles.
+		testEnv.BinaryAssetsDirectory = filepath.Join(runfiles, "external/kubebuilder_tools/bin")
+	}
+
 	BeforeSuite(func(done Done) {
-		logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+		klog.SetOutput(GinkgoWriter)
+		logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 
 		var err error
 		cfg, err := testEnv.Start()
@@ -181,7 +189,8 @@ var (
 // Create a new 'namespace'
 func initK8sCluster(namespace *string) (envtest.Environment, context.Context, client.Client) {
 	cdToRoot(nil)
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
+	klog.SetOutput(GinkgoWriter)
+	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	log := logf.Log
 	// Generate credentials for our test cluster.
 	Expect(os.Setenv("KUBECONFIG", fmt.Sprintf("/tmp/.kubectl/config-%v", *namespace))).Should(Succeed())
@@ -832,7 +841,7 @@ select name from test_table;`
 // Depends on the Ginkgo asserts.
 func WaitForObjectConditionState(k8sEnv K8sOperatorEnvironment,
 	key client.ObjectKey,
-	emptyObj runtime.Object,
+	emptyObj client.Object,
 	condition string,
 	targetStatus metav1.ConditionStatus,
 	targetReason string,
@@ -966,7 +975,7 @@ const retryTimeout = time.Second * 5
 const retryInterval = time.Second * 1
 
 // K8sCreateWithRetry calls k8s Create() with retry as k8s might require this in some cases (e.g. conflicts).
-func K8sCreateWithRetry(k8sClient client.Client, ctx context.Context, obj runtime.Object) {
+func K8sCreateWithRetry(k8sClient client.Client, ctx context.Context, obj client.Object) {
 	Eventually(
 		func() error {
 			return k8sClient.Create(ctx, obj)
@@ -974,7 +983,7 @@ func K8sCreateWithRetry(k8sClient client.Client, ctx context.Context, obj runtim
 }
 
 // K8sGetWithRetry calls k8s Get() with retry as k8s might require this in some cases (e.g. conflicts).
-func K8sGetWithRetry(k8sClient client.Client, ctx context.Context, instKey client.ObjectKey, obj runtime.Object) {
+func K8sGetWithRetry(k8sClient client.Client, ctx context.Context, instKey client.ObjectKey, obj client.Object) {
 	Eventually(
 		func() error {
 			return k8sClient.Get(ctx, instKey, obj)
@@ -982,7 +991,7 @@ func K8sGetWithRetry(k8sClient client.Client, ctx context.Context, instKey clien
 }
 
 // K8sDeleteWithRetry calls k8s Delete() with retry as k8s might require this in some cases (e.g. conflicts).
-func K8sDeleteWithRetry(k8sClient client.Client, ctx context.Context, obj runtime.Object) {
+func K8sDeleteWithRetry(k8sClient client.Client, ctx context.Context, obj client.Object) {
 	Eventually(
 		func() error {
 			return k8sClient.Delete(ctx, obj)
@@ -996,8 +1005,8 @@ func K8sDeleteWithRetry(k8sClient client.Client, ctx context.Context, obj runtim
 func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 	ctx context.Context,
 	objKey client.ObjectKey,
-	emptyObj runtime.Object,
-	modifyObjectFunc func(*runtime.Object)) {
+	emptyObj client.Object,
+	modifyObjectFunc func(*client.Object)) {
 
 	Eventually(
 		func() error {
@@ -1016,7 +1025,7 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 
 // K8sCreateAndGet calls k8s Create() with retry and then wait for the object to be created.
 // Updates 'createdObj' with the created object.
-func K8sCreateAndGet(k8sClient client.Client, ctx context.Context, objKey client.ObjectKey, obj runtime.Object, createdObj runtime.Object) {
+func K8sCreateAndGet(k8sClient client.Client, ctx context.Context, objKey client.ObjectKey, obj client.Object, createdObj client.Object) {
 	K8sCreateWithRetry(k8sClient, ctx, obj)
 	Eventually(
 		func() error {
@@ -1042,7 +1051,7 @@ func SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv K8sOperatorEnvironment) {
 	K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 		client.ObjectKey{Namespace: k8sEnv.Namespace, Name: "default"},
 		saObj,
-		func(obj *runtime.Object) {
+		func(obj *client.Object) {
 			// Add service account annotation.
 			(*obj).(*corev1.ServiceAccount).ObjectMeta.Annotations = map[string]string{
 				"iam.gke.io/gcp-service-account": GCloudServiceAccount(),

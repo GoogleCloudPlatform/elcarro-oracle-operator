@@ -15,6 +15,7 @@
 package backupschedulecontroller
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -45,7 +46,7 @@ func TestReconcileWithNoBackupSchedule(t *testing.T) {
 	backupScheduleCtrl.get = func(name, _ string) (*v1alpha1.BackupSchedule, error) {
 		return nil, errors.NewNotFound(schema.GroupResource{Group: "oracle.db.anthosapis.com", Resource: "BackupSchedule"}, name)
 	}
-	_, err := reconciler.Reconcile(reconcile.Request{
+	_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      testBackupScheduleName,
 			Namespace: testNamespace,
@@ -185,7 +186,7 @@ status: {}`),
 			}
 			backupSchedule.Spec = *tc.backupScheduleSpec
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testBackupScheduleName,
 					Namespace: testNamespace,
@@ -328,7 +329,7 @@ template:
 				return err
 			}
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testBackupScheduleName,
 					Namespace: testNamespace,
@@ -417,7 +418,7 @@ func TestReconcileWithBackupPrune(t *testing.T) {
 				return nil
 			}
 
-			_, err := reconciler.Reconcile(reconcile.Request{
+			_, err := reconciler.Reconcile(context.Background(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testBackupScheduleName,
 					Namespace: testNamespace,

@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
@@ -130,7 +129,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 				testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 					instKey,
 					instance,
-					func(obj *runtime.Object) {
+					func(obj *client.Object) {
 						instanceToUpdate := (*obj).(*v1alpha1.Instance)
 						instanceToUpdate.Spec.Restore = &v1alpha1.RestoreSpec{
 							BackupType:  createdBackup.Spec.Type,

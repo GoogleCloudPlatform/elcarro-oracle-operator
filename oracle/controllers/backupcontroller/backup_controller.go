@@ -187,7 +187,7 @@ func (r *BackupReconciler) updateBackupStatus(ctx context.Context, backup *v1alp
 	return r.Status().Update(ctx, backup)
 }
 
-func (r *BackupReconciler) Reconcile(req ctrl.Request) (result ctrl.Result, recErr error) {
+func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Backup", req.NamespacedName)
 
@@ -416,7 +416,7 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	mgr.GetFieldIndexer().IndexField(
 		context.TODO(),
 		&snapv1.VolumeSnapshot{}, ".spec.name",
-		func(obj runtime.Object) []string {
+		func(obj client.Object) []string {
 			snapName := obj.(*snapv1.VolumeSnapshot).Name
 			if snapName == "" {
 				return nil
