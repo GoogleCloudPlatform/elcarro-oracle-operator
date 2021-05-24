@@ -100,6 +100,9 @@ var _ = Describe("Backup controller", func() {
 
 		instance.Status.Conditions = k8s.Upsert(instance.Status.Conditions, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, "")
 		Expect(k8sClient.Status().Update(ctx, &instance)).Should(Succeed())
+		Eventually(func() (metav1.ConditionStatus, error) {
+			return getInstanceConditionStatus(ctx, objKey, k8s.Ready)
+		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 
 		fakeClientFactory.Reset()
 	})
@@ -339,6 +342,19 @@ func getConditionReason(ctx context.Context, objKey client.ObjectKey, condType s
 		return "", fmt.Errorf("%v condition type not found", condType)
 	}
 	return cond.Reason, nil
+}
+
+func getInstanceConditionStatus(ctx context.Context, objKey client.ObjectKey, condType string) (metav1.ConditionStatus, error) {
+	var instance v1alpha1.Instance
+	if err := k8sClient.Get(ctx, objKey, &instance); err != nil {
+		return "", err
+	}
+
+	cond := k8s.FindCondition(instance.Status.Conditions, condType)
+	if cond == nil {
+		return "", fmt.Errorf("%v condition type not found", condType)
+	}
+	return cond.Status, nil
 }
 
 // triggerReconcile invokes k8s reconcile action by updating
