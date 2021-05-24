@@ -17,6 +17,8 @@ package testhelpers
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/genproto/googleapis/longrunning"
@@ -31,7 +33,7 @@ import (
 )
 
 // FakeOperationStatus is an enum type for LRO statuses managed by FakeConfigAgentClient.
-type FakeOperationStatus int
+type FakeOperationStatus int32
 
 const (
 	//StatusUndefined undefined.
@@ -48,31 +50,33 @@ const (
 
 // FakeConfigAgentClient a client for capturing calls the various ConfigAgent api.
 type FakeConfigAgentClient struct {
-	PhysicalBackupCalledCnt        int
-	PhysicalRestoreCalledCnt       int
-	CreateDatabaseCalledCnt        int
-	CreateUsersCalledCnt           int
-	UsersChangedCalledCnt          int
-	UpdateUsersCalledCnt           int
-	CheckStatusCalledCnt           int
-	CreateCDBCalledCnt             int
-	BootstrapCDBCalledCnt          int
-	BootstrapDatabaseCalledCnt     int
-	BootstrapStandbyCalledCnt      int
-	BounceDatabaseCalledCnt        int
-	CreateListenerCalledCnt        int
-	ListOperationsCalledCnt        int
-	GetOperationCalledCnt          int
-	deleteOperationCalledCnt       int
-	dataPumpImportCalledCnt        int
-	dataPumpExportCalledCnt        int
-	SetParameterCalledCnt          int
-	GetParameterTypeValueCalledCnt int
-	RecoverConfigFileCalledCnt     int
-	AsyncPhysicalBackup            bool
-	AsyncPhysicalRestore           bool
-	FetchServiceImageMetaDataCnt   int
-	NextGetOperationStatus         FakeOperationStatus
+	physicalBackupCalledCnt        int32
+	physicalRestoreCalledCnt       int32
+	createDatabaseCalledCnt        int32
+	createUsersCalledCnt           int32
+	usersChangedCalledCnt          int32
+	updateUsersCalledCnt           int32
+	checkStatusCalledCnt           int32
+	createCDBCalledCnt             int32
+	bootstrapCDBCalledCnt          int32
+	bootstrapDatabaseCalledCnt     int32
+	bootstrapStandbyCalledCnt      int32
+	bounceDatabaseCalledCnt        int32
+	createListenerCalledCnt        int32
+	listOperationsCalledCnt        int32
+	getOperationCalledCnt          int32
+	deleteOperationCalledCnt       int32
+	dataPumpImportCalledCnt        int32
+	dataPumpExportCalledCnt        int32
+	setParameterCalledCnt          int32
+	getParameterTypeValueCalledCnt int32
+	recoverConfigFileCalledCnt     int32
+
+	lock                         sync.Mutex
+	fetchServiceImageMetaDataCnt int32
+	asyncPhysicalBackup          bool
+	asyncPhysicalRestore         bool
+	nextGetOperationStatus       FakeOperationStatus
 }
 
 var (
@@ -104,69 +108,69 @@ func (cli *FakeConfigAgentClient) Reset() {
 
 // CreateDatabase wrapper.
 func (cli *FakeConfigAgentClient) CreateDatabase(context.Context, *capb.CreateDatabaseRequest, ...grpc.CallOption) (*capb.CreateDatabaseResponse, error) {
-	cli.CreateCDBCalledCnt++
+	atomic.AddInt32(&cli.createCDBCalledCnt, 1)
 	return nil, nil
 }
 
 // CreateUsers wrapper.
 func (cli *FakeConfigAgentClient) CreateUsers(context.Context, *capb.CreateUsersRequest, ...grpc.CallOption) (*capb.CreateUsersResponse, error) {
-	cli.CreateUsersCalledCnt++
+	atomic.AddInt32(&cli.createUsersCalledCnt, 1)
 	return nil, nil
 }
 
 // UsersChanged wrapper.
 func (cli *FakeConfigAgentClient) UsersChanged(context.Context, *capb.UsersChangedRequest, ...grpc.CallOption) (*capb.UsersChangedResponse, error) {
-	cli.UsersChangedCalledCnt++
+	atomic.AddInt32(&cli.usersChangedCalledCnt, 1)
 	return nil, nil
 }
 
 // UpdateUsers wrapper.
 func (cli *FakeConfigAgentClient) UpdateUsers(context.Context, *capb.UpdateUsersRequest, ...grpc.CallOption) (*capb.UpdateUsersResponse, error) {
-	cli.UpdateUsersCalledCnt++
+	atomic.AddInt32(&cli.updateUsersCalledCnt, 1)
 	return nil, nil
 }
 
 // PhysicalBackup wrapper.
 func (cli *FakeConfigAgentClient) PhysicalBackup(context.Context, *capb.PhysicalBackupRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.PhysicalBackupCalledCnt++
-	return &longrunning.Operation{Done: !cli.AsyncPhysicalBackup}, nil
+	atomic.AddInt32(&cli.physicalBackupCalledCnt, 1)
+	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, nil
 }
 
 // PhysicalRestore wrapper.
 func (cli *FakeConfigAgentClient) PhysicalRestore(context.Context, *capb.PhysicalRestoreRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.PhysicalRestoreCalledCnt++
-	return &longrunning.Operation{Done: !cli.AsyncPhysicalRestore}, nil
+	atomic.AddInt32(&cli.physicalRestoreCalledCnt, 1)
+	return &longrunning.Operation{Done: !cli.asyncPhysicalRestore}, nil
 }
 
 // CheckStatus wrapper.
 func (cli *FakeConfigAgentClient) CheckStatus(context.Context, *capb.CheckStatusRequest, ...grpc.CallOption) (*capb.CheckStatusResponse, error) {
-	cli.CheckStatusCalledCnt++
+	atomic.AddInt32(&cli.checkStatusCalledCnt, 1)
 	return nil, nil
 }
 
 // CreateCDB wrapper.
 func (cli *FakeConfigAgentClient) CreateCDB(context.Context, *capb.CreateCDBRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.CreateCDBCalledCnt++
+	atomic.AddInt32(&cli.createCDBCalledCnt, 1)
 	return nil, nil
 }
 
 // CreateListener wrapper.
 func (cli *FakeConfigAgentClient) CreateListener(context.Context, *capb.CreateListenerRequest, ...grpc.CallOption) (*capb.CreateListenerResponse, error) {
-	cli.CreateListenerCalledCnt++
+	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
 	return nil, nil
 }
 
 // ListOperations wrapper.
 func (cli *FakeConfigAgentClient) ListOperations(context.Context, *longrunning.ListOperationsRequest, ...grpc.CallOption) (*longrunning.ListOperationsResponse, error) {
-	cli.ListOperationsCalledCnt++
+	atomic.AddInt32(&cli.listOperationsCalledCnt, 1)
 	return nil, nil
 }
 
 // GetOperation wrapper.
 func (cli *FakeConfigAgentClient) GetOperation(context.Context, *longrunning.GetOperationRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.GetOperationCalledCnt++
+	atomic.AddInt32(&cli.getOperationCalledCnt, 1)
 
-	switch cli.NextGetOperationStatus {
+	switch cli.NextGetOperationStatus() {
 	case StatusDone:
 		return &longrunning.Operation{Done: true}, nil
 
@@ -188,86 +192,122 @@ func (cli *FakeConfigAgentClient) GetOperation(context.Context, *longrunning.Get
 		panic("Misconfigured test, set up expected operation status")
 
 	default:
-		panic(fmt.Sprintf("unknown status: %v", cli.NextGetOperationStatus))
+		panic(fmt.Sprintf("unknown status: %v", cli.NextGetOperationStatus()))
 	}
 }
 
 // DeleteOperation wrapper.
 func (cli *FakeConfigAgentClient) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest, ...grpc.CallOption) (*empty.Empty, error) {
-	cli.deleteOperationCalledCnt++
+	atomic.AddInt32(&cli.deleteOperationCalledCnt, 1)
 	return nil, nil
 }
 
 // CreateCDBUser wrapper.
 func (cli *FakeConfigAgentClient) CreateCDBUser(context.Context, *capb.CreateCDBUserRequest, ...grpc.CallOption) (*capb.CreateCDBUserResponse, error) {
-	cli.CreateListenerCalledCnt++
+	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
 	return nil, nil
 }
 
 // BootstrapDatabase wrapper.
 func (cli *FakeConfigAgentClient) BootstrapDatabase(context.Context, *capb.BootstrapDatabaseRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.BootstrapDatabaseCalledCnt++
+	atomic.AddInt32(&cli.bootstrapDatabaseCalledCnt, 1)
 	return nil, nil
 }
 
 // BootstrapStandby wrapper.
 func (cli *FakeConfigAgentClient) BootstrapStandby(context.Context, *capb.BootstrapStandbyRequest, ...grpc.CallOption) (*capb.BootstrapStandbyResponse, error) {
-	cli.BootstrapStandbyCalledCnt++
+	atomic.AddInt32(&cli.bootstrapStandbyCalledCnt, 1)
 	return nil, nil
 }
 
 // DataPumpImport wrapper.
 func (cli *FakeConfigAgentClient) DataPumpImport(context.Context, *capb.DataPumpImportRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.dataPumpImportCalledCnt++
+	atomic.AddInt32(&cli.dataPumpImportCalledCnt, 1)
 	return &longrunning.Operation{Done: false}, nil
 }
 
 // DataPumpExport wrapper.
 func (cli *FakeConfigAgentClient) DataPumpExport(context.Context, *capb.DataPumpExportRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	cli.dataPumpExportCalledCnt++
+	atomic.AddInt32(&cli.dataPumpExportCalledCnt, 1)
 	return nil, nil
 }
 
 // BounceDatabase wrapper.
 func (cli *FakeConfigAgentClient) BounceDatabase(context.Context, *capb.BounceDatabaseRequest, ...grpc.CallOption) (*capb.BounceDatabaseResponse, error) {
-	cli.BounceDatabaseCalledCnt++
+	atomic.AddInt32(&cli.bounceDatabaseCalledCnt, 1)
 	return nil, nil
 }
 
-// DataPumpImportCalledCnt return call count.
+// DataPumpImportCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) DataPumpImportCalledCnt() int {
-	return cli.dataPumpImportCalledCnt
+	return int(atomic.LoadInt32(&cli.dataPumpImportCalledCnt))
 }
 
-// DataPumpExportCalledCnt return call count.
+// DataPumpExportCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) DataPumpExportCalledCnt() int {
-	return cli.dataPumpExportCalledCnt
+	return int(atomic.LoadInt32(&cli.dataPumpExportCalledCnt))
 }
 
-// DeleteOperationCalledCnt return call count.
+// DeleteOperationCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) DeleteOperationCalledCnt() int {
-	return cli.deleteOperationCalledCnt
+	return int(atomic.LoadInt32(&cli.deleteOperationCalledCnt))
+}
+
+func (cli *FakeConfigAgentClient) PhysicalBackupCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.physicalBackupCalledCnt))
+}
+
+func (cli *FakeConfigAgentClient) PhysicalRestoreCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.physicalRestoreCalledCnt))
+}
+
+func (cli *FakeConfigAgentClient) GetOperationCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.getOperationCalledCnt))
 }
 
 // SetParameter wrapper.
 func (cli *FakeConfigAgentClient) SetParameter(context.Context, *capb.SetParameterRequest, ...grpc.CallOption) (*capb.SetParameterResponse, error) {
-	cli.SetParameterCalledCnt++
+	atomic.AddInt32(&cli.setParameterCalledCnt, 1)
 	return nil, nil
 }
 
 // GetParameterTypeValue wrapper.
 func (cli *FakeConfigAgentClient) GetParameterTypeValue(context.Context, *capb.GetParameterTypeValueRequest, ...grpc.CallOption) (*capb.GetParameterTypeValueResponse, error) {
-	cli.GetParameterTypeValueCalledCnt++
+	atomic.AddInt32(&cli.getParameterTypeValueCalledCnt, 1)
 	return nil, nil
 }
 
 // RecoverConfigFile wrapper.
 func (cli *FakeConfigAgentClient) RecoverConfigFile(ctx context.Context, in *capb.RecoverConfigFileRequest, opts ...grpc.CallOption) (*capb.RecoverConfigFileResponse, error) {
-	cli.RecoverConfigFileCalledCnt++
+	atomic.AddInt32(&cli.recoverConfigFileCalledCnt, 1)
 	return nil, nil
 }
 
 func (cli *FakeConfigAgentClient) FetchServiceImageMetaData(ctx context.Context, in *capb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*capb.FetchServiceImageMetaDataResponse, error) {
-	cli.FetchServiceImageMetaDataCnt++
+	atomic.AddInt32(&cli.fetchServiceImageMetaDataCnt, 1)
 	return nil, nil
+}
+
+func (cli *FakeConfigAgentClient) SetNextGetOperationStatus(status FakeOperationStatus) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.nextGetOperationStatus = status
+}
+
+func (cli *FakeConfigAgentClient) NextGetOperationStatus() FakeOperationStatus {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	return cli.nextGetOperationStatus
+}
+
+func (cli *FakeConfigAgentClient) SetAsyncPhysicalBackup(async bool) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.asyncPhysicalBackup = async
+}
+
+func (cli *FakeConfigAgentClient) SetAsyncPhysicalRestore(async bool) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.asyncPhysicalRestore = async
 }

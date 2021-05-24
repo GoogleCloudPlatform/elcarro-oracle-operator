@@ -153,7 +153,7 @@ var _ = Describe("Import controller", func() {
 
 		It("Should succeed when LRO completes successfully", func() {
 			By("simulating successful DataPumpImport LRO completion")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDone
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
 			By("creating a new import")
 			Expect(k8sClient.Create(ctx, imp)).Should(Succeed())
@@ -172,7 +172,7 @@ var _ = Describe("Import controller", func() {
 
 		It("Should handle LRO failure", func() {
 			By("simulating failed DataPumpImport LRO completion")
-			fakeConfigAgentClient.NextGetOperationStatus = testhelpers.StatusDoneWithError
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
 
 			By("creating a new import")
 			Expect(k8sClient.Create(ctx, imp)).Should(Succeed())
