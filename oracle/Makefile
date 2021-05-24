@@ -273,3 +273,19 @@ prepare-release:
 	sed -i "s/configagent:latest/configagent:${RELEASE_NAME}/g" main.go
 	sed -i "s/monitoring:latest/monitoring:${RELEASE_NAME}/g" main.go
 	sed -i "s/loggingsidecar:latest/loggingsidecar:${RELEASE_NAME}/g" main.go
+
+
+export EL_CARRO_RELEASE_ARTIFACTS_DIR ?= release-artifacts
+copy-release-artifacts:
+	mkdir -p ${EL_CARRO_RELEASE_ARTIFACTS_DIR}
+	cp -R -t ${EL_CARRO_RELEASE_ARTIFACTS_DIR} build/dbimage \
+		operator.yaml \
+		ui.yaml \
+		config/samples \
+		config/workflows \
+		scripts/get_all_logs.sh \
+		scripts/setup_monitoring.sh \
+		config/prometheus/db_monitor.yaml \
+		../third_party/dashboards \
+		dashboards \
+		scripts/deploy
