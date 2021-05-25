@@ -29,12 +29,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
@@ -519,6 +520,89 @@ var _ = Describe("Instance controller", func() {
 			Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
 		})
 
+		It("it should be able to restore from RestoreFailed state", func() {
+			fakeConfigAgentClient.SetAsyncPhysicalRestore(false)
+
+			instance := createSimpleInstance(ctx, InstanceName, Namespace, timeout, interval)
+			backup := createSimpleRMANBackup(ctx, InstanceName, backupName, backupID, Namespace)
+
+			By("setting Instance as False:RestoreFailed")
+			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				if err := k8sClient.Get(ctx, objKey, instance); err != nil {
+					return err
+				}
+				instance.Status = v1alpha1.InstanceStatus{
+					InstanceStatus: commonv1alpha1.InstanceStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               k8s.Ready,
+								Status:             metav1.ConditionFalse,
+								Reason:             k8s.RestoreFailed,
+								LastTransitionTime: metav1.Now().Rfc3339Copy(),
+							},
+							{
+								Type:               k8s.DatabaseInstanceReady,
+								Status:             metav1.ConditionTrue,
+								Reason:             k8s.CreateComplete,
+								LastTransitionTime: metav1.Now().Rfc3339Copy(),
+							},
+						},
+					},
+				}
+				return k8sClient.Status().Update(ctx, instance)
+			})).Should(Succeed())
+
+			// configure fake ConfigAgent to be in requested mode
+			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusNotFound)
+			Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				if err := k8sClient.Get(ctx, objKey, instance); err != nil {
+					return err
+				}
+				instance.Spec.Restore = &v1alpha1.RestoreSpec{
+					BackupID:    backupID,
+					BackupType:  "Physical",
+					Force:       true,
+					RequestTime: restoreRequestTime,
+				}
+				return k8sClient.Update(ctx, instance)
+			})).Should(Succeed())
+
+			By("checking that instance status is Ready")
+			Eventually(func() (metav1.ConditionStatus, error) {
+				return getConditionStatus(ctx, objKey, k8s.Ready)
+			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
+
+			Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(0))
+
+			By("checking that instance Restore section is deleted")
+			Eventually(func() error {
+				if err := k8sClient.Get(ctx, objKey, instance); err != nil {
+					return err
+				}
+				if instance.Spec.Restore != nil {
+					return fmt.Errorf("expected update has not yet happened")
+				}
+				return nil
+			}, timeout, interval).Should(Succeed())
+
+			By("checking that instance Status.Description is updated")
+			Eventually(func() error {
+				if err := k8sClient.Get(ctx, objKey, instance); err != nil {
+					return err
+				}
+				if !strings.HasPrefix(instance.Status.Description, "Restored on") {
+					return fmt.Errorf("%q does not have expected prefix", instance.Status.Description)
+				}
+				if !strings.Contains(instance.Status.Description, backupID) {
+					return fmt.Errorf("%q does not contain %q", instance.Status.Description, backupID)
+				}
+				return nil
+			}, timeout, interval).Should(Succeed())
+
+			Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		})
+
 		It("it should restore successfully in sync mode", func() {
 
 			fakeConfigAgentClient.SetAsyncPhysicalRestore(false)
@@ -666,8 +750,9 @@ func triggerReconcile(ctx context.Context, objKey client.ObjectKey) error {
 }
 
 func createSimpleInstance(ctx context.Context, instanceName string, namespace string, timeout time.Duration, interval time.Duration) *v1alpha1.Instance {
-	By("Creating a new Instance")
-	images := map[string]string{"service": "image"}
+	objKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
+
+	By("creating a new Instance")
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
@@ -680,41 +765,87 @@ func createSimpleInstance(ctx context.Context, instanceName string, namespace st
 			},
 		},
 	}
-
 	Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
+
+	By("checking that statefulset/deployment/svc are created")
+
+	Eventually(
+		func() error {
+			var createdInst v1alpha1.Instance
+			if err := k8sClient.Get(ctx, objKey, &createdInst); err != nil {
+				return err
+			}
+			if cond := k8s.FindCondition(createdInst.Status.Conditions, k8s.Ready); !k8s.ConditionReasonEquals(cond, k8s.CreateInProgress) {
+				return errors.New("expected update has not happened yet")
+			}
+			return nil
+		}, timeout, interval).Should(Succeed())
+
+	By("setting Instance as Ready")
 	createdInstance := &v1alpha1.Instance{}
-	// We'll need to retry getting this newly created Instance, given that creation may not immediately happen.
-	Eventually(
-		func() error {
-			return k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: instance.Name}, createdInstance)
-		}, timeout, interval).Should(Succeed())
-
-	Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		if err := k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: instance.Name}, instance); client.IgnoreNotFound(err) != nil {
-			return err
+	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *runtime.Object) {
+		(*obj).(*v1alpha1.Instance).Status = v1alpha1.InstanceStatus{
+			InstanceStatus: commonv1alpha1.InstanceStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               k8s.Ready,
+						Status:             metav1.ConditionTrue,
+						Reason:             k8s.CreateComplete,
+						LastTransitionTime: metav1.Now().Rfc3339Copy(),
+					},
+					{
+						Type:               k8s.DatabaseInstanceReady,
+						Status:             metav1.ConditionTrue,
+						Reason:             k8s.CreateComplete,
+						LastTransitionTime: metav1.Now().Rfc3339Copy(),
+					},
+				},
+			},
 		}
-		instance.Status.Conditions = k8s.Upsert(instance.Status.Conditions, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, "")
-		instance.Status.Conditions = k8s.Upsert(instance.Status.Conditions, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, "")
-		return k8sClient.Status().Update(ctx, instance)
-	})).Should(Succeed())
+	})
 
-	By("By creating an agent service")
-	agentSvc := &corev1.Service{
+	return createdInstance
+}
+
+func createSimpleRMANBackup(ctx context.Context, instanceName string, backupName string, backupID string, namespace string) *v1alpha1.Backup {
+	trueVar := true
+	By("creating a new RMAN backup")
+	backup := &v1alpha1.Backup{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-instance-agent-svc",
 			Namespace: namespace,
+			Name:      backupName,
 		},
-		Spec: corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 9999}}},
+		Spec: v1alpha1.BackupSpec{
+			BackupSpec: commonv1alpha1.BackupSpec{
+				Instance: instanceName,
+				Type:     commonv1alpha1.BackupTypePhysical,
+			},
+			Subtype:   "Instance",
+			Backupset: &trueVar,
+		},
 	}
-	// Might fail if the resource already exists
-	k8sClient.Create(ctx, agentSvc)
 
-	Eventually(
-		func() error {
-			return k8sClient.Get(ctx, client.ObjectKey{Name: "test-instance-agent-svc", Namespace: namespace}, agentSvc)
-		}, timeout, interval).Should(Succeed())
+	backupObjKey := client.ObjectKey{Namespace: namespace, Name: backupName}
+	createdBackup := &v1alpha1.Backup{}
+	testhelpers.K8sCreateAndGet(k8sClient, ctx, backupObjKey, backup, createdBackup)
 
-	fakeClientFactory.Reset()
+	createdBackup = &v1alpha1.Backup{}
+	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, backupObjKey, createdBackup, func(obj *runtime.Object) {
+		(*obj).(*v1alpha1.Backup).Status = v1alpha1.BackupStatus{
+			BackupStatus: commonv1alpha1.BackupStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               k8s.Ready,
+						Status:             metav1.ConditionTrue,
+						Reason:             k8s.BackupReady,
+						LastTransitionTime: metav1.Now().Rfc3339Copy(),
+					},
+				},
+				Phase: commonv1alpha1.BackupSucceeded,
+			},
+			BackupID: backupID,
+		}
+	})
 
-	return instance
+	return createdBackup
 }
