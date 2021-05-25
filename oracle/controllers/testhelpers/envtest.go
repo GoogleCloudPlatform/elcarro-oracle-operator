@@ -1014,6 +1014,31 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 		}, retryTimeout, retryInterval).Should(Succeed())
 }
 
+// Simple helper to make the Get-Modify-UpdateStatus-Retry cycle easier
+// Get a fresh version of the object into 'emptyObj' using 'objKey'
+// Apply user-supplied modifyObjectFunc() which should modify the 'emptyObj'
+// Try to update 'emptyObj' status in k8s, retry if needed
+func K8sGetAndUpdateStatusWithRetry(k8sClient client.Client,
+	ctx context.Context,
+	objKey client.ObjectKey,
+	emptyObj runtime.Object,
+	modifyObjectFunc func(*runtime.Object)) {
+
+	Eventually(
+		func() error {
+			// Get a fresh version of the object
+			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			// Apply modifyObjectFunc()
+			modifyObjectFunc(&emptyObj)
+			// Try to update status in k8s
+			if err := k8sClient.Status().Update(ctx, emptyObj); err != nil {
+				logf.Log.Error(err, "Failed to update object, retrying")
+				return err
+			}
+			return nil
+		}, retryTimeout, retryInterval).Should(Succeed())
+}
+
 // K8sCreateAndGet calls k8s Create() with retry and then wait for the object to be created.
 // Updates 'createdObj' with the created object.
 func K8sCreateAndGet(k8sClient client.Client, ctx context.Context, objKey client.ObjectKey, obj runtime.Object, createdObj runtime.Object) {
