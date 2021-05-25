@@ -29,7 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -783,7 +782,7 @@ func createSimpleInstance(ctx context.Context, instanceName string, namespace st
 
 	By("setting Instance as Ready")
 	createdInstance := &v1alpha1.Instance{}
-	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *runtime.Object) {
+	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
 		(*obj).(*v1alpha1.Instance).Status = v1alpha1.InstanceStatus{
 			InstanceStatus: commonv1alpha1.InstanceStatus{
 				Conditions: []metav1.Condition{
@@ -830,7 +829,7 @@ func createSimpleRMANBackup(ctx context.Context, instanceName string, backupName
 	testhelpers.K8sCreateAndGet(k8sClient, ctx, backupObjKey, backup, createdBackup)
 
 	createdBackup = &v1alpha1.Backup{}
-	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, backupObjKey, createdBackup, func(obj *runtime.Object) {
+	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, backupObjKey, createdBackup, func(obj *client.Object) {
 		(*obj).(*v1alpha1.Backup).Status = v1alpha1.BackupStatus{
 			BackupStatus: commonv1alpha1.BackupStatus{
 				Conditions: []metav1.Condition{
