@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "instance_controller.go",
         "instance_controller_parameters.go",
+        "instance_controller_restore.go",
         "instance_controller_standby.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/instancecontroller",
