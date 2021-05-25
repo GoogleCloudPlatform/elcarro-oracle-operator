@@ -1030,8 +1030,8 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 func K8sGetAndUpdateStatusWithRetry(k8sClient client.Client,
 	ctx context.Context,
 	objKey client.ObjectKey,
-	emptyObj runtime.Object,
-	modifyObjectFunc func(*runtime.Object)) {
+	emptyObj client.Object,
+	modifyObjectFunc func(*client.Object)) {
 
 	Eventually(
 		func() error {
