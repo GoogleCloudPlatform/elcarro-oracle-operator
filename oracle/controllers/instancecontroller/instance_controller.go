@@ -687,8 +687,9 @@ func (r *InstanceReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, respErr
 		if !controllers.Contains(inst.Status.DatabaseNames, newDB.Spec.Name) {
 			log.Info("found a new DB", "dbName", newDB.Spec.Name)
 			inst.Status.DatabaseNames = append(inst.Status.DatabaseNames, newDB.Spec.Name)
+		} else {
+			log.V(1).Info("not a new DB, skipping the update", "dbName", newDB.Spec.Name)
 		}
-		log.V(1).Info("not a new DB, skipping the update", "dbName", newDB.Spec.Name)
 	}
 
 	log.Info("instance status", "iReadyCond", iReadyCond, "endpoint", inst.Status.Endpoint,
