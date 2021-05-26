@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
@@ -132,53 +134,25 @@ func (r *InstanceReconciler) restorePhysical(ctx context.Context, inst v1alpha1.
 
 // restoreSnapshot constructs the new PVCs and sets the restore in stsParams struct
 // based on the requested snapshot to restore from.
-func (r *InstanceReconciler) restoreSnapshot(ctx context.Context, inst v1alpha1.Instance, sts *appsv1.StatefulSet, sp *controllers.StsParams) error {
-	if err := r.Delete(ctx, sts); err != nil {
-		r.Log.Error(err, "restoreSnapshot: failed to delete the old StatefulSet")
-	}
-	r.Log.Info("restoreSnapshot: old StatefulSet deleted")
+func (r *InstanceReconciler) restoreSnapshot(ctx context.Context,
+	inst v1alpha1.Instance, sp controllers.StsParams) error {
 
-	pvcs, err := controllers.NewPVCs(*sp)
-	if err != nil {
-		r.Log.Error(err, "NewPVCs failed")
-		return err
-	}
-	r.Log.Info("restoreSnapshot: old PVCs to delete constructed", "pvcs", pvcs)
-
-	for i, pvc := range pvcs {
-		pvc.Name = fmt.Sprintf("%s-%s-0", pvc.Name, sp.StsName)
-		if err := r.Delete(ctx, &pvc); err != nil {
-			r.Log.Error(err, "restoreSnapshot: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
-		}
-		r.Log.Info("restoreSnapshot: old PVC deleted", "pvc", pvc.Name)
-
-		applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
-		if err := r.Patch(ctx, &pvc, client.Apply, applyOpts...); err != nil {
-			r.Log.Error(err, "restoreSnapshot: failed to patch the deleting of the old PVC")
-		}
-	}
-
+	// Set Restore field in sts params.
 	sp.Restore = inst.Spec.Restore
 
-	newPVCs, err := controllers.NewPVCs(*sp)
+	// Create PVC and STS objects from sts params (will use restore logic).
+	err, sts, _ := r.constructSTSandPVCs(ctx, inst, sp)
 	if err != nil {
-		r.Log.Error(err, "NewPVCs failed")
+		r.Log.Error(err, "failed to create a StatefulSet")
 		return err
 	}
-	newPodTemplate := controllers.NewPodTemplate(*sp, inst.Spec.CDBName, controllers.GetDBDomain(&inst))
-	stsRestored, err := controllers.NewSts(*sp, newPVCs, newPodTemplate)
-	if err != nil {
-		r.Log.Error(err, "restoreSnapshot: failed to construct the restored StatefulSet")
-		return err
-	}
-	sts = stsRestored
 
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
 	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
 		r.Log.Error(err, "failed to patch the restored StatefulSet")
 		return err
 	}
-	r.Log.Info("restoreSnapshot: StatefulSet constructed", "statefulSet", sts, "sts.Status", sts.Status)
+	r.Log.Info("restoreSnapshot: updated StatefulSet created", "statefulSet", sts, "sts.Status", sts.Status)
 
 	return nil
 }
@@ -220,7 +194,10 @@ func (r *InstanceReconciler) forceRestore(ctx context.Context, req ctrl.Request,
 
 	switch inst.Spec.Restore.BackupType {
 	case "Snapshot":
-		if err := r.restoreSnapshot(ctx, *inst, sts, &sp); err != nil {
+		if err := r.cleanupSTSandPVCs(ctx, *inst, sp); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := r.restoreSnapshot(ctx, *inst, sp); err != nil {
 			return ctrl.Result{}, err
 		}
 		log.Info("restore from a storage snapshot: DONE")
@@ -333,4 +310,79 @@ func restoreInProgress(instReadyCond *v1.Condition) bool {
 // Create a name for the LRO operation based on instance GUID and restore time.
 func lroRestoreOperationID(opType string, instance *v1alpha1.Instance) string {
 	return fmt.Sprintf("%s_%s_%s", opType, instance.GetUID(), instance.Status.LastRestoreTime.Format(time.RFC3339))
+}
+
+// Return STS and PVC objects from given sts params.
+func (r *InstanceReconciler) constructSTSandPVCs(ctx context.Context,
+	inst v1alpha1.Instance, sp controllers.StsParams) (error, *appsv1.StatefulSet, []corev1.PersistentVolumeClaim) {
+	// Create PVCs.
+	newPVCs, err := controllers.NewPVCs(sp)
+	if err != nil {
+		r.Log.Error(err, "createSTSandPVC failed")
+		return err, nil, nil
+	}
+	// Create STS
+	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(&inst))
+	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
+	if err != nil {
+		r.Log.Error(err, "failed to create a StatefulSet", "sts", sts)
+		return err, nil, nil
+	}
+	r.Log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
+	return nil, sts, newPVCs
+}
+
+// cleanupSTSandPVCs removes old STS and PVCs from k8s before restoring from snapshot.
+func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context,
+	inst v1alpha1.Instance, sp controllers.StsParams) error {
+	// Create PVC and STS objects from sts params.
+	err, sts, newPVCs := r.constructSTSandPVCs(ctx, inst, sp)
+	if err != nil {
+		r.Log.Error(err, "failed to create a StatefulSet")
+		return err
+	}
+
+	// Check if old STS still exists.
+	existingSTS := appsv1.StatefulSet{}
+	stsKey := client.ObjectKey{Namespace: sts.Namespace, Name: sts.Name}
+	err = r.Get(ctx, stsKey, &existingSTS)
+
+	// If STS exists delete it.
+	if err == nil {
+		r.Log.Info("deleting sts", "name", sts.Name)
+		if err := r.Delete(ctx, sts); err != nil {
+			r.Log.Error(err, "restoreSnapshot: failed to delete the old STS")
+		}
+	} else if errors.IsNotFound(err) {
+		// Object is gone
+	} else {
+		// Other unrecoverable error
+		r.Log.Error(err, "unrecoverable error")
+		return err
+	}
+
+	for i, pvc := range newPVCs {
+		pvc.Name = fmt.Sprintf("%s-%s-0", pvc.Name, sp.StsName)
+
+		// Check if this PVC still exists.
+		existingPVC := corev1.PersistentVolumeClaim{}
+		pvcKey := client.ObjectKey{Namespace: pvc.Namespace, Name: pvc.Name}
+		err := r.Get(ctx, pvcKey, &existingPVC)
+
+		// If PVC exists delete it.
+		if err == nil {
+			r.Log.Info("deleting pvc", "name", pvc.Name)
+			if err := r.Delete(ctx, &pvc); err != nil {
+				r.Log.Error(err, "cleanupSTSandPVCs: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
+			}
+		} else if errors.IsNotFound(err) {
+			// Object is gone
+		} else {
+			// Other unrecoverable error
+			r.Log.Error(err, "Unrecoverable error")
+			return err
+		}
+	}
+	r.Log.Info("All the existing STS and PVCs are gone.")
+	return nil
 }
