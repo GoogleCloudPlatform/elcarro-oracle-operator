@@ -1,10 +1,10 @@
 
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: v0.5.0
   creationTimestamp: null
   name: cronanythings.oracle.db.anthosapis.com
 spec:
@@ -15,251 +15,223 @@ spec:
     plural: cronanythings
     singular: cronanything
   scope: Namespaced
-  validation:
-    openAPIV3Schema:
-      description: CronAnything is the Schema for the cronanythings API.
-      properties:
-        apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-          type: string
-        kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-          type: string
-        metadata:
-          type: object
-        spec:
-          description: CronAnythingSpec defines the desired state of CronAnything.
-          properties:
-            cascadeDelete:
-              description: CascadeDelete tells CronAnything to set up owner references
-                from the created resources to the CronAnything resource. This means
-                that if the CronAnything resource is deleted, all resources created
-                by it will also be deleted. This is an optional field that defaults
-                to false.
-              type: boolean
-            concurrencyPolicy:
-              description: ConcurrencyPolicy specifies how to treat concurrent resources
-                if the resource provides a status path that exposes completion. The
-                default policy if not provided is to allow a new resource to be created
-                even if an active resource already exists. If the resource doesn’t
-                have an active/completed status, the only supported concurrency policy
-                is to allow creating new resources. This field is mutable. If the
-                policy is changed to a more stringent policy while multiple resources
-                are active, it will not delete any existing resources. The exception
-                is if a creation of a new resource is triggered and the policy has
-                been changed to Replace. If multiple resources are active, they will
-                all be deleted and replaced by a new resource.
-              type: string
-            finishableStrategy:
-              description: FinishableStrategy defines how the CronAnything controller
-                an decide if a resource has completed. Some resources will do some
-                work after they have been created and at some point be finished. Jobs
-                are the most common example. If no strategy is defined, it is assumed
-                that the resources never finish.
-              properties:
-                stringField:
-                  description: StringField contains the details for how the CronAnything
-                    controller can find the string field on the resource needed to
-                    decide if the resource has completed. It also lists the values
-                    that mean the resource has completed.
-                  properties:
-                    fieldPath:
-                      description: The path to the field on the resource that contains
-                        a string value.
-                      type: string
-                    finishedValues:
-                      description: The values of the field that means the resource
-                        has completed.
-                      items:
-                        type: string
-                      type: array
-                  required:
-                  - fieldPath
-                  - finishedValues
-                  type: object
-                timestampField:
-                  description: TimestampField contains the details for how the CronAnything
-                    controller can find the timestamp field on the resource in order
-                    to decide if the resource has completed.
-                  properties:
-                    fieldPath:
-                      description: The path to the field on the resource that contains
-                        the timestamp.
-                      type: string
-                  required:
-                  - fieldPath
-                  type: object
-                type:
-                  description: Type tells which strategy should be used.
-                  type: string
-              required:
-              - type
-              type: object
-            resourceBaseName:
-              description: ResourceBaseName specifies the base name for the resources
-                created by CronAnything, which will be named using the format <ResourceBaseName>-<Timestamp>.
-                This field is optional, and the default is to use the name of the
-                CronAnything resource as the ResourceBaseName.
-              type: string
-            resourceTimestampFormat:
-              description: ResourceTimestampFormat defines the format of the timestamp
-                in the name of Resources created by CronAnything <ResourceBaseName>-<Timestamp>.
-                This field is optional, and the default is to format the timestamp
-                as unix time. If provided, it must be compatible with time.Format
-                in golang.
-              type: string
-            retention:
-              description: Retention defines the retention policy for resources created
-                by CronAnything. If no retention policy is defined, CronAnything will
-                never delete resources, so cleanup must be handled through some other
-                process.
-              properties:
-                historyCountLimit:
-                  description: The number of completed resources to keep before deleting
-                    them. This only affects finishable resources and the default value
-                    is 3. This field is mutable and if it is changed to a number lower
-                    than the current number of finished resources, the oldest ones
-                    will eventually be deleted until the number of finished resources
-                    matches the limit.
-                  format: int32
-                  type: integer
-                historyTimeLimitSeconds:
-                  description: The time since completion that a resource is kept before
-                    deletion. This only affects finishable resources. This does not
-                    have any default value and if it is not provided, HistoryCountLimit
-                    will be used to prune completed resources. If both HistoryCountLimit
-                    and  HistoryTimeLimitSeconds are set, it is treated as an OR operation.
-                  format: int64
-                  type: integer
-                resourceTimestampStrategy:
-                  description: ResourceTimestampStrategy specifies how the CronAnything
-                    controller can find the age of a resource. This is needed to support
-                    retention.
-                  properties:
-                    field:
-                      description: FieldResourceTimestampStrategy specifies how the
-                        CronAnything controller can find the timestamp for the resource
-                        from a field.
-                      properties:
-                        fieldPath:
-                          description: The path to the field on the resource that
-                            contains the timestamp.
-                          type: string
-                      required:
-                      - fieldPath
-                      type: object
-                    type:
-                      description: Type tells which strategy should be used.
-                      type: string
-                  required:
-                  - type
-                  type: object
-              required:
-              - resourceTimestampStrategy
-              type: object
-            schedule:
-              description: Schedule defines a time-based schedule, e.g., a standard
-                cron schedule such as “@every 10m”. This field is mandatory and mutable.
-                If it is changed, resources will simply be created at the new interval
-                from then on.
-              type: string
-            suspend:
-              description: Suspend tells the controller to suspend creation of additional
-                resources. The default value is false. This field is mutable. It will
-                not affect any existing resources, but only affect creation of additional
-                resources.
-              type: boolean
-            template:
-              description: Template is a template of a resource type for which instances
-                are to be created on the given schedule. This field is mandatory and
-                it must contain a valid template for an existing apiVersion and kind
-                in the cluster. It is immutable, so if the template needs to change,
-                the whole CronAnything resource should be replaced.
-              type: object
-            totalResourceLimit:
-              description: TotalResourceLimit specifies the total number of children
-                allowed for a particular CronAnything resource. If this limit is reached,
-                no additional resources will be created. This limit is mostly meant
-                to avoid runaway creation of resources that could bring down the cluster.
-                Both finished and unfinished resources count against this limit. This
-                field is mutable. If it is changed to a lower value than the existing
-                number of resources, none of the existing resources will be deleted
-                as a result, but no additional resources will be created until the
-                number of child resources goes below the limit. The field is optional
-                with a default value of 100.
-              format: int32
-              type: integer
-            triggerDeadlineSeconds:
-              description: TriggerDeadlineSeconds defines Deadline in seconds for
-                creating the resource if it missed the scheduled time. If no deadline
-                is provided, the resource will be created no matter how far after
-                the scheduled time. If multiple triggers were missed, only the last
-                will be triggered and only one resource will be created. This field
-                is mutable and changing it will affect the creation of new resources
-                from that point in time.
-              format: int64
-              type: integer
-          required:
-          - schedule
-          - template
-          type: object
-        status:
-          description: CronAnythingStatus defines the observed state of CronAnything.
-          properties:
-            lastScheduleTime:
-              description: LastScheduleTime keeps track of the scheduled time for
-                the last successfully completed creation of a resource. This is used
-                by the controller to determine when the next resource creation should
-                happen. If creation of a resource is delayed for any reason but eventually
-                does happen, this value will still be updated to the time when it
-                was originally scheduled to happen.
-              format: date-time
-              type: string
-            pendingTrigger:
-              description: PendingTrigger keeps track of any triggers that are past
-                their trigger time, but for some reason have not been completed yet.
-                This is typically a result of the create operation failing.
-              properties:
-                result:
-                  description: Result tells why this trigger is in the pending state,
-                    i.e. what prevented it from completing successfully.
-                  type: string
-                scheduleTime:
-                  description: ScheduleTime is the time when this trigger was scheduled
-                    to be executed.
-                  format: date-time
-                  type: string
-              required:
-              - result
-              - scheduleTime
-              type: object
-            triggerHistory:
-              description: TriggerHistory keeps track of the status for the last 10
-                triggers. This allows users of CronAnything to see whether any triggers
-                failed. It is important to know that this only keeps track of whether
-                a trigger was successfully executed (as in creating the given resource),
-                not whether the created resource was itself successful. For this information,
-                any users of CronAnything should observe the resources created.
-              items:
-                description: TriggerHistoryRecord contains information about the result
-                  of a trigger. It can either have completed successfully, and if
-                  it did not, the record will provide information about what is the
-                  cause of the failure.
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CronAnything is the Schema for the cronanythings API.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CronAnythingSpec defines the desired state of CronAnything.
+            properties:
+              cascadeDelete:
+                description: CascadeDelete tells CronAnything to set up owner references
+                  from the created resources to the CronAnything resource. This means
+                  that if the CronAnything resource is deleted, all resources created
+                  by it will also be deleted. This is an optional field that defaults
+                  to false.
+                type: boolean
+              concurrencyPolicy:
+                description: ConcurrencyPolicy specifies how to treat concurrent resources
+                  if the resource provides a status path that exposes completion.
+                  The default policy if not provided is to allow a new resource to
+                  be created even if an active resource already exists. If the resource
+                  doesn’t have an active/completed status, the only supported concurrency
+                  policy is to allow creating new resources. This field is mutable.
+                  If the policy is changed to a more stringent policy while multiple
+                  resources are active, it will not delete any existing resources.
+                  The exception is if a creation of a new resource is triggered and
+                  the policy has been changed to Replace. If multiple resources are
+                  active, they will all be deleted and replaced by a new resource.
+                type: string
+              finishableStrategy:
+                description: FinishableStrategy defines how the CronAnything controller
+                  an decide if a resource has completed. Some resources will do some
+                  work after they have been created and at some point be finished.
+                  Jobs are the most common example. If no strategy is defined, it
+                  is assumed that the resources never finish.
                 properties:
-                  creationTimestamp:
-                    description: CreationTimestamp is the time when this record was
-                      created. This is thus also the time at which the final result
-                      of the trigger was decided.
-                    format: date-time
+                  stringField:
+                    description: StringField contains the details for how the CronAnything
+                      controller can find the string field on the resource needed
+                      to decide if the resource has completed. It also lists the values
+                      that mean the resource has completed.
+                    properties:
+                      fieldPath:
+                        description: The path to the field on the resource that contains
+                          a string value.
+                        type: string
+                      finishedValues:
+                        description: The values of the field that means the resource
+                          has completed.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - fieldPath
+                    - finishedValues
+                    type: object
+                  timestampField:
+                    description: TimestampField contains the details for how the CronAnything
+                      controller can find the timestamp field on the resource in order
+                      to decide if the resource has completed.
+                    properties:
+                      fieldPath:
+                        description: The path to the field on the resource that contains
+                          the timestamp.
+                        type: string
+                    required:
+                    - fieldPath
+                    type: object
+                  type:
+                    description: Type tells which strategy should be used.
                     type: string
+                required:
+                - type
+                type: object
+              resourceBaseName:
+                description: ResourceBaseName specifies the base name for the resources
+                  created by CronAnything, which will be named using the format <ResourceBaseName>-<Timestamp>.
+                  This field is optional, and the default is to use the name of the
+                  CronAnything resource as the ResourceBaseName.
+                type: string
+              resourceTimestampFormat:
+                description: ResourceTimestampFormat defines the format of the timestamp
+                  in the name of Resources created by CronAnything <ResourceBaseName>-<Timestamp>.
+                  This field is optional, and the default is to format the timestamp
+                  as unix time. If provided, it must be compatible with time.Format
+                  in golang.
+                type: string
+              retention:
+                description: Retention defines the retention policy for resources
+                  created by CronAnything. If no retention policy is defined, CronAnything
+                  will never delete resources, so cleanup must be handled through
+                  some other process.
+                properties:
+                  historyCountLimit:
+                    description: The number of completed resources to keep before
+                      deleting them. This only affects finishable resources and the
+                      default value is 3. This field is mutable and if it is changed
+                      to a number lower than the current number of finished resources,
+                      the oldest ones will eventually be deleted until the number
+                      of finished resources matches the limit.
+                    format: int32
+                    type: integer
+                  historyTimeLimitSeconds:
+                    description: The time since completion that a resource is kept
+                      before deletion. This only affects finishable resources. This
+                      does not have any default value and if it is not provided, HistoryCountLimit
+                      will be used to prune completed resources. If both HistoryCountLimit
+                      and  HistoryTimeLimitSeconds are set, it is treated as an OR
+                      operation.
+                    format: int64
+                    type: integer
+                  resourceTimestampStrategy:
+                    description: ResourceTimestampStrategy specifies how the CronAnything
+                      controller can find the age of a resource. This is needed to
+                      support retention.
+                    properties:
+                      field:
+                        description: FieldResourceTimestampStrategy specifies how
+                          the CronAnything controller can find the timestamp for the
+                          resource from a field.
+                        properties:
+                          fieldPath:
+                            description: The path to the field on the resource that
+                              contains the timestamp.
+                            type: string
+                        required:
+                        - fieldPath
+                        type: object
+                      type:
+                        description: Type tells which strategy should be used.
+                        type: string
+                    required:
+                    - type
+                    type: object
+                required:
+                - resourceTimestampStrategy
+                type: object
+              schedule:
+                description: Schedule defines a time-based schedule, e.g., a standard
+                  cron schedule such as “@every 10m”. This field is mandatory and
+                  mutable. If it is changed, resources will simply be created at the
+                  new interval from then on.
+                type: string
+              suspend:
+                description: Suspend tells the controller to suspend creation of additional
+                  resources. The default value is false. This field is mutable. It
+                  will not affect any existing resources, but only affect creation
+                  of additional resources.
+                type: boolean
+              template:
+                description: Template is a template of a resource type for which instances
+                  are to be created on the given schedule. This field is mandatory
+                  and it must contain a valid template for an existing apiVersion
+                  and kind in the cluster. It is immutable, so if the template needs
+                  to change, the whole CronAnything resource should be replaced.
+                type: object
+                x-kubernetes-embedded-resource: true
+                x-kubernetes-preserve-unknown-fields: true
+              totalResourceLimit:
+                description: TotalResourceLimit specifies the total number of children
+                  allowed for a particular CronAnything resource. If this limit is
+                  reached, no additional resources will be created. This limit is
+                  mostly meant to avoid runaway creation of resources that could bring
+                  down the cluster. Both finished and unfinished resources count against
+                  this limit. This field is mutable. If it is changed to a lower value
+                  than the existing number of resources, none of the existing resources
+                  will be deleted as a result, but no additional resources will be
+                  created until the number of child resources goes below the limit.
+                  The field is optional with a default value of 100.
+                format: int32
+                type: integer
+              triggerDeadlineSeconds:
+                description: TriggerDeadlineSeconds defines Deadline in seconds for
+                  creating the resource if it missed the scheduled time. If no deadline
+                  is provided, the resource will be created no matter how far after
+                  the scheduled time. If multiple triggers were missed, only the last
+                  will be triggered and only one resource will be created. This field
+                  is mutable and changing it will affect the creation of new resources
+                  from that point in time.
+                format: int64
+                type: integer
+            required:
+            - schedule
+            - template
+            type: object
+          status:
+            description: CronAnythingStatus defines the observed state of CronAnything.
+            properties:
+              lastScheduleTime:
+                description: LastScheduleTime keeps track of the scheduled time for
+                  the last successfully completed creation of a resource. This is
+                  used by the controller to determine when the next resource creation
+                  should happen. If creation of a resource is delayed for any reason
+                  but eventually does happen, this value will still be updated to
+                  the time when it was originally scheduled to happen.
+                format: date-time
+                type: string
+              pendingTrigger:
+                description: PendingTrigger keeps track of any triggers that are past
+                  their trigger time, but for some reason have not been completed
+                  yet. This is typically a result of the create operation failing.
+                properties:
                   result:
-                    description: Result contains the outcome of a trigger. It can
-                      either be CreateSucceeded, which means the given resource was
-                      created as intended, or it can be one of several error messages.
+                    description: Result tells why this trigger is in the pending state,
+                      i.e. what prevented it from completing successfully.
                     type: string
                   scheduleTime:
                     description: ScheduleTime is the time when this trigger was scheduled
@@ -267,16 +239,48 @@ spec:
                     format: date-time
                     type: string
                 required:
-                - creationTimestamp
                 - result
                 - scheduleTime
                 type: object
-              type: array
-          type: object
-      type: object
-  version: v1alpha1
-  versions:
-  - name: v1alpha1
+              triggerHistory:
+                description: TriggerHistory keeps track of the status for the last
+                  10 triggers. This allows users of CronAnything to see whether any
+                  triggers failed. It is important to know that this only keeps track
+                  of whether a trigger was successfully executed (as in creating the
+                  given resource), not whether the created resource was itself successful.
+                  For this information, any users of CronAnything should observe the
+                  resources created.
+                items:
+                  description: TriggerHistoryRecord contains information about the
+                    result of a trigger. It can either have completed successfully,
+                    and if it did not, the record will provide information about what
+                    is the cause of the failure.
+                  properties:
+                    creationTimestamp:
+                      description: CreationTimestamp is the time when this record
+                        was created. This is thus also the time at which the final
+                        result of the trigger was decided.
+                      format: date-time
+                      type: string
+                    result:
+                      description: Result contains the outcome of a trigger. It can
+                        either be CreateSucceeded, which means the given resource
+                        was created as intended, or it can be one of several error
+                        messages.
+                      type: string
+                    scheduleTime:
+                      description: ScheduleTime is the time when this trigger was
+                        scheduled to be executed.
+                      format: date-time
+                      type: string
+                  required:
+                  - creationTimestamp
+                  - result
+                  - scheduleTime
+                  type: object
+                type: array
+            type: object
+        type: object
     served: true
     storage: true
 status:

@@ -85,6 +85,8 @@ type CronAnythingSpec struct {
 	// existing apiVersion and kind in the cluster.
 	// It is immutable, so if the template needs to change, the whole CronAnything
 	// resource should be replaced.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Template runtime.RawExtension `json:"template"`
 
 	// TotalResourceLimit specifies the total number of children allowed for a

@@ -158,7 +158,7 @@ generate-go: generate-proto
 # Generate config manifests e.g. CRD, RBAC, controller etc. for k8s.
 generate-config:
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:rbac:artifacts:config=config/rbac output:webhook:artifacts:config=config/webhook output:crd:artifacts:config=config/crd/bases
-	sed -i 's/controller-gen.kubebuilder.io\/version: (unknown)/controller-gen.kubebuilder.io\/version: v0.2.5/g' config/crd/bases/*.yaml
+	sed -i 's/controller-gen.kubebuilder.io\/version: (unknown)/controller-gen.kubebuilder.io\/version: v0.5.0/g' config/crd/bases/*.yaml
 	cd config/manager && $(KUSTOMIZE) edit set image controller="gcr.io/elcarro/oracle.db.anthosapis.com/operator:latest"
 	$(KUSTOMIZE) build config/default > operator.yaml
 
