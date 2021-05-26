@@ -541,8 +541,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_fatih_color",
         importpath = "github.com/fatih/color",
-        sum = "h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=",
-        version = "v1.7.0",
+        sum = "h1:8xPHl4/q1VyqGIPif1F+1V3Y3lSmrq01EabUW3CoW5s=",
+        version = "v1.9.0",
     )
     go_repository(
         name = "com_github_form3tech_oss_jwt_go",
@@ -701,8 +701,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_gobuffalo_flect",
         importpath = "github.com/gobuffalo/flect",
-        sum = "h1:EWCvMGGxOjsgwlWaP+f4+Hh6yrrte7JeFL2S6b+0hdM=",
-        version = "v0.2.0",
+        sum = "h1:PAVD7sp0KOdfswjAw9BpLCU9hXo7wFSzgpQ+zNeks/A=",
+        version = "v0.2.2",
     )
 
     go_repository(
@@ -1217,14 +1217,14 @@ def go_dependencies():
     go_repository(
         name = "com_github_mattn_go_colorable",
         importpath = "github.com/mattn/go-colorable",
-        sum = "h1:/bC9yWikZXAL9uJdulbSfyVNIR3n3trXl+v8+1sx8mU=",
-        version = "v0.1.2",
+        sum = "h1:c1ghPdyEDarC70ftn0y+A/Ee++9zz8ljHG1b13eJ0s8=",
+        version = "v0.1.8",
     )
     go_repository(
         name = "com_github_mattn_go_isatty",
         importpath = "github.com/mattn/go-isatty",
-        sum = "h1:HLtExJ+uU2HOZ+wI0Tt5DtUDrx8yhUqDcp7fYERX4CE=",
-        version = "v0.0.8",
+        sum = "h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=",
+        version = "v0.0.12",
     )
     go_repository(
         name = "com_github_mattn_go_runewidth",
@@ -2133,8 +2133,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_sigs_controller_tools",
         importpath = "sigs.k8s.io/controller-tools",
-        sum = "h1:kH7HKWed9XO42OTxyhUtqyImiefdZV2Q9Jbrytvhf18=",
-        version = "v0.2.5",
+        sum = "h1:3u2RCwOlp0cjCALAigpOcbAf50pE+kHSdueUosrC/AE=",
+        version = "v0.5.0",
     )
 
     go_repository(
@@ -2165,8 +2165,8 @@ def go_dependencies():
     go_repository(
         name = "io_k8s_sigs_structured_merge_diff",
         importpath = "sigs.k8s.io/structured-merge-diff",
-        sum = "h1:zD2IemQ4LmOcAumeiyDWXKUI2SO0NYDe3H6QGvPOVgU=",
-        version = "v1.0.1-0.20191108220359-b1b620dd3f06",
+        sum = "h1:4Z09Hglb792X0kfOBBJUPFEyvVfQWrYT/l8h5EKA6JQ=",
+        version = "v0.0.0-20190525122527-15d366b2352e",
     )
     go_repository(
         name = "io_k8s_sigs_structured_merge_diff_v3",

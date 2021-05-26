@@ -12,6 +12,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
 	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/go-units v0.4.0 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.4.0
 	github.com/godror/godror v0.20.1
@@ -44,6 +45,6 @@ require (
 	k8s.io/klog/v2 v2.8.0
 	k8s.io/utils v0.0.0-20210305010621-2afb4311ab10
 	sigs.k8s.io/controller-runtime v0.8.3
-	sigs.k8s.io/controller-tools v0.2.5
+	sigs.k8s.io/controller-tools v0.5.0
 	sigs.k8s.io/kustomize/kustomize/v4 v4.1.3
 )
