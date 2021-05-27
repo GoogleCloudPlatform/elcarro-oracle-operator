@@ -33,7 +33,7 @@ type ConfigSpec struct {
 	// Deployment platform.
 	// Presently supported values are: GCP (default), BareMetal.
 	// +optional
-	// +kubebuilder:validation:Enum=GCP;BareMetal;Minikube
+	// +kubebuilder:validation:Enum=GCP;BareMetal;Minikube;Kind
 	Platform string `json:"platform,omitempty"`
 
 	// Disks slice describes at minimum two disks:

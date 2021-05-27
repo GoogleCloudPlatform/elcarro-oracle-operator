@@ -81,6 +81,7 @@ func (r *ConfigReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
 	agentParam := controllers.AgentDeploymentParams{
 		Inst:           inst,
+		Config:         &config,
 		Scheme:         r.Scheme,
 		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
 		Images:         r.Images,

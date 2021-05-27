@@ -396,6 +396,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	agentParam := controllers.AgentDeploymentParams{
 		Inst:           &inst,
+		Config:         config,
 		Scheme:         r.Scheme,
 		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
 		Images:         images,
@@ -634,7 +635,7 @@ func (r *InstanceReconciler) overrideDefaultImages(config *v1alpha1.Config, imag
 	if config != nil {
 		log.V(1).Info("customer config loaded", "config", config)
 
-		if config.Spec.Platform != "GCP" && config.Spec.Platform != "BareMetal" && config.Spec.Platform != "Minikube" {
+		if config.Spec.Platform != "GCP" && config.Spec.Platform != "BareMetal" && config.Spec.Platform != "Minikube" && config.Spec.Platform != "Kind" {
 			return ctrl.Result{}, fmt.Errorf("Unsupported platform: %q", config.Spec.Platform)
 		}
 

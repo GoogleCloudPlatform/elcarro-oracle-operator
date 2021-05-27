@@ -688,6 +688,7 @@ spec:
                 - GCP
                 - BareMetal
                 - Minikube
+                - Kind
                 type: string
               storageClass:
                 description: Storage class to use for dynamic provisioning. This value
