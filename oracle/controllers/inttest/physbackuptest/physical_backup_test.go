@@ -56,6 +56,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	var namespace string
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		namespace = testhelpers.RandName("physical-backup-test")
 		k8sEnv.Init(namespace)
 
@@ -90,7 +91,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 				instKey := client.ObjectKey{Namespace: namespace, Name: tc.instanceName}
 
 				// Wait until the instance is "Ready" (requires 5+ minutes to download image)
-				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
+				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 				By("By letting instance DB initialize")
 				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)

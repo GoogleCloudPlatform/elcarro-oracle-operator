@@ -479,7 +479,7 @@ func DeployOperator(ctx context.Context, k8sClient client.Client, namespace stri
 			return 0
 		}
 		return int(d.Status.ReadyReplicas)
-	}, 30*time.Second, 1*time.Second).Should(Equal(1))
+	}, 10*time.Minute, 5*time.Second).Should(Equal(1))
 
 	return func() error {
 		if err := k8sClient.Delete(ctx, cr); err != nil {

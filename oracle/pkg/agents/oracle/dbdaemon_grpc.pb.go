@@ -4,11 +4,11 @@ package oracle
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	longrunning "google.golang.org/genproto/googleapis/longrunning"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -88,7 +88,7 @@ type DatabaseDaemonClient interface {
 	// DeleteOperation deletes a long-running operation. This method indicates
 	// that the client is no longer interested in the operation result. It does
 	// not cancel the operation.
-	DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// RecoverConfigFile creates a binary pfile from the backed up spfile
 	RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error)
 	// DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
@@ -349,8 +349,8 @@ func (c *databaseDaemonClient) GetOperation(ctx context.Context, in *longrunning
 	return out, nil
 }
 
-func (c *databaseDaemonClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *databaseDaemonClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/DeleteOperation", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -457,7 +457,7 @@ type DatabaseDaemonServer interface {
 	// DeleteOperation deletes a long-running operation. This method indicates
 	// that the client is no longer interested in the operation result. It does
 	// not cancel the operation.
-	DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*empty.Empty, error)
+	DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error)
 	// RecoverConfigFile creates a binary pfile from the backed up spfile
 	RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error)
 	// DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
@@ -553,7 +553,7 @@ func (UnimplementedDatabaseDaemonServer) ListOperations(context.Context, *longru
 func (UnimplementedDatabaseDaemonServer) GetOperation(context.Context, *longrunning.GetOperationRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOperation not implemented")
 }
-func (UnimplementedDatabaseDaemonServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*empty.Empty, error) {
+func (UnimplementedDatabaseDaemonServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteOperation not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error) {

@@ -61,6 +61,7 @@ var _ = Describe("ParameterUpdate", func() {
 	instanceName := "mydb"
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		nameSpace := testhelpers.RandName("parameter-update-test")
 		k8sEnv.Init(nameSpace)
 	})
@@ -79,7 +80,7 @@ var _ = Describe("ParameterUpdate", func() {
 
 			// Wait until DatabaseInstanceReady = True
 			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			// Create PDB
 			testhelpers.CreateSimplePDB(k8sEnv, instanceName)

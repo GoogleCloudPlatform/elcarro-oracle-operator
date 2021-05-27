@@ -18,8 +18,13 @@ package tools
 
 // https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
 import (
-	_ "github.com/golang/protobuf/protoc-gen-go"
+	_ "github.com/golang/mock/mockgen"
+	_ "github.com/grpc-ecosystem/grpc-health-probe"
+	_ "github.com/onsi/ginkgo/ginkgo"
+	_ "github.com/wadey/gocovmerge"
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
+	_ "k8s.io/repo-infra/cmd/kazel"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 	_ "sigs.k8s.io/kustomize/kustomize/v4"
 )

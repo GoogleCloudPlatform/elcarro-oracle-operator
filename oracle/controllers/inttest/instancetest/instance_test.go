@@ -50,6 +50,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	var instanceName string
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		namespace = testhelpers.RandName("instance-crd-test")
 		instanceName = "mydb"
 		k8sEnv.Init(namespace)
@@ -112,7 +113,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 					return cond.Status
 				}
 				return metav1.ConditionUnknown
-			}, 10*time.Minute, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			}, 20*time.Minute, 5*time.Second).Should(Equal(metav1.ConditionTrue))
 
 			By("By checking that Database is provisioned")
 			Eventually(func() metav1.ConditionStatus {

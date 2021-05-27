@@ -90,3 +90,43 @@ container_push(
     repository = PROJECT + "/oracle.db.anthosapis.com/operator",
     tag = TAG,
 )
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//oracle/api/v1alpha1:all-srcs",
+        "//oracle/build:all-srcs",
+        "//oracle/cmd/config_agent:all-srcs",
+        "//oracle/cmd/dbdaemon:all-srcs",
+        "//oracle/cmd/dbdaemon_client:all-srcs",
+        "//oracle/cmd/dbdaemon_proxy:all-srcs",
+        "//oracle/cmd/init_oracle:all-srcs",
+        "//oracle/cmd/logging:all-srcs",
+        "//oracle/cmd/monitoring:all-srcs",
+        "//oracle/controllers:all-srcs",
+        "//oracle/pkg/agents/backup:all-srcs",
+        "//oracle/pkg/agents/common:all-srcs",
+        "//oracle/pkg/agents/config_agent:all-srcs",
+        "//oracle/pkg/agents/consts:all-srcs",
+        "//oracle/pkg/agents/monitoring:all-srcs",
+        "//oracle/pkg/agents/oracle:all-srcs",
+        "//oracle/pkg/agents/security:all-srcs",
+        "//oracle/pkg/database/common:all-srcs",
+        "//oracle/pkg/database/dbdaemon:all-srcs",
+        "//oracle/pkg/database/dbdaemonproxy:all-srcs",
+        "//oracle/pkg/database/lib/detach:all-srcs",
+        "//oracle/pkg/database/lib/lro:all-srcs",
+        "//oracle/pkg/database/provision:all-srcs",
+        "//oracle/pkg/k8s:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

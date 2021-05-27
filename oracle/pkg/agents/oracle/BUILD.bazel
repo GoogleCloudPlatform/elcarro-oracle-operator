@@ -1,36 +1,38 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
-load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
-load("@rules_proto//proto:defs.bzl", "proto_library")
-
-proto_library(
-    name = "oracle_proto",
-    srcs = [
-        "dbdaemon.proto",
-        "dbdaemon_proxy.proto",
-        "oracle.proto",
-    ],
-    visibility = ["//visibility:public"],
-    deps = [
-        "@com_google_protobuf//:empty_proto",
-        "@com_google_protobuf//:timestamp_proto",
-        "@go_googleapis//google/longrunning:longrunning_proto",
-    ],
-)
-
-go_proto_library(
-    name = "oracle_go_proto",
-    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
-    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle",
-    proto = ":oracle_proto",
-    visibility = ["//visibility:public"],
-    deps = [
-        "@go_googleapis//google/longrunning:longrunning_go_proto",
-    ],
-)
 
 go_library(
     name = "oracle",
-    embed = [":oracle_go_proto"],
+    srcs = [
+        "dbdaemon.pb.go",
+        "dbdaemon_grpc.pb.go",
+        "dbdaemon_proxy.pb.go",
+        "dbdaemon_proxy_grpc.pb.go",
+        "oracle.pb.go",
+    ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//runtime/protoimpl",
+        "@org_golang_google_protobuf//types/known/emptypb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
     visibility = ["//visibility:public"],
 )

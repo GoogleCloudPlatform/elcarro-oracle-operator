@@ -41,6 +41,7 @@ var _ = Describe("New deployment", func() {
 	var namespace string
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		namespace = testhelpers.RandName("release-crd-test")
 		k8sEnv.Init(namespace)
 	})

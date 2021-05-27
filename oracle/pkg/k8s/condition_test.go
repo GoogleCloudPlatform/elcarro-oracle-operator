@@ -177,7 +177,7 @@ func TestInstanceUpsertCondition(t *testing.T) {
 			}
 
 			foundCond := false
-			for i, _ := range iStatus.Conditions {
+			for i := range iStatus.Conditions {
 				if updatedCond == &iStatus.Conditions[i] {
 					foundCond = true
 					break
