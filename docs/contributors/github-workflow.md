@@ -11,9 +11,7 @@ To make your first contribution to El Carro, you should follow the steps below.
     -   Visit https://github.com/GoogleCloudPlatform/elcarro-oracle-operator
     -   Click the Fork button (top right) to create a fork hosted on GitHub
 
-2.  Clone your fork to your machine Your fork should be cloned to a directory on
-    your $GOPATH as per
-    [Go's workspace instructions](https://golang.org/doc/code.html#Workspaces).
+2.  Clone your fork to your machine
 
     -   Authenticate yourself to GitHub. We recommend using SSH as described
         [here](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh).
@@ -21,7 +19,13 @@ To make your first contribution to El Carro, you should follow the steps below.
     -   [Download and install Go](https://golang.org/doc/install) if you haven't
         already
 
-    -   Define a local working directory:
+    -   Allow builds outside your $GOPATH by running:
+
+        ```sh
+        export GO111MODULE=on
+        ```
+
+    -   Define a local working directory. For example:
 
         ```sh
         export WORKING_DIR="$(go env GOPATH)/src/elcarro.anthosapis.com"
