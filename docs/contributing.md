@@ -23,6 +23,9 @@ discussion at https://groups.google.com/g/el-carro .
 
 ## Developer Guidance
 
+## GitHub workflow
+To make a contribution to El Carro, check out [this guide](contributors/github-workflow.md) for the recommended workflow.
+
 ### Contributor License Agreement
 
 Contributions to this project must be accompanied by a Contributor License
