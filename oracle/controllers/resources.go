@@ -43,6 +43,7 @@ const (
 	platformGCP                            = "GCP"
 	platformBareMetal                      = "BareMetal"
 	platformMinikube                       = "Minikube"
+	platformKind                           = "Kind"
 	defaultStorageClassNameGCP             = "csi-gce-pd"
 	defaultVolumeSnapshotClassNameGCP      = "csi-gce-pd-snapshot-class"
 	defaultStorageClassNameBM              = "csi-trident"
@@ -83,7 +84,7 @@ func getPlatformConfig(p string) (*platformConfig, error) {
 			storageClassName:        defaultStorageClassNameBM,
 			volumeSnapshotClassName: defaultVolumeSnapshotClassNameBM,
 		}, nil
-	case platformMinikube:
+	case platformMinikube, platformKind:
 		return &platformConfig{
 			storageClassName:        defaultStorageClassNameMinikube,
 			volumeSnapshotClassName: defaultVolumeSnapshotClassNameMinikube,
@@ -354,6 +355,12 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 		}
 	}
 
+	// Kind cluster can only use local images
+	imagePullPolicy := corev1.PullAlways
+	if agentDeployment.Config != nil && agentDeployment.Config.Spec.Platform == platformKind {
+		imagePullPolicy = corev1.PullIfNotPresent
+	}
+
 	containers := []corev1.Container{
 		{
 			Name:    configAgentName,
@@ -366,7 +373,7 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &agentDeployment.PrivEscalation,
 			},
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 	}
 	agentDeployment.Log.V(2).Info("enabling services: ", "services", agentDeployment.Services)
@@ -388,7 +395,7 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 				SecurityContext: &corev1.SecurityContext{
 					AllowPrivilegeEscalation: &agentDeployment.PrivEscalation,
 				},
-				ImagePullPolicy: corev1.PullAlways,
+				ImagePullPolicy: imagePullPolicy,
 			})
 		default:
 			agentDeployment.Log.V(2).Info("unsupported service: ", "service", s)
@@ -543,6 +550,12 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		sp.Log.Info("NewPodTemplate: replacing", "SafeMinMemoryForDBContainer", safeMinMemoryForDBContainer, "sp.Inst.Spec.MinMemoryForDBContainer", sp.Inst.Spec.MinMemoryForDBContainer)
 	}
 
+	// Kind cluster can only use local images
+	imagePullPolicy := corev1.PullAlways
+	if sp.Config != nil && sp.Config.Spec.Platform == platformKind {
+		imagePullPolicy = corev1.PullIfNotPresent
+	}
+
 	sp.Log.Info("NewPodTemplate: creating new template with service image", "image", sp.Images["service"])
 	dataDiskPVC, dataDiskMountName := GetPVCNameAndMount(sp.Inst.Name, "DataDisk")
 	containers := []corev1.Container{
@@ -573,7 +586,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 					ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: sp.ConfigMap.ObjectMeta.Name}},
 				},
 			},
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 		{
 			Name:    "dbdaemon",
@@ -591,7 +604,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 				{Name: "agent-repo", MountPath: "/agents"},
 			},
 				buildPVCMounts(sp)...),
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 		{
 			Name:    "alert-log-sidecar",
@@ -604,7 +617,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
 			},
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 		{
 			Name:    "listener-log-sidecar",
@@ -617,7 +630,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
 			},
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 	}
 	initContainers := []corev1.Container{
@@ -631,7 +644,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "agent-repo", MountPath: "/agents"},
 			},
-			ImagePullPolicy: corev1.PullAlways,
+			ImagePullPolicy: imagePullPolicy,
 		},
 	}
 
@@ -665,10 +678,10 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		gid = func(i int64) *int64 { return &i }(defaultGID)
 	}
 
-	// for minikube, the default csi-hostpath-driver mounts persistent volumes writable by root only, so explicitly
+	// for minikube/kind, the default csi-hostpath-driver mounts persistent volumes writable by root only, so explicitly
 	// change owner and permissions of mounted pvs with an init container.
-	if sp.Config != nil && sp.Config.Spec.Platform == platformMinikube {
-		initContainers = addMinikubeInitContainer(sp, initContainers, *uid, *gid)
+	if sp.Config != nil && (sp.Config.Spec.Platform == platformMinikube || sp.Config.Spec.Platform == platformKind) {
+		initContainers = addHostpathInitContainer(sp, initContainers, *uid, *gid)
 	}
 
 	podSpec := corev1.PodSpec{
@@ -827,7 +840,7 @@ func ConfigAttribute(name, explicitRequest string, config *v1alpha1.Config) (str
 	}
 }
 
-func addMinikubeInitContainer(sp StsParams, containers []corev1.Container, uid, gid int64) []corev1.Container {
+func addHostpathInitContainer(sp StsParams, containers []corev1.Container, uid, gid int64) []corev1.Container {
 	volumeMounts := buildPVCMounts(sp)
 	cmd := ""
 	for _, mount := range volumeMounts {
@@ -836,7 +849,7 @@ func addMinikubeInitContainer(sp StsParams, containers []corev1.Container, uid, 
 		}
 		cmd += fmt.Sprintf("chown %d:%d %s ", uid, gid, mount.MountPath)
 	}
-	sp.Log.Info("add an init container for minikube", "cmd", cmd)
+	sp.Log.Info("add an init container for csi-hostpath-sc type pv", "cmd", cmd)
 	return append(containers, corev1.Container{
 		Name:    "prepare-pv-container",
 		Image:   "busybox:latest",

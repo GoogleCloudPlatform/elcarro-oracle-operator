@@ -103,6 +103,7 @@ type StsParams struct {
 
 // AgentDeploymentParams stores parameters for creating a agent deployment.
 type AgentDeploymentParams struct {
+	Config         *v1alpha1.Config
 	Inst           *v1alpha1.Instance
 	Scheme         *runtime.Scheme
 	Images         map[string]string

@@ -1,0 +1,14 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Config
+metadata:
+  name: config
+spec:
+  platform: "Kind"
+  storageClass: "csi-hostpath-sc"
+  volumeSnapshotClass: "csi-hostpath-snapclass"
+  images:
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-seeded-gcloud:latest"
+    config: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/configagent:latest"
+    dbinit: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/dbinit:latest"
+    logging_sidecar: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/loggingsidecar:latest"
+    monitoring: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/monitoring:latest"
