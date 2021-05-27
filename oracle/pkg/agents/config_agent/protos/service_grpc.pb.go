@@ -4,11 +4,11 @@ package protos
 
 import (
 	context "context"
-	empty "github.com/golang/protobuf/ptypes/empty"
 	longrunning "google.golang.org/genproto/googleapis/longrunning"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -39,7 +39,7 @@ type ConfigAgentClient interface {
 	// Deletes a long-running operation. This method indicates that the client is
 	// no longer interested in the operation result. It does not cancel the
 	// operation.
-	DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
@@ -175,8 +175,8 @@ func (c *configAgentClient) GetOperation(ctx context.Context, in *longrunning.Ge
 	return out, nil
 }
 
-func (c *configAgentClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
-	out := new(empty.Empty)
+func (c *configAgentClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DeleteOperation", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ type ConfigAgentServer interface {
 	// Deletes a long-running operation. This method indicates that the client is
 	// no longer interested in the operation result. It does not cancel the
 	// operation.
-	DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*empty.Empty, error)
+	DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error)
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error)
 	BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
@@ -334,7 +334,7 @@ func (UnimplementedConfigAgentServer) ListOperations(context.Context, *longrunni
 func (UnimplementedConfigAgentServer) GetOperation(context.Context, *longrunning.GetOperationRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOperation not implemented")
 }
-func (UnimplementedConfigAgentServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*empty.Empty, error) {
+func (UnimplementedConfigAgentServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteOperation not implemented")
 }
 func (UnimplementedConfigAgentServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error) {

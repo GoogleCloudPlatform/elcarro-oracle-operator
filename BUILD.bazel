@@ -25,3 +25,31 @@ alias(
     name = "protoc",
     actual = "@com_google_protobuf//:protoc",
 )
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "bazel-*/**",
+            ".git/**",
+        ],
+    ),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//common/api/v1alpha1:all-srcs",
+        "//common/pkg/maintenance:all-srcs",
+        "//common/pkg/utils:all-srcs",
+        "//hack:all-srcs",
+        "//oracle:all-srcs",
+        "//third_party/monitoring:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

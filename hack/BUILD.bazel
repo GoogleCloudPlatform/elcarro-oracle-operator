@@ -1,0 +1,253 @@
+load("@io_bazel_rules_go//go:def.bzl", "nogo")
+
+package(default_visibility = ["//visibility:public"])
+
+GAZELLE = "@bazel_gazelle//cmd/gazelle"
+
+KAZEL = "@io_k8s_repo_infra//cmd/kazel"
+
+GO = "@go_sdk//:bin/go"
+
+GOFMT = "@go_sdk//:bin/gofmt"
+
+CONTROLLER_GEN = "@io_k8s_sigs_controller_tools//cmd/controller-gen"
+
+PROTOC = "@com_google_protobuf//:protoc"
+
+PROTOC_GEN_GO = "@org_golang_google_protobuf//cmd/protoc-gen-go"
+
+PROTOC_GEN_GO_GRPC = "@org_golang_google_grpc_cmd_protoc_gen_go_grpc//:protoc-gen-go-grpc"
+
+WELL_KNOWN_PROTOS = "@com_google_protobuf//:well_known_protos"
+
+LRO_PROTOS = "@go_googleapis//google/longrunning:longrunning_proto"
+
+MOCKGEN = "@com_github_golang_mock//mockgen"
+
+CLANG_FORMAT = "@clang-format//file"
+
+SHELLCHECK = "@shellcheck//:shellcheck"
+
+GOCOVMERGE = "@com_github_wadey_gocovmerge//:gocovmerge"
+
+KUSTOMIZE = "@io_k8s_sigs_kustomize_kustomize_v4//:v4"
+
+sh_binary(
+    name = "update-bazel",
+    srcs = ["update-bazel.sh"],
+    args = [
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+    ],
+    data = [
+        GAZELLE,
+        KAZEL,
+    ],
+)
+
+sh_test(
+    name = "verify-bazel",
+    size = "small",
+    srcs = ["verify-bazel.sh"],
+    args = [
+        "$(location %s)" % GAZELLE,
+        "$(location %s)" % KAZEL,
+    ],
+    data = [
+        "//:all-srcs",
+        GAZELLE,
+        KAZEL,
+    ],
+)
+
+sh_binary(
+    name = "update-fmt",
+    srcs = ["update-fmt.sh"],
+    args = [
+        "$(location %s)" % GOFMT,
+        "$(location %s)" % CLANG_FORMAT,
+    ],
+    data = [
+        GOFMT,
+        CLANG_FORMAT,
+    ],
+)
+
+sh_test(
+    name = "verify-fmt",
+    size = "small",
+    srcs = ["verify-fmt.sh"],
+    args = [
+        "$(location %s)" % GOFMT,
+        "$(location %s)" % CLANG_FORMAT,
+    ],
+    data = [
+        "//:all-srcs",
+        GOFMT,
+        CLANG_FORMAT,
+    ],
+)
+
+sh_binary(
+    name = "update-gomod",
+    srcs = ["update-gomod.sh"],
+    args = [
+        "$(location %s)" % GO,
+    ],
+    data = [
+        GO,
+    ],
+)
+
+sh_binary(
+    name = "update-codegen",
+    srcs = ["update-codegen.sh"],
+    args = [
+        "$(location %s)" % GO,
+        "$(location %s)" % CONTROLLER_GEN,
+        "$(location %s)" % PROTOC,
+        "$(location %s)" % PROTOC_GEN_GO,
+        "$(location %s)" % PROTOC_GEN_GO_GRPC,
+        "$(location %s)" % MOCKGEN,
+        "$(location %s)" % KUSTOMIZE,
+    ],
+    data = [
+        GO,
+        CONTROLLER_GEN,
+        PROTOC,
+        PROTOC_GEN_GO,
+        PROTOC_GEN_GO_GRPC,
+        KUSTOMIZE,
+        WELL_KNOWN_PROTOS,
+        LRO_PROTOS,
+        MOCKGEN,
+        "boilerplate.go.txt",
+    ],
+)
+
+sh_test(
+    name = "verify-codegen",
+    size = "small",
+    srcs = ["verify-codegen.sh"],
+    args = [
+        "$(location :update-codegen)",
+        "$(location %s)" % GO,
+        "$(location %s)" % CONTROLLER_GEN,
+        "$(location %s)" % PROTOC,
+        "$(location %s)" % PROTOC_GEN_GO,
+        "$(location %s)" % PROTOC_GEN_GO_GRPC,
+        "$(location %s)" % MOCKGEN,
+        "$(location %s)" % KUSTOMIZE,
+    ],
+    data = [
+        GO,
+        CONTROLLER_GEN,
+        PROTOC,
+        PROTOC_GEN_GO,
+        PROTOC_GEN_GO_GRPC,
+        KUSTOMIZE,
+        WELL_KNOWN_PROTOS,
+        LRO_PROTOS,
+        MOCKGEN,
+        ":update-codegen",
+        "//:all-srcs",
+    ],
+)
+
+sh_test(
+    name = "verify-shellcheck",
+    size = "small",
+    srcs = ["verify-shellcheck.sh"],
+    args = [
+        "$(location %s)" % SHELLCHECK,
+    ],
+    data = [
+        SHELLCHECK,
+        "//:all-srcs",
+    ],
+)
+
+sh_binary(
+    name = "go-coverage",
+    srcs = ["go-coverage.sh"],
+    args = [
+        "$(location %s)" % GO,
+        "$(location %s)" % GOCOVMERGE,
+    ],
+    data = [
+        GO,
+        GOCOVMERGE,
+    ],
+)
+
+# This is a hack to disable nogo while running bazel coverage.
+# TODO(yfcheng) Remove this config_setting once
+# https://github.com/bazelbuild/rules_go/issues/2232
+# is resolved.
+config_setting(
+    name = "disable_nogo",
+    values = {
+        "define": "nogo=false",
+    },
+)
+
+# Go analysis passes to be run along with compilation.
+# The list of passes is consistent with `go vet`. See https://golang.org/src/cmd/vet/main.go
+nogo(
+    name = "nogo",
+    config = "nogo.json",
+    visibility = ["//visibility:public"],
+    deps = select({
+        ":disable_nogo": [],
+        "//conditions:default": [
+            # These passes are the ones included in Go vet. They are relatively
+            # safe to run (no false positives).
+            # See https://github.com/bazelbuild/rules_go/blob/master/go/private/rules/nogo.bzl
+            "@org_golang_x_tools//go/analysis/passes/atomic:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/bools:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/buildtag:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/nilfunc:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/printf:go_tool_library",
+            # These passes are more experimental and might throw some false positives.
+            # We only run them on first party code, with an option to opt-out
+            # specific folders.
+            "@org_golang_x_tools//go/analysis/passes/asmdecl:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/assign:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/cgocall:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/composite:go_tool_library",
+            # TODO(yfcheng) Enable copylock once https://github.com/bazelbuild/rules_go/pull/2863
+            # is included in the new release.
+            # "@org_golang_x_tools//go/analysis/passes/copylock:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/errorsas:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/framepointer:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/httpresponse:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/ifaceassert:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/loopclosure:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/lostcancel:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/shift:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/stdmethods:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/stringintconv:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/structtag:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/testinggoroutine:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/tests:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/unmarshal:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/unreachable:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/unsafeptr:go_tool_library",
+            "@org_golang_x_tools//go/analysis/passes/unusedresult:go_tool_library",
+        ],
+    }),
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

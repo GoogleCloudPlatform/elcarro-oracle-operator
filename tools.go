@@ -20,6 +20,7 @@ package tools
 import (
 	_ "github.com/golang/protobuf/protoc-gen-go"
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "k8s.io/repo-infra/cmd/kazel"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 	_ "sigs.k8s.io/kustomize/kustomize/v4"
 )
