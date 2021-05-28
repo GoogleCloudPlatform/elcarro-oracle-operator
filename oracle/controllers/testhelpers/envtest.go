@@ -767,7 +767,7 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 	instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
 
 	// Wait until the instance is "Ready" (requires 5+ minutes to download image).
-	WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
+	WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 }
 
 // CreateSimplePdbWithDbObj creates simple PDB by given database object.
