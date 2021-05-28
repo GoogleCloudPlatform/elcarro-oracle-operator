@@ -46,8 +46,8 @@ var _ = Describe("Backup through snapshot", func() {
 	var instanceName string
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		namespace = testhelpers.RandName("backup-snap-crd-test")
-		//namespace = "backup-snap-crd-test"
 		instanceName = "mydb"
 		k8sEnv.Init(namespace)
 	})
@@ -71,10 +71,10 @@ var _ = Describe("Backup through snapshot", func() {
 			instKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
 
 			// Wait until the instance is "Ready" (requires 5+ minutes to download image)
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			// Wait until DatabaseInstanceReady = True
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 7*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
 
 			// Add test data
 			time.Sleep(10 * time.Second)
@@ -141,7 +141,7 @@ var _ = Describe("Backup through snapshot", func() {
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.RestoreComplete, 10*time.Minute)
 
 			// Check databases are "Ready"
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 30*time.Second)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
 
 			//Verify if the restored instance contains the pre-backup data
 			time.Sleep(30 * time.Second)

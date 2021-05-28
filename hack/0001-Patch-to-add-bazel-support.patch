@@ -267,16 +267,16 @@ index 8b03df0..6e674d0 100644
 +++ b/drv.go
 @@ -46,9 +46,9 @@
  package godror
- 
+
  /*
 -#cgo CFLAGS: -I./odpi/include -I./odpi/src -I./odpi/embed
 +#include <stdlib.h>
- 
+
 -#include "dpi.c"
 +#include "dpiImpl.h"
  */
  import "C"
- 
+
 diff --git a/dsn/BUILD.bazel b/dsn/BUILD.bazel
 new file mode 100644
 index 0000000..3b114ea
@@ -330,6 +330,5 @@ index 0000000..ad16633
 +    srcs = ["sid_test.go"],
 +    embed = [":sid"],
 +)
--- 
+--
 2.28.0.681.g6f77f65b4e-goog
-

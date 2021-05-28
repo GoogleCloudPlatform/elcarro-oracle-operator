@@ -1,8 +1,8 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 
 # gazelle:prefix github.com/GoogleCloudPlatform/elcarro-oracle-operator
-# gazelle:exclude **/*.pb.go
 # gazelle:resolve go github.com/godror/godror @com_github_godror_godror//:godror
+# gazelle:proto disable
 gazelle(name = "gazelle")
 
 # To use gazelle you need to use `fix` to fix BUILD rules, and `update-repos` to sync deps.bzl with go.mod
@@ -15,13 +15,30 @@ alias(
     actual = "@io_k8s_sigs_kustomize_kustomize_v4//:v4",
 )
 
-alias(
-    name = "controller-gen",
-    actual = "@io_k8s_sigs_controller_tools//cmd/controller-gen",
+filegroup(
+    name = "package-srcs",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "bazel-*/**",
+            ".git/**",
+        ],
+    ),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
 )
 
-# cc tools from WORKSPACE
-alias(
-    name = "protoc",
-    actual = "@com_google_protobuf//:protoc",
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//common/api/v1alpha1:all-srcs",
+        "//common/pkg/maintenance:all-srcs",
+        "//common/pkg/utils:all-srcs",
+        "//hack:all-srcs",
+        "//oracle:all-srcs",
+        "//third_party/monitoring:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
 )

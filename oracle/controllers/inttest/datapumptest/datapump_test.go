@@ -48,6 +48,7 @@ var _ = Describe("Datapump", func() {
 	var pod = instanceName + "-sts-0"
 
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		namespace = testhelpers.RandName("datapump-test")
 		k8sEnv.Init(namespace)
 
@@ -69,7 +70,7 @@ var _ = Describe("Datapump", func() {
 			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
 
 			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			testhelpers.CreateSimplePDB(k8sEnv, instanceName)
 			testhelpers.InsertSimpleData(k8sEnv)

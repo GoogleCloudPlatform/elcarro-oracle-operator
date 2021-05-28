@@ -21,9 +21,6 @@ SHELL := /bin/bash
 # Use the bazel version, important not to use quotes so that the command is expanded.
 bazel_noui=--ui_event_filters=-INFO --noshow_loading_progress --show_result=0
 KUSTOMIZE=bazel run --run_under="cd $$PWD &&" $(bazel_noui) -- //:kustomize
-CONTROLLER_GEN=bazel run --run_under="cd $$PWD &&" $(bazel_noui) -- //:controller-gen
-PROTOC=bazel run --run_under="cd $$PWD/.. &&" $(bazel_noui) -- //:protoc
-GAZELLE=bazel run $(bazel_noui) -- //:gazelle
 
 export PROW_IMAGE_REPO ?= $(shell\
 	if [ -n "${PROW_JOB_ID}" ]; then \
@@ -85,9 +82,6 @@ env:
 
 export _BUILDAH_STARTED_IN_USERNS
 export BUILDAH_ISOLATION
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-# CRD_OPTIONS ?= "crd:trivialVersions=true"
-CRD_OPTIONS ?= "crd"
 
 # allow builds outside $GOPATH/src
 export GO111MODULE=on
@@ -125,64 +119,37 @@ test:
 
 # Run go fmt against code
 fmt:
-	scripts/fmt_fixup.sh
+	../hack/update-fmt.sh
 
 # Run go vet against code
 vet:
 	go vet ./...
 
 glaze:
-	$(GAZELLE) fix
+	../hack/update-bazel.sh
 
 glaze-deps:
-	$(GAZELLE) update-repos -from_file=go.mod -to_macro=deps.bzl%go_dependencies
-	go mod tidy # glaze dirties the go.sum file.
+	../hack/update-gomod.sh
+	../hack/update-bazel.sh
 
 # Static checks to be run on presubmit.
 # Not parallel to prevent output interleaving.
-# We cannot generate protobufs in prow because we dont have equivalent compilers available.
-check: generate-config generate-go
-	# Cant use vet/fmt targets or ordering between generate and vet/fmt is unknown.
-	go vet ./...
-	$(MAKE) glaze-deps glaze
-	scripts/fmt_fixup.sh
-	scripts/fmt_check.sh
-	# Check bazel builds
+check:
+	../hack/verify-all.sh
+	# Check bazel build
 	bazel build ...
 
 # Generate all code for building
-generate-go: generate-proto
-	$(CONTROLLER_GEN) object:headerFile=../hack/boilerplate.go.txt paths="../common/..."
-	$(CONTROLLER_GEN) object:headerFile=../hack/boilerplate.go.txt paths="./..."
+generate-go:
+	../hack/update-codegen.sh
 
 # Generate config manifests e.g. CRD, RBAC, controller etc. for k8s.
 generate-config:
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:rbac:artifacts:config=config/rbac output:webhook:artifacts:config=config/webhook output:crd:artifacts:config=config/crd/bases
-	sed -i 's/controller-gen.kubebuilder.io\/version: (unknown)/controller-gen.kubebuilder.io\/version: v0.5.0/g' config/crd/bases/*.yaml
-	cd config/manager && $(KUSTOMIZE) edit set image controller="gcr.io/elcarro/oracle.db.anthosapis.com/operator:latest"
-	$(KUSTOMIZE) build config/default > operator.yaml
+	../hack/update-codegen.sh
 
 # Generate proto/grpc code
-# Prerequisites: google-cloud-sdk
-# execute:
-# sudo apt install google-cloud-sdk
-protoc-gen-go-target="@com_github_golang_protobuf//protoc-gen-go:protoc-gen-go"
-protoc-gen-go="bazel-bin/external/com_github_golang_protobuf/protoc-gen-go/protoc-gen-go_/protoc-gen-go"
-protoc-gen-go-grpc-target="@org_golang_google_grpc_cmd_protoc_gen_go_grpc//:protoc-gen-go-grpc"
-protoc-gen-go-grpc="bazel-bin/external/org_golang_google_grpc_cmd_protoc_gen_go_grpc/protoc-gen-go-grpc_/protoc-gen-go-grpc"
-protos := $(shell cd ../ && find ./ -name '*.proto')
 generate-proto:
-	# Make sure our tools are available.
-	bazel build $(bazel_noui) $(protoc-gen-go-target) $(protoc-gen-go-grpc-target)
-	$(PROTOC) \
-		--plugin=$(protoc-gen-go) \
-		--plugin=$(protoc-gen-go-grpc) \
-		-I /usr/lib/google-cloud-sdk/lib/third_party \
-		-I bazel-$(shell basename $$(readlink -f ../))/external/com_google_protobuf/src \
-		-I . \
-		--go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		$(protos)
+	../hack/update-codegen.sh
 
 buildah-push-operator:
 	bazel run operator_image_push
@@ -274,7 +241,6 @@ prepare-release:
 	sed -i "s/configagent:latest/configagent:${RELEASE_NAME}/g" main.go
 	sed -i "s/monitoring:latest/monitoring:${RELEASE_NAME}/g" main.go
 	sed -i "s/loggingsidecar:latest/loggingsidecar:${RELEASE_NAME}/g" main.go
-
 
 export EL_CARRO_RELEASE_ARTIFACTS_DIR ?= release-artifacts
 copy-release-artifacts:

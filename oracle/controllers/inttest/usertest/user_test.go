@@ -91,6 +91,7 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("User operations", func() {
 	BeforeEach(func() {
+		defer GinkgoRecover()
 		initEnvBeforeEachTest()
 	})
 
@@ -108,7 +109,7 @@ var _ = Describe("User operations", func() {
 
 			// Wait until DatabaseInstanceReady = True
 			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			// Create PDB
 			testhelpers.CreateSimplePdbWithDbObj(k8sEnv, &v1alpha1.Database{

@@ -246,16 +246,16 @@ index 8b03df0..6e674d0 100644
 +++ drv.go
 @@ -46,9 +46,9 @@
  package godror
- 
+
  /*
 -#cgo CFLAGS: -I./odpi/include -I./odpi/src -I./odpi/embed
 +#include <stdlib.h>
- 
+
 -#include "dpi.c"
 +#include "dpiImpl.h"
  */
  import "C"
- 
+
 diff --git sid/BUILD.bazel sid/BUILD.bazel
 new file mode 100644
 index 0000000..ad16633
@@ -284,7 +284,7 @@ index 4475950..0c73a90 100644
 @@ -1,4 +1,4 @@
 -// +build !go1.13
 +// +build go1.12 go1.11 go1.10
- 
+
  // Copyright 2017, 2020 The Godror Authors
  //
 diff --git a/orahlp_go13.go b/orahlp_go13.go
@@ -294,7 +294,6 @@ index a0f0462..1bc6e6a 100644
 @@ -1,4 +1,4 @@
 -// +build go1.13
 +// +build !go1.12 !go1.11 !go1.10
- 
+
  // Copyright 2017, 2020 The Godror Authors
  //
-
