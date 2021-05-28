@@ -289,9 +289,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	iReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
-	if restoreInProgress(iReadyCond) {
-		return r.handleRestoreInProgress(ctx, req, &inst, iReadyCond, log)
-	}
+	dbiCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 
 	// Load default preferences (aka "config") if provided by a customer.
 	config, err := r.loadConfig(ctx, req.NamespacedName.Namespace)
@@ -339,37 +337,24 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		Services:       enabledServices,
 	}
 
-	var forceRestore bool
-
-	dbiCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
-	if (k8s.ConditionStatusEquals(iReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbiCond, v1.ConditionTrue)) ||
-		k8s.ConditionReasonEquals(iReadyCond, k8s.RestoreFailed) {
-
-		if inst.Spec.Restore == nil {
-			if k8s.ConditionStatusEquals(iReadyCond, v1.ConditionTrue) {
-				log.Info("instance has already been provisioned and ready")
-			} else {
-				log.Info("instance is in failed restore state")
-			}
-			return ctrl.Result{}, nil
+	// If there is a Restore section in the spec the reconciliation will be handled
+	// by restore state machine until the Spec.Restore section is removed again.
+	if inst.Spec.Restore != nil {
+		// Ask the restore state machine to reconcile
+		result, err := r.restoreStateMachine(req, instanceReadyCond, dbInstanceCond, &inst, ctx, sp)
+		if err != nil {
+			log.Error(err, "restoreStateMachine failed")
+			return result, err
 		}
-
-		if inst.Spec.Restore != nil {
-			if !inst.Spec.Restore.Force {
-				log.Info("instance is up and running. To replace (restore from a backup), set force=true")
-				return ctrl.Result{}, nil
-			}
-
-			requestTime := inst.Spec.Restore.RequestTime.Rfc3339Copy()
-			if inst.Status.LastRestoreTime != nil && !requestTime.After(inst.Status.LastRestoreTime.Time) {
-				log.Info(fmt.Sprintf("skipping the restore request as requestTime=%v is not later than the last restore time %v",
-					requestTime, inst.Status.LastRestoreTime.Time))
-				return ctrl.Result{}, nil
-			}
-
-			forceRestore = true
-			log.Info("force restore, replacing the original instance...")
+		if !result.IsZero() {
+			return result, err
 		}
+		// No error and no result - state machine is done, proceed with main reconciler
+	}
+
+	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
+		log.Info("instance has already been provisioned and ready")
+		return ctrl.Result{}, nil
 	}
 
 	newPVCs, err := controllers.NewPVCs(sp)
@@ -383,11 +368,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
-
-	if forceRestore {
-		return r.forceRestore(ctx, req, &inst, iReadyCond, sts, sp, log)
-	}
+	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
 
 	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
 		log.Error(err, "failed to patch the StatefulSet", "sts.Status", sts.Status)

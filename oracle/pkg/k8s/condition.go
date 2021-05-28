@@ -46,6 +46,8 @@ const (
 	ImportPending                  = "ImportPending"
 	RestoreComplete                = "RestoreComplete"
 	RestoreFailed                  = "RestoreFailed"
+	RestorePreparationInProgress   = "RestorePreparationInProgress"
+	RestorePreparationComplete     = "RestorePreparationComplete"
 	RestoreInProgress              = "RestoreInProgress"
 	SyncInProgress                 = "SyncInProgress"
 	UserOutOfSync                  = "UserOutOfSync"
