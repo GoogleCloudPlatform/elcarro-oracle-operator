@@ -1784,6 +1784,7 @@ func (s *Server) downloadFile(ctx context.Context, c *storage.Client, bucket, gc
 	if err != nil {
 		return fmt.Errorf("failed to read URL %s: %v", gcsPath, err)
 	}
+	defer reader.Close()
 
 	relPath, err := filepath.Rel(baseDir, gcsPath)
 	if err != nil {
