@@ -77,9 +77,11 @@ var _ = Describe("Backup through snapshot", func() {
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
 
 			// Add test data
-			time.Sleep(10 * time.Second)
 			testhelpers.CreateSimplePDB(k8sEnv, instanceName)
 			testhelpers.InsertSimpleData(k8sEnv)
+
+			// Allow some time for the updates to reach the disk before creating a snapshot backup
+			time.Sleep(5 * time.Second)
 
 			By("By creating a snapshot based backup")
 			backupName := "snap"
