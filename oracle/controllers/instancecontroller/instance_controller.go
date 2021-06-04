@@ -76,8 +76,8 @@ type InstanceReconciler struct {
 
 const (
 	physicalRestore               = "PhysicalRestore"
-	instanceProvisionTimeout      = 20 * time.Minute
-	createDatabaseInstanceTimeout = 20 * time.Minute // 20 minutes because it can take ~10 minutes for unseeded CDB creations
+	instanceProvisionTimeout      = 30 * time.Minute
+	createDatabaseInstanceTimeout = 30 * time.Minute // 30 minutes because it can take 20+ minutes for unseeded CDB creations
 	dateFormat                    = "20060102"
 )
 
@@ -692,7 +692,7 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 	log.Info("bootstrapCDB: new database requested clusterIP", clusterIP)
 
 	// TODO: Remove this timeout workaround once we have the LRO thing figured out.
-	dialTimeout := 21 * time.Minute
+	dialTimeout := 30 * time.Minute
 	// Establish a connection to a Config Agent.
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
