@@ -234,6 +234,8 @@ install_oracle19() {
     oracle.install.option=INSTALL_DB_SWONLY ||
     (($? == 6)) # Check for successful install with warning suppressed.
 
+  enable_unified_auditing
+
   "${OHOME}/root.sh"
 }
 
@@ -261,12 +263,16 @@ install_oracle12() {
     oracle.install.option=INSTALL_DB_SWONLY ||
     (($? == 6)) # Check for successful install with warning suppressed.
 
-  cd "${OHOME}/rdbms/lib"
-  sudo -u oracle \
-    make -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${OHOME}"
+  enable_unified_auditing
 
   "${OHOME}/root.sh"
 
+}
+
+enable_unified_auditing() {
+  cd "${OHOME}/rdbms/lib"
+  sudo -u oracle \
+    make -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${OHOME}"
 }
 
 create_cdb() {
