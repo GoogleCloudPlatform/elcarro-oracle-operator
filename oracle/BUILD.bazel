@@ -126,6 +126,7 @@ filegroup(
         "//oracle/pkg/database/lib/lro:all-srcs",
         "//oracle/pkg/database/provision:all-srcs",
         "//oracle/pkg/k8s:all-srcs",
+        "//oracle/scripts/manual_test:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],

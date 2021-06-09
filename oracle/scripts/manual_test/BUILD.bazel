@@ -1,0 +1,40 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "manual_test_lib",
+    srcs = [
+        "test.go",
+        "test_config_agent.go",
+        "test_dbdaemon.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/scripts/manual_test",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/controllers",
+        "//oracle/pkg/agents/config_agent/protos",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "manual_test",
+    embed = [":manual_test_lib"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
