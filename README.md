@@ -54,7 +54,7 @@ which is free to use by following the
 [quickstart guide for Oracle 18c XE](docs/content/quickstart-18c-xe.md) instead.
 
 If you prefer to run El Carro locally on your personal computer, you can follow
-the [user guide for Oracle on minikube](docs/content/minikube.md).
+the [user guide for Oracle on minikube](docs/content/minikube.md) or the [user guide for Oracle on kind](docs/content/kind.md).
 
 ### Preparation
 
