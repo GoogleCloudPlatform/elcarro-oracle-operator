@@ -11,14 +11,14 @@ spec:
     version: "1"
   users:
     - name: superuser
-      passwordGsmSecretRef:
+      gsmSecretRef:
         projectId: ${PROJECT_ID}
         secretId: superuser
         version: "1"
       privileges:
         - dba
     - name: scott
-      passwordGsmSecretRef:
+      gsmSecretRef:
         projectId: ${PROJECT_ID}
         secretId: scott
         version: "1"
@@ -27,7 +27,7 @@ spec:
         - resource
         - unlimited tablespace
     - name: proberuser
-      passwordGsmSecretRef:
+      gsmSecretRef:
         projectId: ${PROJECT_ID}
         secretId: proberuser
         version: "1"
