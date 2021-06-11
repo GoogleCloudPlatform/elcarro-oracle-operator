@@ -191,7 +191,8 @@ func initK8sCluster(namespace *string) (envtest.Environment, context.Context, cl
 	cdToRoot(nil)
 	klog.SetOutput(GinkgoWriter)
 	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
-	log := logf.Log
+
+	log := logf.FromContext(nil)
 	// Generate credentials for our test cluster.
 	Expect(os.Setenv("KUBECONFIG", fmt.Sprintf("/tmp/.kubectl/config-%v", *namespace))).Should(Succeed())
 
@@ -243,7 +244,7 @@ func initK8sCluster(namespace *string) (envtest.Environment, context.Context, cl
 	Expect(retry.OnError(CRDBackoff, func(error) bool { return true }, func() error {
 		_, err = env.Start()
 		if err != nil {
-			logf.Log.Error(err, "Envtest startup failed: CRD conflict, retrying")
+			log.Error(err, "Envtest startup failed: CRD conflict, retrying")
 		}
 		return err
 	})).Should(Succeed())
@@ -292,7 +293,7 @@ func PrintEvents() {
 	cmd := exec.Command("kubectl", "get", "events", "-A", "-o", "custom-columns=LastSeen:.lastTimestamp,From:.source.component,Type:.type,Reason:.reason,Message:.message", "--sort-by=.lastTimestamp")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logf.Log.Error(err, "Failed to get events")
+		logf.FromContext(nil).Error(err, "Failed to get events")
 		return
 	}
 	log := logg.New(GinkgoWriter, "", 0)
@@ -305,7 +306,7 @@ func PrintPods() {
 	cmd := exec.Command("kubectl", "get", "pods", "-A", "-o", "wide")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logf.Log.Error(err, "Failed to get pods")
+		logf.FromContext(nil).Error(err, "Failed to get pods")
 		return
 	}
 	log := logg.New(GinkgoWriter, "", 0)
@@ -318,7 +319,7 @@ func PrintSVCs() {
 	cmd := exec.Command("kubectl", "get", "svc", "-A", "-o", "wide")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logf.Log.Error(err, "Failed to get svcs")
+		logf.FromContext(nil).Error(err, "Failed to get svcs")
 		return
 	}
 	log := logg.New(GinkgoWriter, "", 0)
@@ -331,7 +332,7 @@ func PrintPVCs() {
 	cmd := exec.Command("kubectl", "get", "pvc", "-A", "-o", "wide")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logf.Log.Error(err, "Failed to get pvcs")
+		logf.FromContext(nil).Error(err, "Failed to get pvcs")
 		return
 	}
 	log := logg.New(GinkgoWriter, "", 0)
@@ -651,7 +652,7 @@ func (k8sEnv *K8sOperatorEnvironment) Init(namespace string) {
 		var err error
 		k8sEnv.OperCleanup, err = DeployOperator(k8sEnv.Ctx, k8sEnv.K8sClient, k8sEnv.Namespace)
 		if err != nil {
-			logf.Log.Error(err, "DeployOperator failed, retrying")
+			logf.FromContext(nil).Error(err, "DeployOperator failed, retrying")
 		}
 		return err
 	})).Should(Succeed())
@@ -860,7 +861,7 @@ func WaitForObjectConditionState(k8sEnv K8sOperatorEnvironment,
 			cond = k8s.FindCondition(emptyObj.(*v1alpha1.Database).Status.Conditions, condition)
 		}
 		if cond != nil {
-			logf.Log.Info(fmt.Sprintf("Waiting %v, status=%v:%v, expecting=%v:%v", condition, cond.Status, cond.Reason, targetStatus, targetReason))
+			logf.FromContext(nil).Info(fmt.Sprintf("Waiting %v, status=%v:%v, expecting=%v:%v", condition, cond.Status, cond.Reason, targetStatus, targetReason))
 			return cond.Status == targetStatus && cond.Reason == targetReason
 		}
 		return false
@@ -896,7 +897,7 @@ func K8sExec(pod string, ns string, container string, cmd string) (string, error
 	out, err := controllers.ExecCmdFunc(p, cmd)
 	// Trim the output.
 	out = strings.TrimSpace(out)
-	logf.Log.Info("Pod exec result", "output", out, "err", err)
+	logf.FromContext(nil).Info("Pod exec result", "output", out, "err", err)
 	return out, err
 }
 
@@ -1016,7 +1017,7 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 			modifyObjectFunc(&emptyObj)
 			// Try to update object in k8s
 			if err := k8sClient.Update(ctx, emptyObj); err != nil {
-				logf.Log.Error(err, "Failed to update object, retrying")
+				logf.FromContext(nil).Error(err, "Failed to update object, retrying")
 				return err
 			}
 			return nil
@@ -1041,7 +1042,7 @@ func K8sGetAndUpdateStatusWithRetry(k8sClient client.Client,
 			modifyObjectFunc(&emptyObj)
 			// Try to update status in k8s
 			if err := k8sClient.Status().Update(ctx, emptyObj); err != nil {
-				logf.Log.Error(err, "Failed to update object, retrying")
+				logf.FromContext(nil).Error(err, "Failed to update object, retrying")
 				return err
 			}
 			return nil
@@ -1069,7 +1070,7 @@ func SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv K8sOperatorEnvironment) {
 			"--member="+"serviceAccount:"+k8sEnv.K8sServiceAccount,
 			GCloudServiceAccount())
 		out, err := cmd.CombinedOutput()
-		logf.Log.Info("gcloud iam service-accounts add-iam-policy-binding", "output", string(out))
+		logf.FromContext(nil).Info("gcloud iam service-accounts add-iam-policy-binding", "output", string(out))
 		return err
 	})).To(Succeed())
 	saObj := &corev1.ServiceAccount{}

@@ -62,7 +62,7 @@ var _ = Describe("Backup through snapshot", func() {
 
 	snapBackupTest := func(version string, edition string) {
 		It("Should create snapshot based backup then restore to instance successfully", func() {
-			log := logf.Log
+			log := logf.FromContext(nil)
 
 			By("By creating a instance")
 			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
