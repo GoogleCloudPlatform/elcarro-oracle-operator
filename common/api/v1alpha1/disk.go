@@ -29,12 +29,6 @@ type DiskSpec struct {
 	// +kubebuilder:validation:Enum=DataDisk;LogDisk;BackupDisk
 	Name string `json:"name"`
 
-	// Disk type.
-	// Depending on a deployment platform, DiskType may take different values.
-	// On GCP, support "HDD" and "SSD". Default to "HDD" if not specified.
-	// +optional
-	Type *DiskType `json:"type,omitempty"`
-
 	// Disk size. If not specified, the defaults are: DataDisk:"100Gi", LogDisk:"150Gi",BackupDisk:"100Gi"
 	// +optional
 	Size resource.Quantity `json:"size,omitempty"`
