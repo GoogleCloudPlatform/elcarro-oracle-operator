@@ -29,8 +29,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/klog/v2"
-	"k8s.io/klog/v2/klogr"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
@@ -39,8 +37,6 @@ import (
 )
 
 func TestUser(t *testing.T) {
-	klog.SetOutput(GinkgoWriter)
-	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "User operations")
 }
@@ -66,7 +62,7 @@ var (
 		"scott":      "tiger1",
 		"proberuser": "proberpassword1",
 	}
-	log = logf.Log
+	log = logf.FromContext(nil)
 )
 
 // Initial setup before test suite.
@@ -247,7 +243,7 @@ var _ = Describe("User operations", func() {
 					Message: "",
 				}, metav1.ConditionTrue)
 				if cond != nil && syncUserCompleted {
-					logf.Log.Info("PDB", "state", cond.Reason, "SyncComplete", syncUserCompleted)
+					log.Info("PDB", "state", cond.Reason, "SyncComplete", syncUserCompleted)
 					return cond.Status
 				}
 				return metav1.ConditionUnknown

@@ -77,7 +77,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	BackupTest := func(tc backupTestCase) {
 		Context(tc.contextTitle, func() {
 			It("Should create rman based backup successfully", func() {
-				log := logf.Log
+				log := logf.FromContext(nil)
 
 				By("By creating an instance")
 				instance := &v1alpha1.Instance{

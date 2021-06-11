@@ -24,8 +24,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
-	"k8s.io/klog/v2/klogr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -33,14 +31,12 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
 func TestParameterUpdate(t *testing.T) {
-	klog.SetOutput(GinkgoWriter)
-	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ParameterUpdate")
 }
@@ -54,9 +50,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("ParameterUpdate", func() {
-	klog.SetOutput(GinkgoWriter)
-	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
-	log := logf.Log
+	log := logf.FromContext(nil)
 	pod := "mydb-sts-0"
 	instanceName := "mydb"
 
