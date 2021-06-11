@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
@@ -80,8 +80,8 @@ func backupSubType(st string) capb.PhysicalBackupRequest_Type {
 	return capb.PhysicalBackupRequest_INSTANCE
 }
 
-func (r *BackupReconciler) backupInProgress(ctx context.Context, backup v1alpha1.Backup, ns string, inst *v1alpha1.Instance) error {
-	r.Log.Info("found a backup request in-progress")
+func (r *BackupReconciler) checkSnapshotStatus(ctx context.Context, backup v1alpha1.Backup, ns string, inst *v1alpha1.Instance, log logr.Logger) error {
+	log.Info("found a backup request in-progress")
 
 	sel := labels.NewSelector()
 	vsLabels := []string{backup.Status.BackupID + "-u02", backup.Status.BackupID + "-u03"}
@@ -104,20 +104,20 @@ func (r *BackupReconciler) backupInProgress(ctx context.Context, backup v1alpha1
 
 	var volSnaps snapv1.VolumeSnapshotList
 	if err := r.List(ctx, &volSnaps, listOpts...); err != nil {
-		r.Log.Error(err, "failed to get a volume snapshot")
+		log.Error(err, "failed to get a volume snapshot")
 		return err
 	}
-	r.Log.Info("list of found volume snapshots", "volSnaps", volSnaps)
+	log.Info("list of found volume snapshots", "volSnaps", volSnaps)
 
 	if len(volSnaps.Items) < 1 {
-		r.Log.Info("no volume snapshots found for a backup request marked as in-progress.", "backup.Status", backup.Status)
+		log.Info("no volume snapshots found for a backup request marked as in-progress.", "backup.Status", backup.Status)
 		return nil
 	}
-	r.Log.Info("found a volume snapshot(s) for a backup request in-progress")
+	log.Info("found a volume snapshot(s) for a backup request in-progress")
 
 	vsStatus := make(map[string]bool)
 	for i, vs := range volSnaps.Items {
-		r.Log.Info("iterating over volume snapshots", "VolumeSnapshot#", i, "name", vs.Name)
+		log.Info("iterating over volume snapshots", "VolumeSnapshot#", i, "name", vs.Name)
 		vsStatus[vs.Name] = false
 
 		if vs.Status == nil {
@@ -127,15 +127,15 @@ func (r *BackupReconciler) backupInProgress(ctx context.Context, backup v1alpha1
 		if !*vs.Status.ReadyToUse {
 			return fmt.Errorf("not yet ready: Status found, but it's not flipped to DONE yet for VolumeSnapshot %s/%s: %v", vs.Namespace, vs.Name, vs.Status)
 		}
-		r.Log.Info("ready to use status", "VolumeSnapshot#", i, "name", vs, "status", *vs.Status.ReadyToUse)
+		log.Info("ready to use status", "VolumeSnapshot#", i, "name", vs, "status", *vs.Status.ReadyToUse)
 		vsStatus[vs.Name] = true
 	}
-	r.Log.Info("summary of VolumeSnapshot statuses", "vsStatus", vsStatus)
+	log.Info("summary of VolumeSnapshot statuses", "vsStatus", vsStatus)
 
 	r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(backup.Status.Conditions, k8s.Ready), time.Second))
 	backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
 
-	r.Log.Info("snapshot is ready")
+	log.Info("snapshot is ready")
 	if err := r.updateBackupStatus(ctx, &backup, inst); err != nil {
 		r.Log.Error(err, "failed to flip the snapshot status from in-progress to ready")
 		return err
@@ -223,34 +223,13 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 
 	if k8s.ConditionReasonEquals(readyCond, k8s.BackupInProgress) {
 		if backup.Spec.Type == "Snapshot" {
-			if err := r.backupInProgress(ctx, backup, namespace, &inst); err != nil {
+			if err := r.checkSnapshotStatus(ctx, backup, namespace, &inst, log); err != nil {
 				return ctrl.Result{}, err
 			}
 		} else {
-			id := lroOperationID(&backup)
-			operation, err := controllers.GetLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
-			if err != nil {
-				log.Error(err, "GetLROOperation error")
-				return ctrl.Result{}, err
-			}
-			if operation.Done {
-				log.Info("LRO is DONE", "id", id)
-				if operation.GetError() != nil {
-					log.Error(fmt.Errorf(operation.GetError().GetMessage()), "backup failed")
-					r.Recorder.Event(&backup, corev1.EventTypeWarning, "BackupFailed", operation.GetError().GetMessage())
-					backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, operation.GetError().GetMessage())
-				} else {
-					r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(readyCond, time.Second))
-					backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
-				}
-				if err := r.updateBackupStatus(ctx, &backup, &inst); err != nil {
-					log.Error(err, "failed to update the backup resource", "backup", backup)
-					return ctrl.Result{}, err
-				}
-				_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
-			} else {
-				log.Info("LRO is in progress", "id", id)
-				return ctrl.Result{RequeueAfter: time.Minute}, nil
+			c, err, done := r.checkLROStatus(ctx, req, &backup, readyCond, &inst, log)
+			if !done {
+				return c, err
 			}
 		}
 
@@ -277,11 +256,13 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, err
 	}
 
-	bktype := "snap"
 	timeLimitMinutes := controllers.PhysBackupTimeLimitDefault
+
+	var bktype string
 
 	switch backup.Spec.Type {
 	case "Snapshot":
+		bktype = "snap"
 
 	case "Physical":
 		bktype = "phys"
@@ -462,4 +443,33 @@ var preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, i
 	}
 	r.Log.Info("preflight check: physical backup, external LB service is ready", "succeededExecCmd#:", 1, "svc", svc.Name)
 	return nil
+}
+
+// checkLROStatus checks the status of a long-running operation (LRO) backup. LRO's are done through the db agent and thus needs to be monitored periodically. This method returns true if LRO is done and false if not.
+func (r *BackupReconciler) checkLROStatus(ctx context.Context, req ctrl.Request, backup *v1alpha1.Backup, rc *v1.Condition, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error, bool) {
+	id := lroOperationID(backup)
+	operation, err := controllers.GetLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
+	if err != nil {
+		log.Error(err, "GetLROOperation error")
+		return ctrl.Result{}, err, false
+	}
+	if operation.Done {
+		log.Info("LRO is DONE", "id", id)
+		if operation.GetError() != nil {
+			log.Error(fmt.Errorf(operation.GetError().GetMessage()), "backup failed")
+			r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupFailed", operation.GetError().GetMessage())
+			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, operation.GetError().GetMessage())
+		} else {
+			r.Recorder.Eventf(backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(rc, time.Second))
+			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
+		}
+		if err := r.updateBackupStatus(ctx, backup, inst); err != nil {
+			log.Error(err, "failed to update the backup resource", "backup", backup)
+			return ctrl.Result{}, err, false
+		}
+		_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
+		return ctrl.Result{}, nil, true
+	}
+	log.Info("LRO is in progress", "id", id)
+	return ctrl.Result{RequeueAfter: time.Minute}, nil, false
 }
