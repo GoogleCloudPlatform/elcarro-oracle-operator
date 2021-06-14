@@ -23,8 +23,7 @@ You should set these variables in your environment.
 *   Install [kubectl](https://kubernetes.io/docs/tasks/tools/) to access the
     kubernetes cluster inside minikube
 *   Install Docker to build images locally
-*   Make sure you have access to El Carro source code either through Github or
-    GOB because we will build container images locally and push to the local
+*   Make sure you have access to El Carro source code either through Github because we will build container images locally and push to the local
     minikube registry.
 
 ## Prepare a minikube cluster
@@ -215,7 +214,7 @@ specific configurations can be picked up by El Carro.
 ### Creating an El Carro instance:
 
 ```sh
-kubectl apply -f $PATH_TO_EL_CARRO_REPO/oracle/config/samples/v1alpha1_instance_minikube.yaml -n $NS
+kubectl apply -f $PATH_TO_EL_CARRO_REPO/oracle/config/samples/v1alpha1_instance_local.yaml -n $NS
 ```
 
 Follow the [instance provisioning user guide](provision/instance.md) to learn
