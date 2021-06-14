@@ -66,10 +66,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintLogs(k8sEnv.Namespace, k8sEnv.Env,
-				[]string{"manager", "dbdaemon", "oracledb"},
-				[]string{"mydb"})
-			testhelpers.PrintClusterObjects()
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, "mydb", "GCLOUD")
 		}
 		k8sEnv.Close()
 	})

@@ -113,6 +113,7 @@ test:
 		--test_env=PROW_PROJECT=${PROW_PROJECT} \
 		--test_env=PROW_CLUSTER=${PROW_CLUSTER} \
 		--test_env=PROW_INT_TEST_SA=${PROW_INT_TEST_SA} \
+		--test_env=ARTIFACTS=${ARTIFACTS} \
 		--test_env=PROW_CLUSTER_ZONE=${PROW_CLUSTER_ZONE} || touch failed
 	if [[ -n "$$ARTIFACTS" ]]; then find ../bazel-testlogs/ -name '*.xml' -o -name '*.log' | xargs cp --parents -t "$$ARTIFACTS/" ; fi
 	if [[ -f "failed" ]]; then rm failed; exit 100; fi

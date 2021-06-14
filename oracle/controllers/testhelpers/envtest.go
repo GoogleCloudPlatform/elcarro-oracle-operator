@@ -349,6 +349,19 @@ func PrintENV() {
 	}
 }
 
+// Prints logs for a typical single-instance test scenario in case of failure:
+// Prints logs for 'manager', 'dbdaemon', 'oracledb' containers.
+// Prints cluster objects.
+// Stores Oracle trace logs to a local dir (or Prow Artifacts).
+func PrintSimpleDebugInfo(k8sEnv K8sOperatorEnvironment, instanceName string, CDBName string) {
+	PrintLogs(k8sEnv.Namespace, k8sEnv.Env, []string{"manager", "dbdaemon", "oracledb"}, []string{instanceName})
+	PrintClusterObjects()
+	var pod = instanceName + "-sts-0"
+	if err := StoreOracleLogs(pod, k8sEnv.Namespace, instanceName, CDBName); err != nil {
+		logf.FromContext(nil).Error(err, "StoreOracleLogs failed")
+	}
+}
+
 // Print cluster objects - events, pods, pvcs for all namespaces in the cluster
 func PrintClusterObjects() {
 	PrintENV()
@@ -1082,4 +1095,42 @@ func SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv K8sOperatorEnvironment) {
 				"iam.gke.io/gcp-service-account": GCloudServiceAccount(),
 			}
 		})
+}
+
+// K8sCopyFromPodOrFail copies file/dir in src path of the pod to local dest path.
+// Depends on kubectl
+// kubectl cp <pod>:<src> dest -n <ns> -c <container>
+func k8sCopyFromPod(pod, ns, container, src, dest string) error {
+	cmd := exec.Command("kubectl", "cp", fmt.Sprintf("%s:%s", pod, src), dest, "-n", ns, "-c", container)
+	logf.FromContext(nil).Info(cmd.String())
+	return cmd.Run()
+}
+
+// StoreOracleLogs saves Oracle's trace logs from oracledb pod.
+// Stores to $ARTIFACTS in case of a Prow job or in
+// a temporary directory if running locally.
+func StoreOracleLogs(pod string, ns string, instanceName string, CDBName string) error {
+	var storePath string
+	artifactsDir := os.Getenv("ARTIFACTS")
+	if artifactsDir != "" { // Running in Prow
+		storePath = filepath.Join(artifactsDir, ns, instanceName)
+		if err := os.MkdirAll(storePath, 0755); err != nil {
+			return fmt.Errorf("os.MkdirAll failed: %v", err)
+		}
+	} else { // Running locally
+		tmpDir, err := ioutil.TempDir("", "oracledb")
+		if err != nil {
+			return fmt.Errorf("TempDir failed: %v", err)
+		}
+		storePath = tmpDir
+	}
+	zone := "uscentral1a"
+	logf.FromContext(nil).Info("Collecting Oracle logs")
+	oracleLogPath := fmt.Sprintf("/u02/app/oracle/diag/rdbms/%s_%s/%s/trace/",
+		strings.ToLower(CDBName), zone, CDBName)
+	if err := k8sCopyFromPod(pod, ns, "oracledb", oracleLogPath, storePath); err != nil {
+		return fmt.Errorf("k8sCopyFromPod failed: %v", err)
+	}
+	logf.FromContext(nil).Info(fmt.Sprintf("Stored Oracle /trace/ to %s", storePath))
+	return nil
 }
