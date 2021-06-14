@@ -11,12 +11,10 @@ spec:
   disks: [
   {
     name: "DataDisk",
-    type: "pd-standard",
     size: "100Gi",
   },
   {
     name: "LogDisk",
-    type: "pd-standard",
     size: "150Gi",
   }
   ]

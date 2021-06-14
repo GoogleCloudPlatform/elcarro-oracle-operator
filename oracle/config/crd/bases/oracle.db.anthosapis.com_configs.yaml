@@ -77,11 +77,6 @@ spec:
                       description: StorageClass points to a particular CSI driver
                         and is used for disk provisioning.
                       type: string
-                    type:
-                      description: Disk type. Depending on a deployment platform,
-                        DiskType may take different values. On GCP, support "HDD"
-                        and "SSD". Default to "HDD" if not specified.
-                      type: string
                   required:
                   - name
                   type: object

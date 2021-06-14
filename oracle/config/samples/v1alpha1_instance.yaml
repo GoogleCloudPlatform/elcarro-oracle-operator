@@ -10,11 +10,9 @@ spec:
   disks:
   - name: DataDisk
     size: 45Gi
-    type: pd-standard
     storageClass: "csi-gce-pd"
   - name: LogDisk
     size: 55Gi
-    type: pd-standard
     storageClass: "csi-gce-pd"
   services:
     Backup: true
