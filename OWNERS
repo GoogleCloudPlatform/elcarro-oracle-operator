@@ -1,0 +1,15 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+
+approvers:
+  - yian-zhou
+  - akinfermo
+  - kchernyshev
+  - aa3210
+  - yixinzhangvv
+  - shaojie-zhang
+  - kaoet
+  - essbeegoog
+  - borisdali
+  - ankel
+  - aravindous
+  - haohu-hh
