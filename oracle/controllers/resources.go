@@ -728,25 +728,6 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 	}
 }
 
-// NewSnapshot returns the snapshot for the given pv.
-func NewSnapshot(backup *v1alpha1.Backup, scheme *runtime.Scheme, pvcName, snapName, volumeSnapshotClassName string) (*snapv1.VolumeSnapshot, error) {
-	snap := &snapv1.VolumeSnapshot{
-		TypeMeta:   metav1.TypeMeta{APIVersion: snapv1.SchemeGroupVersion.String(), Kind: "VolumeSnapshot"},
-		ObjectMeta: metav1.ObjectMeta{Name: snapName, Namespace: backup.Namespace, Labels: map[string]string{"snap": snapName}},
-		Spec: snapv1.VolumeSnapshotSpec{
-			Source:                  snapv1.VolumeSnapshotSource{PersistentVolumeClaimName: &pvcName},
-			VolumeSnapshotClassName: func() *string { s := string(volumeSnapshotClassName); return &s }(),
-		},
-	}
-
-	// Set the Instance resource to own the VolumeSnapshot resource.
-	if err := ctrl.SetControllerReference(backup, snap, scheme); err != nil {
-		return snap, err
-	}
-
-	return snap, nil
-}
-
 // NewSnapshot returns the snapshot for the given instance and pv.
 func NewSnapshotInst(inst *v1alpha1.Instance, scheme *runtime.Scheme, pvcName, snapName, volumeSnapshotClassName string) (*snapv1.VolumeSnapshot, error) {
 	snap := &snapv1.VolumeSnapshot{
