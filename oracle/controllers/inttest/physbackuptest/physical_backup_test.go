@@ -295,6 +295,13 @@ var _ = Describe("Instance and Database provisioning", func() {
 			}
 			BackupTest(testCase)
 		})
+		Context("Oracle 19.3 EE", func() {
+			testCase.instanceSpec.Version = "19.3"
+			testCase.instanceSpec.Images = map[string]string{
+				"service": testhelpers.TestImageForVersion("19.3", "EE", ""),
+			}
+			BackupTest(testCase)
+		})
 	})
 })
 
