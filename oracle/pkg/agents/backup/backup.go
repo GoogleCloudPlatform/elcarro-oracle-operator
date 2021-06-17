@@ -32,6 +32,7 @@ const (
 
 	// The format of the backup statement template is:
 	// 	run {
+	//		<initialization statements>
 	//		channels
 	//		backup
 	//			as <compressed> <backupset|image copy>
@@ -44,6 +45,7 @@ const (
 	//		backup...
 	//	}
 	backupStmtTemplate = `run {
+			%s
 			%s
 			backup
 				as %s %s
@@ -147,7 +149,13 @@ func PhysicalBackup(ctx context.Context, params *Params) (*lropb.Operation, erro
 	}
 	klog.InfoS("oracle/PhysicalBackup", "sectionSize", sectionSize)
 
-	backupStmt := fmt.Sprintf(backupStmtTemplate, channels, compressed, backupset, checklogical, filesperset, sectionSize, params.Level, backupDir, granularity, backupDir)
+	// Change the location of RMAN control file snapshot from
+	// the container image filesystem to the data disk (<backupDir>/snapcf_<CDB>.f)
+	// The default location is '/u01/app/oracle/product/<VERSION>/db/dbs/snapcf_<CDB>.f'
+	// and it causes flaky behaviour (ORA-00246) in Oracle 19.3
+	initStatement := fmt.Sprintf("CONFIGURE SNAPSHOT CONTROLFILE NAME TO '%s/snapcf_%s.f';", backupDir, params.CDBName)
+
+	backupStmt := fmt.Sprintf(backupStmtTemplate, initStatement, channels, compressed, backupset, checklogical, filesperset, sectionSize, params.Level, backupDir, granularity, backupDir)
 	klog.InfoS("oracle/PhysicalBackup", "finalBackupRequest", backupStmt)
 
 	backupReq := &dbdpb.RunRMANAsyncRequest{
