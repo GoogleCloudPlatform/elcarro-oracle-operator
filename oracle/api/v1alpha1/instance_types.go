@@ -90,7 +90,7 @@ type InstanceSpec struct {
 }
 
 type BackupReference struct {
-	// `namespace` is the namespace of the backup.
+	// `namespace` is the namespace in which the backup object is created.
 	// +required
 	Namespace string `json:"namespace,omitempty"`
 	// `name` is the name of the backup.
@@ -102,15 +102,15 @@ type BackupReference struct {
 type RestoreSpec struct {
 	// Backup type to restore from.
 	// Oracle only supports: Snapshot or Physical.
-	// +required
+	// +optional
 	// +kubebuilder:validation:Enum=Snapshot;Physical
 	BackupType commonv1alpha1.BackupType `json:"backupType,omitempty"`
 
-	// Backup name to restore from.
+	// Backup ID to restore from.
 	// +optional
 	BackupID string `json:"backupId,omitempty"`
 
-	// Backup name to restore from.
+	// Backup reference to restore from.
 	// +optional
 	BackupRef *BackupReference `json:"backupRef,omitempty"`
 
