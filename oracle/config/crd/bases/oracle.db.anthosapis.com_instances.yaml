@@ -286,6 +286,16 @@ spec:
                   backupId:
                     description: Backup name to restore from.
                     type: string
+                  backupRef:
+                    description: Backup name to restore from.
+                    properties:
+                      name:
+                        description: '`name` is the name of the backup.'
+                        type: string
+                      namespace:
+                        description: '`namespace` is the namespace of the backup.'
+                        type: string
+                    type: object
                   backupType:
                     description: 'Backup type to restore from. Oracle only supports:
                       Snapshot or Physical.'
