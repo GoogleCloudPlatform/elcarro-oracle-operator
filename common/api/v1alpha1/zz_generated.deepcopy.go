@@ -196,6 +196,7 @@ func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 			(*out)[key] = val
 		}
 	}
+	in.DatabaseResources.DeepCopyInto(&out.DatabaseResources)
 	if in.MaintenanceWindow != nil {
 		in, out := &in.MaintenanceWindow, &out.MaintenanceWindow
 		*out = new(MaintenanceWindowSpec)

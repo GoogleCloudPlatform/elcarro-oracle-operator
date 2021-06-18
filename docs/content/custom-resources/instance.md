@@ -46,7 +46,9 @@ spec:
   images:
     service: "<your-db-GCR-location>" # {"$kpt-set":"dbimage"}
   sourceCidrRanges: [0.0.0.0/0]
-  minMemoryForDBContainer: 4.0Gi
+  databaseResources:
+    requests:
+      memory: 4.0Gi
   maintenanceWindow:
     timeRanges:
     - start: "2121-04-20T15:45:30Z"

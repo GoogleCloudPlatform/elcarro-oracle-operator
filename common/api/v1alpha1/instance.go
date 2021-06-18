@@ -15,6 +15,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -110,10 +111,11 @@ type InstanceSpec struct {
 	// +optional
 	Services map[Service]bool `json:"services,omitempty"`
 
-	// MinMemoryForDBContainer overrides the default safe limit for
-	// scheduling the db container without crashes due to memory pressure.
+	// Resource specification for the database container. If not specified, a
+	// default of 4.0Gi memory request will be used to safeguard the db container
+	// without crashes due to memory pressure.
 	// +optional
-	MinMemoryForDBContainer string `json:"minMemoryForDBContainer,omitempty"`
+	DatabaseResources corev1.ResourceRequirements `json:"databaseResources,omitempty"`
 
 	// MaintenanceWindow specifies the time windows during which database downtimes are allowed for maintenance.
 	// +optional

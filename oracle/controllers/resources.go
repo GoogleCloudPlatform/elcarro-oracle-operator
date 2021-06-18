@@ -544,10 +544,14 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		"app":         DatabasePodAppLabel,
 	}
 
-	minMemoryForDBContainer := safeMinMemoryForDBContainer
-	if sp.Inst.Spec.MinMemoryForDBContainer != "" {
-		minMemoryForDBContainer = sp.Inst.Spec.MinMemoryForDBContainer
-		sp.Log.Info("NewPodTemplate: replacing", "SafeMinMemoryForDBContainer", safeMinMemoryForDBContainer, "sp.Inst.Spec.MinMemoryForDBContainer", sp.Inst.Spec.MinMemoryForDBContainer)
+	// Set default safeguard memory if the database resource is not specified.
+	dbResource := sp.Inst.Spec.DatabaseResources
+	if dbResource.Requests == nil {
+		dbResource.Requests = corev1.ResourceList{}
+	}
+	if dbResource.Requests.Memory() == nil {
+		sp.Log.Info("NewPodTemplate: No memory request found for DB. Setting default safeguard memory", "SafeMinMemoryForDBContainer", safeMinMemoryForDBContainer)
+		dbResource.Requests[corev1.ResourceMemory] = resource.MustParse(safeMinMemoryForDBContainer)
 	}
 
 	// Kind cluster can only use local images
@@ -558,17 +562,14 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 
 	sp.Log.Info("NewPodTemplate: creating new template with service image", "image", sp.Images["service"])
 	dataDiskPVC, dataDiskMountName := GetPVCNameAndMount(sp.Inst.Name, "DataDisk")
+
 	containers := []corev1.Container{
 		{
-			Name: "oracledb",
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse(minMemoryForDBContainer),
-				},
-			},
-			Image:   sp.Images["service"],
-			Command: []string{fmt.Sprintf("%s/init_oracle.sh", scriptDir)},
-			Args:    []string{cdbName, DBDomain},
+			Name:      "oracledb",
+			Resources: dbResource,
+			Image:     sp.Images["service"],
+			Command:   []string{fmt.Sprintf("%s/init_oracle.sh", scriptDir)},
+			Args:      []string{cdbName, DBDomain},
 			Ports: []corev1.ContainerPort{
 				{Name: "secure-listener", Protocol: "TCP", ContainerPort: consts.SecureListenerPort},
 				{Name: "ssl-listener", Protocol: "TCP", ContainerPort: consts.SSLListenerPort},

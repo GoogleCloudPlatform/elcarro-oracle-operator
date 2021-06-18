@@ -25,7 +25,9 @@ spec:
   sourceCidrRanges: [0.0.0.0/0]
   # Oracle SID character limit is 8, anything > gets truncated by Oracle
   cdbName: ${DB}
-  minMemoryForDBContainer: 4.0Gi
+  databaseResources:
+    requests:
+      memory: 4.0Gi
 
 # Uncomment this section to trigger a restore.
 #  restore:
