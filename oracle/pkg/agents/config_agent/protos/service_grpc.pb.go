@@ -25,6 +25,7 @@ type ConfigAgentClient interface {
 	CreateCDBUser(ctx context.Context, in *CreateCDBUserRequest, opts ...grpc.CallOption) (*CreateCDBUserResponse, error)
 	UsersChanged(ctx context.Context, in *UsersChangedRequest, opts ...grpc.CallOption) (*UsersChangedResponse, error)
 	UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error)
+	VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(ctx context.Context, in *PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	PhysicalRestore(ctx context.Context, in *PhysicalRestoreRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error)
@@ -97,6 +98,15 @@ func (c *configAgentClient) UsersChanged(ctx context.Context, in *UsersChangedRe
 func (c *configAgentClient) UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error) {
 	out := new(UpdateUsersResponse)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/UpdateUsers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configAgentClient) VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error) {
+	out := new(VerifyPhysicalBackupResponse)
+	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/VerifyPhysicalBackup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +275,7 @@ type ConfigAgentServer interface {
 	CreateCDBUser(context.Context, *CreateCDBUserRequest) (*CreateCDBUserResponse, error)
 	UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error)
 	UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error)
+	VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error)
 	PhysicalRestore(context.Context, *PhysicalRestoreRequest) (*longrunning.Operation, error)
 	CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error)
@@ -309,6 +320,9 @@ func (UnimplementedConfigAgentServer) UsersChanged(context.Context, *UsersChange
 }
 func (UnimplementedConfigAgentServer) UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUsers not implemented")
+}
+func (UnimplementedConfigAgentServer) VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyPhysicalBackup not implemented")
 }
 func (UnimplementedConfigAgentServer) PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PhysicalBackup not implemented")
@@ -460,6 +474,24 @@ func _ConfigAgent_UpdateUsers_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigAgentServer).UpdateUsers(ctx, req.(*UpdateUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigAgent_VerifyPhysicalBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyPhysicalBackupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigAgentServer).VerifyPhysicalBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protos.ConfigAgent/VerifyPhysicalBackup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigAgentServer).VerifyPhysicalBackup(ctx, req.(*VerifyPhysicalBackupRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -796,6 +828,10 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateUsers",
 			Handler:    _ConfigAgent_UpdateUsers_Handler,
+		},
+		{
+			MethodName: "VerifyPhysicalBackup",
+			Handler:    _ConfigAgent_VerifyPhysicalBackup_Handler,
 		},
 		{
 			MethodName: "PhysicalBackup",

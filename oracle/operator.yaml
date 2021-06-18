@@ -117,6 +117,7 @@ spec:
                   backup can be optionally transferred to a GCS bucket. A user is
                   to ensure proper write access to the bucket from within the Oracle
                   Operator.
+                pattern: ^gs:\/\/.+$
                 type: string
               instance:
                 description: Instance is a name of an instance to take a backup for.
@@ -133,6 +134,14 @@ spec:
               localPath:
                 description: For a Physical backup, optionally specify a local backup
                   dir. If omitted, /u03/app/oracle/rman is assumed.
+                type: string
+              mode:
+                description: Mode specifies how this backup will be managed by the
+                  operator. if it is not set, the operator tries to create a backup
+                  based on the specifications. if it is set to VerifyExists, the operator
+                  verifies the existence of a backup.
+                enum:
+                - VerifyExists
                 type: string
               sectionSize:
                 description: For a Physical backup, optionally specify a section size
@@ -366,6 +375,7 @@ spec:
                       backup can be optionally transferred to a GCS bucket. A user
                       is to ensure proper write access to the bucket from within the
                       Oracle Operator.
+                    pattern: ^gs:\/\/.+$
                     type: string
                   instance:
                     description: Instance is a name of an instance to take a backup
@@ -383,6 +393,14 @@ spec:
                   localPath:
                     description: For a Physical backup, optionally specify a local
                       backup dir. If omitted, /u03/app/oracle/rman is assumed.
+                    type: string
+                  mode:
+                    description: Mode specifies how this backup will be managed by
+                      the operator. if it is not set, the operator tries to create
+                      a backup based on the specifications. if it is set to VerifyExists,
+                      the operator verifies the existence of a backup.
+                    enum:
+                    - VerifyExists
                     type: string
                   sectionSize:
                     description: For a Physical backup, optionally specify a section

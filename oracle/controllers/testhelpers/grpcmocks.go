@@ -50,6 +50,7 @@ const (
 
 // FakeConfigAgentClient a client for capturing calls the various ConfigAgent api.
 type FakeConfigAgentClient struct {
+	verifyPhysicalBackupCalledCnt  int32
 	physicalBackupCalledCnt        int32
 	physicalRestoreCalledCnt       int32
 	createDatabaseCalledCnt        int32
@@ -128,6 +129,12 @@ func (cli *FakeConfigAgentClient) UsersChanged(context.Context, *capb.UsersChang
 func (cli *FakeConfigAgentClient) UpdateUsers(context.Context, *capb.UpdateUsersRequest, ...grpc.CallOption) (*capb.UpdateUsersResponse, error) {
 	atomic.AddInt32(&cli.updateUsersCalledCnt, 1)
 	return nil, nil
+}
+
+// VerifyPhysicalBackup wrapper.
+func (cli *FakeConfigAgentClient) VerifyPhysicalBackup(ctx context.Context, in *capb.VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*capb.VerifyPhysicalBackupResponse, error) {
+	atomic.AddInt32(&cli.verifyPhysicalBackupCalledCnt, 1)
+	return &capb.VerifyPhysicalBackupResponse{}, nil
 }
 
 // PhysicalBackup wrapper.
@@ -253,14 +260,22 @@ func (cli *FakeConfigAgentClient) DeleteOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.deleteOperationCalledCnt))
 }
 
+// VerifyPhysicalBackupCalledCnt returns call count.
+func (cli *FakeConfigAgentClient) VerifyPhysicalBackupCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.verifyPhysicalBackupCalledCnt))
+}
+
+// PhysicalBackupCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) PhysicalBackupCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.physicalBackupCalledCnt))
 }
 
+// PhysicalRestoreCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) PhysicalRestoreCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.physicalRestoreCalledCnt))
 }
 
+// GetOperationCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) GetOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.getOperationCalledCnt))
 }
