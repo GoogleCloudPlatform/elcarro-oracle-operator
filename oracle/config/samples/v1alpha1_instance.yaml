@@ -23,7 +23,9 @@ spec:
     # Replace below with the actual URIs hosting the service agent images.
     service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-seeded-${DB}"
   cdbName: ${DB}
-  minMemoryForDBContainer: 4.0Gi
+  databaseResources:
+    requests:
+      memory: 4.0Gi
 
 # Uncomment this section to trigger a restore.
 #  restore:

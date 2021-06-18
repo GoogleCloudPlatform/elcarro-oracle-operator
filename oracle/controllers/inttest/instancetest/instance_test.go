@@ -92,7 +92,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 								Size: resource.MustParse("150Gi"),
 							},
 						},
-						MinMemoryForDBContainer: "7.0Gi",
+						DatabaseResources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceMemory: resource.MustParse("7Gi"),
+							},
+						},
 						Images: map[string]string{
 							"service": testhelpers.TestImageForVersion(version, edition, ""),
 						},

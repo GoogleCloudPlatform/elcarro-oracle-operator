@@ -109,6 +109,34 @@ spec:
                   a database.
                 format: int64
                 type: integer
+              databaseResources:
+                description: Resource specification for the database container. If
+                  not specified, a default of 4.0Gi memory request will be used to
+                  safeguard the db container without crashes due to memory pressure.
+                properties:
+                  limits:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Limits describes the maximum amount of compute resources
+                      allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                    type: object
+                  requests:
+                    additionalProperties:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                    description: 'Requests describes the minimum amount of compute
+                      resources required. If Requests is omitted for a container,
+                      it defaults to Limits if that is explicitly specified, otherwise
+                      to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                    type: object
+                type: object
               databaseUID:
                 description: DatabaseUID represents an OS UID of a user running a
                   database.
@@ -229,10 +257,6 @@ spec:
                 maximum: 100
                 minimum: 0
                 type: integer
-              minMemoryForDBContainer:
-                description: MinMemoryForDBContainer overrides the default safe limit
-                  for scheduling the db container without crashes due to memory pressure.
-                type: string
               mode:
                 description: Mode specifies how this instance will be managed by the
                   operator.

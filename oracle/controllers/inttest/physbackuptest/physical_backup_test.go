@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -54,6 +55,11 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Instance and Database provisioning", func() {
 	var namespace string
+	dbResource := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resource.MustParse("7Gi"),
+		},
+	}
 
 	BeforeEach(func() {
 		defer GinkgoRecover()
@@ -170,8 +176,8 @@ var _ = Describe("Instance and Database provisioning", func() {
 							Size: resource.MustParse("150Gi"),
 						},
 					},
-					Images:                  map[string]string{},
-					MinMemoryForDBContainer: "7.0Gi",
+					Images:            map[string]string{},
+					DatabaseResources: dbResource,
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
@@ -221,8 +227,8 @@ var _ = Describe("Instance and Database provisioning", func() {
 							Size: resource.MustParse("100Gi"),
 						},
 					},
-					Images:                  map[string]string{},
-					MinMemoryForDBContainer: "7.0Gi",
+					Images:            map[string]string{},
+					DatabaseResources: dbResource,
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
@@ -267,8 +273,8 @@ var _ = Describe("Instance and Database provisioning", func() {
 							Size: resource.MustParse("150Gi"),
 						},
 					},
-					Images:                  map[string]string{},
-					MinMemoryForDBContainer: "7.0Gi",
+					Images:            map[string]string{},
+					DatabaseResources: dbResource,
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
