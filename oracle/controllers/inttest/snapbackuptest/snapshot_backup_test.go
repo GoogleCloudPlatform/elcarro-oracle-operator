@@ -54,8 +54,7 @@ var _ = Describe("Backup through snapshot", func() {
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintLogs(k8sEnv.Namespace, k8sEnv.Env, []string{"manager", "dbdaemon", "oracledb"}, []string{instanceName})
-			testhelpers.PrintClusterObjects()
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, instanceName, "GCLOUD")
 		}
 		k8sEnv.Close()
 	})
