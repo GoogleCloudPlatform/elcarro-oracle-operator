@@ -89,6 +89,15 @@ type InstanceSpec struct {
 	DBNetworkServiceOptions *DBNetworkServiceOptions `json:"dbNetworkServiceOptions,omitempty"`
 }
 
+type BackupReference struct {
+	// `namespace` is the namespace in which the backup object is created.
+	// +required
+	Namespace string `json:"namespace,omitempty"`
+	// `name` is the name of the backup.
+	// +required
+	Name string `json:"name,omitempty"`
+}
+
 // RestoreSpec defines optional restore and recovery attributes.
 type RestoreSpec struct {
 	// Backup type to restore from.
@@ -97,9 +106,13 @@ type RestoreSpec struct {
 	// +kubebuilder:validation:Enum=Snapshot;Physical
 	BackupType commonv1alpha1.BackupType `json:"backupType,omitempty"`
 
-	// Backup name to restore from.
-	// +required
+	// Backup ID to restore from.
+	// +optional
 	BackupID string `json:"backupId,omitempty"`
+
+	// Backup reference to restore from.
+	// +optional
+	BackupRef *BackupReference `json:"backupRef,omitempty"`
 
 	// Similar to a (physical) backup, optionally indicate a degree
 	// of parallelism, also known as DOP.

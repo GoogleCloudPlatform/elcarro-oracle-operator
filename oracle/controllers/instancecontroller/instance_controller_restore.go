@@ -66,10 +66,23 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request,
 	backup, err := r.findBackupForRestore(ctx, *inst, req.Namespace)
 	if err != nil {
 		r.setRestoreFailed(ctx, inst, fmt.Sprintf(
-			"Could not find a matching backup for BackupID: %v, BackupType: %v",
-			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType))
+			"Could not find a matching backup for BackupID: %v, BackupRef: %v, BackupType: %v",
+			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupRef, inst.Spec.Restore.BackupType))
 		return ctrl.Result{}, nil
 	}
+
+	// Check if the Backup object is in Ready status
+	backupReadyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
+	if !k8s.ConditionStatusEquals(backupReadyCond, v1.ConditionTrue) {
+		if k8s.ConditionReasonEquals(backupReadyCond, k8s.BackupFailed) {
+			r.setRestoreFailed(ctx, inst, "Backup is in failed state")
+			return ctrl.Result{}, nil
+		} else {
+			r.Log.Info("Backup is in progress, waiting")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+	}
+
 	switch instanceReadyCond.Reason {
 	// Entry points for restore process
 	case k8s.RestoreComplete, k8s.CreateComplete, k8s.RestoreFailed:
@@ -253,22 +266,37 @@ func restoreDOP(r, b int32) int32 {
 // findBackupForRestore fetches the backup with the backup_id specified in the spec for initiating the instance restore.
 func (r *InstanceReconciler) findBackupForRestore(ctx context.Context, inst v1alpha1.Instance, namespace string) (*v1alpha1.Backup, error) {
 	var backups v1alpha1.BackupList
-	if err := r.List(ctx, &backups, client.InNamespace(namespace)); err != nil {
-		return nil, fmt.Errorf("preflight check: failed to list backups for a restore: %v", err)
-	}
 	var backup v1alpha1.Backup
-	for _, b := range backups.Items {
-		if b.Status.BackupID == inst.Spec.Restore.BackupID {
-			r.Log.Info("requested backup found")
-			backup = b
+
+	backupRef := inst.Spec.Restore.BackupRef
+	if backupRef == nil && inst.Spec.Restore.BackupID == "" {
+		return nil, fmt.Errorf("preflight check: either BackupID or BackupRef must be set to perform a restore")
+	}
+	if backupRef != nil {
+		// find backup based on BackupRef
+		if err := r.Get(ctx, types.NamespacedName{Name: backupRef.Name, Namespace: backupRef.Namespace}, &backup); err != nil {
+			return nil, fmt.Errorf("preflight check: failed to get backup for a restore: %v, backupRef: %v", err, backupRef)
+		}
+	} else {
+		if err := r.List(ctx, &backups, client.InNamespace(namespace)); err != nil {
+			return nil, fmt.Errorf("preflight check: failed to list backups for a restore: %v", err)
+		}
+
+		for _, b := range backups.Items {
+			if b.Status.BackupID == inst.Spec.Restore.BackupID {
+				r.Log.Info("requested backup found")
+				backup = b
+			}
+		}
+		if backup.Spec.Type == "" {
+			return nil, fmt.Errorf("preflight check: failed to locate the requested backup %q", inst.Spec.Restore.BackupID)
 		}
 	}
-	if backup.Spec.Type == "" {
-		return nil, fmt.Errorf("preflight check: failed to locate the requested backup %q", inst.Spec.Restore.BackupID)
-	}
+
 	if backup.Spec.Type != inst.Spec.Restore.BackupType {
 		return nil, fmt.Errorf("preflight check: located a backup of type %q, wanted: %q", backup.Spec.Type, inst.Spec.Restore.BackupType)
 	}
+
 	return &backup, nil
 }
 
@@ -285,13 +313,9 @@ func (r *InstanceReconciler) restorePhysical(ctx context.Context, inst v1alpha1.
 	if backup.Spec.Subtype != "Instance" {
 		return nil, fmt.Errorf("preflight check: located a physical backup, but in this release the auto-restore is only supported from a Backupset taken at the Instance level: %q", backup.Spec.Subtype)
 	}
-	backupReadyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
-	if !k8s.ConditionStatusEquals(backupReadyCond, v1.ConditionTrue) {
-		return nil, fmt.Errorf("preflight check: located a physical backup, but it's not in the ready state: %q", backup.Status)
-	}
 	r.Log.Info("preflight check for a restore from a physical backup - all DONE", "backup", backup)
 	dop := restoreDOP(inst.Spec.Restore.Dop, backup.Spec.Dop)
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, backup.Spec.Instance)
+	caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
 	if err != nil {
 		r.Log.Error(err, "failed to create config agent client")
 		return nil, err
