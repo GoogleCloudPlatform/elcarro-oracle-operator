@@ -329,6 +329,10 @@ func (task *BootstrapTask) setParametersHelper(ctx context.Context) error {
 		"standby_file_management=AUTO",
 	}
 
+	if task.db.IsCDB() {
+		parameters = append(parameters, "common_user_prefix='gcsql$'")
+	}
+
 	if task.isSeeded && task.db.GetVersion() != consts.Oracle18c {
 		/* We do not change the pga_aggregate_target and sga_target parameters for Oracle 18c XE because of limitations
 		   Oracle places on memory allocation for the Express Edition. The parameter "compatible" comes preset with the
@@ -338,8 +342,9 @@ func (task *BootstrapTask) setParametersHelper(ctx context.Context) error {
 		parameters = append(parameters, fmt.Sprintf("compatible='%s.0'", task.db.GetVersion()))
 	}
 
-	if task.db.IsCDB() {
-		parameters = append(parameters, "common_user_prefix='gcsql$'")
+	if !task.isSeeded {
+		// hack fix for new PDB listener
+		parameters = append(parameters, fmt.Sprintf("local_listener='(DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=REGLSNR_%d)))'", consts.SecureListenerPort))
 	}
 
 	// We might want to send the whole batch over at once, but this way its

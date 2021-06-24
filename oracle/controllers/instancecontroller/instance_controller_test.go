@@ -82,7 +82,7 @@ var _ = Describe("Instance controller", func() {
 		Namespace    = "default"
 		InstanceName = "test-instance"
 
-		timeout  = time.Second * 15
+		timeout  = time.Second * 25
 		interval = time.Millisecond * 15
 	)
 
@@ -339,7 +339,7 @@ var _ = Describe("Instance controller", func() {
 			}
 			Expect(k8sClient.Status().Update(ctx, backup)).Should(Succeed())
 
-			By("invoking RMAN restore for the an Instance")
+			By("invoking RMAN restore for the Instance")
 
 			// configure fake ConfigAgent to be in requested mode
 			fakeConfigAgentClient.SetNextGetOperationStatus(mode)

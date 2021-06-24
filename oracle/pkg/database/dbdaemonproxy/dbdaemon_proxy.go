@@ -344,6 +344,13 @@ func (s *Server) ProxyRunDbca(ctx context.Context, req *dbdpb.ProxyRunDbcaReques
 	}
 	s.databaseSid.Lock()
 	defer s.databaseSid.Unlock()
+
+	klog.InfoS("proxy/ProxyRunDbca: Removing Oracle config files softlinks...")
+	if err := provision.RemoveConfigFileLinks(req.GetOracleHome(), req.GetDatabaseName()); err != nil {
+		return nil, err
+	}
+
+	klog.InfoS("proxy/ProxyRunDbca: Running dbca...")
 	if err := s.osUtil.runCommand(dbca(req.GetOracleHome()), req.GetParams()); err != nil {
 		return nil, fmt.Errorf("dbca cmd failed: %v", err)
 	}

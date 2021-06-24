@@ -150,6 +150,9 @@ service DatabaseDaemon {
   // FetchServiceImageMetaData returns the service image metadata.
   rpc FetchServiceImageMetaData(FetchServiceImageMetaDataRequest)
       returns (FetchServiceImageMetaDataResponse) {}
+
+  // CreateFile creates file based on file path and content.
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
 }
 
 message CreateDirRequest {
@@ -458,3 +461,9 @@ message FetchServiceImageMetaDataResponse {
   string cdb_name = 2;
   string oracle_home = 3;
 }
+
+message CreateFileRequest {
+  string path = 1;
+  string content = 2;
+}
+message CreateFileResponse {}

@@ -1346,22 +1346,16 @@ func (s *Server) CreateCDB(ctx context.Context, req *dbdpb.CreateCDBRequest) (*d
 	}
 	klog.InfoS("CDB created successfully")
 
-	if err := markProvisioned(); err != nil {
-		return nil, fmt.Errorf("error while creating provisioning file: %v", err)
-	}
-	klog.InfoS("Provisioning file created successfully")
-
-	if err := setEnvNew(s, s.databaseHome, req.DatabaseName); err != nil {
-		return nil, fmt.Errorf("failed to setup environment: %v", err)
-	}
-	// hack fix for new PDB listener
-	if _, err := s.runSQLPlusHelper(ctx, &dbdpb.RunSQLPlusCMDRequest{
-		Commands: []string{fmt.Sprintf("alter system set local_listener='(DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=REGLSNR_%d)))' scope=both", consts.SecureListenerPort)},
-	}, false); err != nil {
-		klog.Error(err, "set local_listener error")
-	}
-	klog.InfoS("Env setup successfully")
 	return &dbdpb.CreateCDBResponse{}, nil
+}
+
+// CreateFile creates file based on request.
+func (s *Server) CreateFile(ctx context.Context, req *dbdpb.CreateFileRequest) (*dbdpb.CreateFileResponse, error) {
+	klog.InfoS("dbdaemon/CreateFile: ", "req", req)
+	if err := s.osUtil.createFile(req.GetPath(), strings.NewReader(req.GetContent())); err != nil {
+		return nil, fmt.Errorf("dbdaemon/CreateFile: create failed: %v", err)
+	}
+	return &dbdpb.CreateFileResponse{}, nil
 }
 
 // CreateCDBAsync turns CreateCDB into an async call.

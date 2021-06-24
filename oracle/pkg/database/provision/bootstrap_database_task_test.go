@@ -17,6 +17,7 @@ package provision
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"testing"
 
@@ -39,15 +40,14 @@ func TestSetParametersHelper(t *testing.T) {
 		host:                     "testhost",
 		uniqueName:               "TEST_generic",
 		DBDomain:                 "gke",
-		databaseParamSGATargetMB: 0,
-		databaseParamPGATargetMB: 0,
+		databaseParamSGATargetMB: 10000,
+		databaseParamPGATargetMB: 2500,
 	}
 	bootstrapTask := &BootstrapTask{
 		dbdClient: client,
 		db:        testCDB,
-		isSeeded:  false,
 	}
-	wantSQLs := []string{
+	wantSQLsCommon := []string{
 		"alter system set audit_file_dest='/u02/app/oracle/admin/TEST/adump' scope=spfile",
 		"alter system set audit_trail='db' scope=spfile",
 		"alter system set control_files='/u02/app/oracle/oradata/TEST/control01.ctl' scope=spfile",
@@ -72,17 +72,47 @@ func TestSetParametersHelper(t *testing.T) {
 		"alter system set standby_file_management=AUTO scope=spfile",
 		"alter system set common_user_prefix='gcsql$' scope=spfile",
 	}
-	var gotSQLs []string
-	dbdServer.fakeRunSQLPlus = func(ctx context.Context, request *dbdpb.RunSQLPlusCMDRequest) (*dbdpb.RunCMDResponse, error) {
-		gotSQLs = append(gotSQLs, request.GetCommands()...)
-		return &dbdpb.RunCMDResponse{}, nil
+	wantSQLsUnseeded := []string{
+		"alter system set local_listener='(DESCRIPTION=(ADDRESS=(PROTOCOL=ipc)(KEY=REGLSNR_6021)))' scope=spfile",
+	}
+	wantSQLsSeeded := []string{
+		fmt.Sprintf("alter system set pga_aggregate_target=%dM scope=spfile", testCDB.GetDatabaseParamPGATargetMB()),
+		fmt.Sprintf("alter system set sga_target=%dM scope=spfile", testCDB.GetDatabaseParamSGATargetMB()),
+		fmt.Sprintf("alter system set compatible='%s.0' scope=spfile", testCDB.GetVersion()),
 	}
 
-	if err := bootstrapTask.setParametersHelper(ctx); err != nil {
-		t.Fatalf("BootstrapTask.setParametersHelper got %v, want nil", err)
+	testcases := []struct {
+		name     string
+		isSeeded bool
+		wantSQLs []string
+	}{
+		{
+			name:     "Set parameters for seeded instance",
+			isSeeded: true,
+			wantSQLs: append(wantSQLsCommon, wantSQLsSeeded...),
+		},
+		{
+			name:     "Set parameters for usseeded instance",
+			isSeeded: false,
+			wantSQLs: append(wantSQLsCommon, wantSQLsUnseeded...),
+		},
 	}
-	if diff := cmp.Diff(wantSQLs, gotSQLs); diff != "" {
-		t.Errorf("BootstrapTask.setParametersHelper called unexpected sqls: -want +got %v", diff)
+
+	for _, tc := range testcases {
+		bootstrapTask.isSeeded = tc.isSeeded
+		var gotSQLs []string
+		dbdServer.fakeRunSQLPlus = func(ctx context.Context, request *dbdpb.RunSQLPlusCMDRequest) (*dbdpb.RunCMDResponse, error) {
+			gotSQLs = append(gotSQLs, request.GetCommands()...)
+			return &dbdpb.RunCMDResponse{}, nil
+		}
+
+		if err := bootstrapTask.setParametersHelper(ctx); err != nil {
+			t.Fatalf("BootstrapTask.setParametersHelper got %v, want nil", err)
+		}
+
+		if diff := cmp.Diff(tc.wantSQLs, gotSQLs); diff != "" {
+			t.Errorf("BootstrapTask.setParametersHelper called unexpected sqls: -want +got %v", diff)
+		}
 	}
 }
 

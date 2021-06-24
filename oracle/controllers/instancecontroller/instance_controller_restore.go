@@ -39,7 +39,7 @@ import (
 // Invoked when Spec.Restore is present.
 // State transition:
 // CreateComplete/RestoreFailed -> RestorePreparationInProgress -> RestorePreparationComplete ->
-// -> RestoreInProgress -> RestoreComplete
+// -> RestoreInProgress -> PostRestoreBootstrapInProgress -> RestoreComplete
 // or ... -> RestoreFailed
 // Returns
 // * non-empty result if restore state machine needs another reconcile
@@ -53,10 +53,16 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request,
 	stsParams controllers.StsParams) (ctrl.Result, error) {
 	r.Log.Info("restoreStateMachine start")
 	// Conditions not initialized yet
-	if instanceReadyCond == nil || dbInstanceCond == nil || !k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
-		r.Log.Info("restoreStateMachine: Instance not ready yet, proceed with main reconciliation")
+	if instanceReadyCond == nil || dbInstanceCond == nil {
+		r.Log.Info("restoreStateMachine: instance not ready yet, proceed with main reconciliation")
 		return ctrl.Result{}, nil
 	}
+
+	if !k8s.ConditionReasonEquals(dbInstanceCond, k8s.AwaitingRestore) && !k8s.ConditionReasonEquals(dbInstanceCond, k8s.CreateComplete) {
+		r.Log.Info("restoreStateMachine: database instance is not ready for restore, proceed with main reconciliation")
+		return ctrl.Result{}, nil
+	}
+
 	// Check the Force flag
 	if !inst.Spec.Restore.Force {
 		r.Log.Info("instance is up and running. To replace (restore from a backup), set force=true")
@@ -193,7 +199,27 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request,
 			r.Log.Info("restore still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}
-		r.Log.Info("restoreStateMachine: RestoreInProgress->RestoreComplete")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreBootstrapInProgress, "")
+		// Reconcile again
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.PostRestoreBootstrapInProgress:
+		caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
+		if err != nil {
+			r.Log.Error(err, "failed to create config agent client")
+			return ctrl.Result{}, err
+		}
+		defer closeConn()
+
+		if _, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
+			CdbName:      inst.Spec.CDBName,
+			DbUniqueName: inst.Spec.DBUniqueName,
+			Dbdomain:     controllers.GetDBDomain(inst),
+			Mode:         capb.BootstrapDatabaseRequest_Restore,
+		}); err != nil {
+			r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err))
+			return ctrl.Result{}, nil
+		}
+
 		description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),
 			time.Now().Nanosecond(), inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType)
 		r.setRestoreSucceeded(ctx, inst, description)
@@ -400,15 +426,12 @@ func (r *InstanceReconciler) isPhysicalRestoreDone(ctx context.Context, req ctrl
 	if operation.GetError() != nil {
 		backupID := inst.Spec.Restore.BackupID
 		backupType := inst.Spec.Restore.BackupType
+
 		return true, fmt.Errorf("Failed to restore on %s-%d from backup %s (type %s): %s. %v", time.Now().Format(dateFormat),
 			time.Now().Nanosecond(), backupID, backupType, operation.GetError().GetMessage(), err)
 	}
-	return true, nil
-}
 
-func restoreInProgress(instReadyCond *v1.Condition) bool {
-	return k8s.ConditionStatusEquals(instReadyCond, v1.ConditionFalse) &&
-		(k8s.ConditionReasonEquals(instReadyCond, k8s.RestoreComplete) || k8s.ConditionReasonEquals(instReadyCond, k8s.RestoreInProgress))
+	return true, nil
 }
 
 // Create a name for the LRO operation based on instance GUID and restore time.

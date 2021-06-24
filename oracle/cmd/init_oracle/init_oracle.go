@@ -210,6 +210,12 @@ func main() {
 			}
 		} else {
 			klog.InfoS("CDB provisioning skipped")
+			if *cdbNameFromYaml != "" {
+				klog.InfoS("CDB name presents in yaml, relink config files")
+				if err := provision.RelinkConfigFiles(oracleHome, *cdbNameFromYaml); err != nil {
+					klog.ErrorS(err, "RelinkConfigFiles failed")
+				}
+			}
 		}
 		os.Exit(consts.DefaultExitErrorCode)
 	}

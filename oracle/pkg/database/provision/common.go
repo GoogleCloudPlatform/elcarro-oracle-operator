@@ -352,20 +352,44 @@ func MoveConfigFiles(OracleHome, CDBName string) error {
 	return nil
 }
 
+// getConfigFilesMapping returns config files symlink mapping.
+func getConfigFilesMapping(OracleHome, CDBName string) map[string]string {
+	mapping := make(map[string]string)
+
+	configDir := fmt.Sprintf(consts.ConfigDir, consts.DataMount, CDBName)
+	sourceConfigDir := filepath.Join(OracleHome, "dbs")
+
+	for _, f := range []string{fmt.Sprintf("spfile%s.ora", CDBName), fmt.Sprintf("orapw%s", CDBName)} {
+		link := filepath.Join(sourceConfigDir, f)
+		file := filepath.Join(configDir, f)
+		mapping[link] = file
+	}
+	return mapping
+}
+
 // RelinkConfigFiles creates softlinks under the Oracle standard paths from the
 // persistent configuration files in the PD.
 func RelinkConfigFiles(OracleHome, CDBName string) error {
-	configDir := fmt.Sprintf(consts.ConfigDir, consts.DataMount, CDBName)
-	sourceConfigDir := filepath.Join(OracleHome, "dbs")
-	for _, f := range []string{fmt.Sprintf("spfile%s.ora", CDBName), fmt.Sprintf("orapw%s", CDBName)} {
-		destn := filepath.Join(sourceConfigDir, f)
-		if _, err := os.Stat(destn); err == nil {
-			if err := os.Remove(destn); err != nil {
-				return fmt.Errorf("unable to delete existing file %s: %v", f, err)
-			}
+	if err := RemoveConfigFileLinks(OracleHome, CDBName); err != nil {
+		return fmt.Errorf("RelinkConfigFiles: unable to delete existing links: %v", err)
+	}
+
+	for link, file := range getConfigFilesMapping(OracleHome, CDBName) {
+		if err := os.Symlink(file, link); err != nil {
+			return fmt.Errorf("RelinkConfigFiles: symlink creation failed from %s to oracle directories %s: %v", link, file, err)
 		}
-		if err := os.Symlink(filepath.Join(configDir, f), filepath.Join(sourceConfigDir, f)); err != nil {
-			return fmt.Errorf("symlink creation failed for %s to oracle directories: %v", f, err)
+	}
+	return nil
+}
+
+// RemoveConfigFileLinks removes softlinks of config files under the Oracle standard path.
+// Prepare for database creation through DBCA.
+func RemoveConfigFileLinks(OracleHome, CDBName string) error {
+	for link := range getConfigFilesMapping(OracleHome, CDBName) {
+		if _, err := os.Lstat(link); err == nil {
+			if err := os.Remove(link); err != nil {
+				return fmt.Errorf("RemoveConfigFileLinks: unable to delete existing link %s: %v", link, err)
+			}
 		}
 	}
 	return nil
