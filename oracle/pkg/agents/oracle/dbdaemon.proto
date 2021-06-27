@@ -447,6 +447,7 @@ message RecoverConfigFileResponse {}
 message DownloadDirectoryFromGCSRequest {
   string gcs_path = 1;
   string local_path = 2;
+  bool access_permission_check = 3;
 }
 message DownloadDirectoryFromGCSResponse {}
 

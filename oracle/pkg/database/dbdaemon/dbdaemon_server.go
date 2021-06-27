@@ -1744,7 +1744,12 @@ func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.Downlo
 		return nil, fmt.Errorf("failed to parse gcs path %s", err)
 	}
 
-	klog.Infof("dbdaemon/downloadDirectoryFromGCS: destination path is %s", req.GetLocalPath())
+	if req.GetAccessPermissionCheck() {
+		klog.Info("dbdaemon/downloadDirectoryFromGCS: verify the access permission of the given GCS path")
+	} else {
+		klog.Infof("dbdaemon/downloadDirectoryFromGCS: destination path is %s", req.GetLocalPath())
+	}
+
 	client, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("storage.NewClient: %v", err)
@@ -1763,8 +1768,17 @@ func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.Downlo
 		if err != nil {
 			return nil, fmt.Errorf("Bucket(%q).Objects(): %v", bucket, err)
 		}
-		if err := s.downloadFile(ctx, client, bucket, attrs.Name, prefix, req.GetLocalPath()); err != nil {
-			return nil, fmt.Errorf("failed to download file %s", err)
+
+		if req.GetAccessPermissionCheck() {
+			reader, err := client.Bucket(bucket).Object(attrs.Name).NewRangeReader(ctx, 0, 1)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read URL %s: %v", attrs.Name, err)
+			}
+			reader.Close()
+		} else {
+			if err := s.downloadFile(ctx, client, bucket, attrs.Name, prefix, req.GetLocalPath()); err != nil {
+				return nil, fmt.Errorf("failed to download file %s", err)
+			}
 		}
 	}
 	return &dbdpb.DownloadDirectoryFromGCSResponse{}, nil

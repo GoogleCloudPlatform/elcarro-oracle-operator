@@ -16,7 +16,9 @@ package backupcontroller
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -39,8 +41,9 @@ import (
 )
 
 var (
-	backupName  = "%s-%s-%s-%d"
-	pvcNameFull = "%s-u0%d-%s-0"
+	backupName           = "%s-%s-%s-%d"
+	pvcNameFull          = "%s-u0%d-%s-0"
+	verifyExistsInterval = time.Minute * 5
 )
 
 // BackupReconciler reconciles a Backup object.
@@ -202,6 +205,11 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 	// Check if the Backup object is already reconciled
 	readyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
 	namespace := req.NamespacedName.Namespace
+
+	if backup.Spec.Mode == v1alpha1.VerifyExists {
+		return r.reconcileVerifyExists(ctx, &backup)
+	}
+
 	if k8s.ConditionReasonEquals(readyCond, k8s.BackupReady) || k8s.ConditionReasonEquals(readyCond, k8s.BackupFailed) {
 		log.Info("Backup reconciler: nothing to do, backup status", "readyCond", readyCond, "Status", backup.Status)
 		return ctrl.Result{}, nil
@@ -209,9 +217,9 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 
 	// Verify preflight conditions
 	var inst v1alpha1.Instance
-	// skip backupPreflightCheck if backup is ready
+	// skip instReady if backup is ready
 	if !k8s.ConditionStatusEquals(readyCond, v1.ConditionTrue) {
-		if err := r.backupPreflightCheck(ctx, req, &backup, &inst); err != nil {
+		if err := r.instReady(ctx, req.Namespace, backup.Spec.Instance, &inst); err != nil {
 			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, err.Error())
 			if updateErr := r.updateBackupStatus(ctx, &backup, &inst); updateErr != nil {
 				log.Error(updateErr, "unable to update backup status")
@@ -414,15 +422,73 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// backupPreflightCheck checks if the instance is ready for taking backups.
-func (r *BackupReconciler) backupPreflightCheck(ctx context.Context, req ctrl.Request, backup *v1alpha1.Backup, inst *v1alpha1.Instance) error {
-	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: backup.Spec.Instance}, inst); err != nil {
-		r.Log.Error(err, "Error finding instance for backup validation", "backup", backup)
-		return fmt.Errorf("Error finding instance - %v", err)
+// reconcileVerifyExists verifies the existence of a backup and update the result to backup status.
+func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1alpha1.Backup) (ctrl.Result, error) {
+	var errMsgs []string
+	if backup.Spec.Type != commonv1alpha1.BackupTypePhysical {
+		errMsgs = append(errMsgs, fmt.Sprintf("%v backup does not support VerifyExists mode", backup.Spec.Type))
+	}
+
+	if backup.Spec.GcsPath == "" {
+		errMsgs = append(errMsgs, fmt.Sprintf(".spec.gcsPath must be specified, VerifyExists mode only support GCS based physical backup"))
+	}
+
+	if len(errMsgs) > 0 {
+		backup.Status.Phase = commonv1alpha1.BackupFailed
+		msg := strings.Join(errMsgs, "; ")
+		r.Recorder.Event(backup, corev1.EventTypeWarning, k8s.NotSupported, msg)
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.NotSupported, msg)
+		return ctrl.Result{}, r.Status().Update(ctx, backup)
+	}
+
+	// controller can run in different namespaces, hence different k8s service account.
+	// it is better to verify physical backup in data plane.
+	// In the future, we may consider deploying an independent pod to help verify a backup,
+	// so that verification does not depend on the instance pod.
+	inst := &v1alpha1.Instance{}
+	// ensure data plane is ready
+	if err := r.instReady(ctx, backup.Namespace, backup.Spec.Instance, inst); err != nil {
+		r.Log.Error(err, "instance not ready")
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
+	r.Log.Info("Verifying the existence of a backup")
+
+	caClient, closeConn, err := r.ClientFactory.New(ctx, r, backup.Namespace, inst.Name)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to create config agent client: %w", err)
+	}
+	defer closeConn()
+	resp, err := caClient.VerifyPhysicalBackup(ctx, &capb.VerifyPhysicalBackupRequest{
+		GcsPath: backup.Spec.GcsPath,
+	})
+	if err != nil {
+		r.Log.Error(err, "failed to verify a physical backup")
+		// retry
+		return ctrl.Result{Requeue: true}, nil
+	}
+	if len(resp.ErrMsgs) == 0 {
+		backup.Status.Phase = commonv1alpha1.BackupSucceeded
+		msg := "verified the existence of a physical backup"
+		r.Recorder.Event(backup, corev1.EventTypeNormal, "BackupVerified", msg)
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, msg)
+	} else {
+		backup.Status.Phase = commonv1alpha1.BackupFailed
+		msg := fmt.Sprintf("Failed to verify the existence of a physical backup: %s", strings.Join(resp.GetErrMsgs(), "; "))
+		r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupVerifyFailed", msg)
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, msg)
+	}
+	return ctrl.Result{RequeueAfter: verifyExistsInterval}, r.Status().Update(ctx, backup)
+}
+
+// instReady returns non-nil error if instance is not in ready state.
+func (r *BackupReconciler) instReady(ctx context.Context, ns, instName string, inst *v1alpha1.Instance) error {
+	if err := r.Get(ctx, types.NamespacedName{Namespace: ns, Name: instName}, inst); err != nil {
+		r.Log.Error(err, "error finding instance for backup validation")
+		return fmt.Errorf("error finding instance - %v", err)
 	}
 	if !k8s.ConditionStatusEquals(k8s.FindCondition(inst.Status.Conditions, k8s.Ready), v1.ConditionTrue) {
-		r.Log.Error(fmt.Errorf("Instance not in ready state for backup"), "Instance not in ready state for backup", "inst.Status.Conditions", inst.Status.Conditions)
-		return fmt.Errorf("Instance is not in a ready state")
+		r.Log.Error(fmt.Errorf("instance not in ready state"), "Instance not in ready state for backup", "inst.Status.Conditions", inst.Status.Conditions)
+		return errors.New("instance is not in a ready state")
 	}
 	return nil
 }

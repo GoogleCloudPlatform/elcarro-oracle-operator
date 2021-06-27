@@ -218,11 +218,46 @@ var _ = Describe("Backup controller", func() {
 			objKey := client.ObjectKey{Namespace: Namespace, Name: BackupName}
 			testhelpers.K8sCreateWithRetry(k8sClient, ctx, backup)
 
-			By("By checking that physical backup are created")
+			By("By checking that a physical backup is created")
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupReady))
 			Expect(fakeClientFactory.Caclient.PhysicalBackupCalledCnt()).Should(Equal(1))
+		})
+	})
+
+	Context("New backup through RMAN with VerifyExists mode", func() {
+		It("Should verify RMAN backup correctly", func() {
+			oldFunc := preflightCheck
+			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
+				return nil
+			}
+			defer func() { preflightCheck = oldFunc }()
+
+			By("By creating a RMAN type backup with VerifyExists mode of the instance")
+			backup := &v1alpha1.Backup{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: Namespace,
+					Name:      BackupName,
+				},
+				Spec: v1alpha1.BackupSpec{
+					BackupSpec: commonv1alpha1.BackupSpec{
+						Instance: instance.Name,
+						Type:     commonv1alpha1.BackupTypePhysical,
+					},
+					Mode:    v1alpha1.VerifyExists,
+					GcsPath: "gs://elcarro_functional_test",
+				},
+			}
+
+			objKey := client.ObjectKey{Namespace: Namespace, Name: BackupName}
+			testhelpers.K8sCreateWithRetry(k8sClient, ctx, backup)
+
+			By("By checking that a physical backup is verified")
+			Eventually(func() (string, error) {
+				return getConditionReason(ctx, objKey, k8s.Ready)
+			}, timeout, interval).Should(Equal(k8s.BackupReady))
+			Expect(fakeClientFactory.Caclient.VerifyPhysicalBackupCalledCnt()).Should(BeNumerically(">=", 1))
 		})
 	})
 

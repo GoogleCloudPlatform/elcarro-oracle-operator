@@ -157,6 +157,23 @@ func (s *ConfigServer) PhysicalRestore(ctx context.Context, req *pb.PhysicalRest
 	})
 }
 
+// VerifyPhysicalBackup verifies the existence of physical backup.
+func (s *ConfigServer) VerifyPhysicalBackup(ctx context.Context, req *pb.VerifyPhysicalBackupRequest) (*pb.VerifyPhysicalBackupResponse, error) {
+	klog.InfoS("configagent/VerifyPhysicalBackup", "req", req)
+	dbdClient, closeConn, err := newDBDClient(ctx, s)
+	if err != nil {
+		return nil, fmt.Errorf("configagent/VerifyPhysicalBackup: failed to create a database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+	if _, err := dbdClient.DownloadDirectoryFromGCS(ctx, &dbdpb.DownloadDirectoryFromGCSRequest{
+		GcsPath:               req.GetGcsPath(),
+		AccessPermissionCheck: true,
+	}); err != nil {
+		return &pb.VerifyPhysicalBackupResponse{ErrMsgs: []string{err.Error()}}, nil
+	}
+	return &pb.VerifyPhysicalBackupResponse{}, nil
+}
+
 // PhysicalBackup starts an RMAN backup and stores it in the GCS bucket provided.
 func (s *ConfigServer) PhysicalBackup(ctx context.Context, req *pb.PhysicalBackupRequest) (*lropb.Operation, error) {
 	klog.InfoS("configagent/PhysicalBackup", "req", req)

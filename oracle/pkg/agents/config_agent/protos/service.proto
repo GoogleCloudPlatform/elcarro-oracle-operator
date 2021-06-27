@@ -28,6 +28,8 @@ service ConfigAgent {
   rpc CreateCDBUser(CreateCDBUserRequest) returns (CreateCDBUserResponse) {}
   rpc UsersChanged(UsersChangedRequest) returns (UsersChangedResponse) {}
   rpc UpdateUsers(UpdateUsersRequest) returns (UpdateUsersResponse) {}
+  rpc VerifyPhysicalBackup(VerifyPhysicalBackupRequest)
+      returns (VerifyPhysicalBackupResponse) {}
   rpc PhysicalBackup(PhysicalBackupRequest)
       returns (google.longrunning.Operation) {}
   rpc PhysicalRestore(PhysicalRestoreRequest)
@@ -178,6 +180,14 @@ message UpdateUsersRequest {
 }
 
 message UpdateUsersResponse {}
+
+message VerifyPhysicalBackupRequest {
+  string gcs_path = 1;
+}
+
+message VerifyPhysicalBackupResponse {
+  repeated string err_msgs = 1;
+}
 
 message PhysicalBackupRequest {
   enum Type {

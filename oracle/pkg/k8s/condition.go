@@ -64,6 +64,8 @@ const (
 
 	ParameterUpdateInProgress = "ParameterUpdateInProgress"
 	ParameterUpdateRollback   = "ParameterUpdateRollback"
+
+	NotSupported = "NotSupported"
 )
 
 var (
