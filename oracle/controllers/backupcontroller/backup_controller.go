@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +43,6 @@ import (
 
 var (
 	backupName           = "%s-%s-%s-%d"
-	pvcNameFull          = "%s-u0%d-%s-0"
 	verifyExistsInterval = time.Minute * 5
 )
 
@@ -318,24 +318,22 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 
 	backupID := fmt.Sprintf(backupName, inst.Name, time.Now().Format("20060102"), bktype, time.Now().Nanosecond())
 
+	getPvcNames := func(spec commonv1alpha1.DiskSpec) (string, string, string) {
+		shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, spec.Name)
+		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
+		snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
+		return fullPVCName, snapshotName, vsc
+	}
+
 	if backup.Spec.Type == "Snapshot" {
 		applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("backup-controller")}
 
-		for _, diskSpec := range inst.Spec.Disks {
-			shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
-			fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
-			snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
-			bk, err := controllers.NewSnapshot(&backup, r.Scheme, fullPVCName, snapshotName, vsc)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			log.Info("new Backup/Snapshot resource", "backup", bk)
-
-			if err := r.Patch(ctx, bk, client.Apply, applyOpts...); err != nil {
-				return ctrl.Result{}, err
-			}
+		if err := utils.SnapshotDisks(ctx, inst.Spec.Disks, &backup, r.Client, r.Scheme, getPvcNames, applyOpts); err != nil {
+			return ctrl.Result{}, err
 		}
+
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "")
+
 	} else {
 		if err := preflightCheck(ctx, r, namespace, backup.Spec.Instance); err != nil {
 			log.Error(err, "external LB is not ready")
