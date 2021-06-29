@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -137,6 +138,8 @@ func (r *BackupReconciler) checkSnapshotStatus(ctx context.Context, backup v1alp
 
 	r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(backup.Status.Conditions, k8s.Ready), time.Second))
 	backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
+	duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
+	backup.Status.Duration = &duration
 
 	log.Info("snapshot is ready")
 	if err := r.updateBackupStatus(ctx, &backup, inst); err != nil {
@@ -317,6 +320,9 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 	log.Info("VolumeSnapshotClass", "volumeSnapshotClass", vsc)
 
 	backupID := fmt.Sprintf(backupName, inst.Name, time.Now().Format("20060102"), bktype, time.Now().Nanosecond())
+	startTime := metav1.Now()
+	backup.Status.StartTime = &startTime
+	log.Info("backup started at:", "StartTime", backup.Status.StartTime)
 
 	getPvcNames := func(spec commonv1alpha1.DiskSpec) (string, string, string) {
 		shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, spec.Name)
@@ -376,6 +382,8 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 				log.Info("PhysicalBackup succeeded")
 				r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(readyCond, time.Second))
 				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
+				duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
+				backup.Status.Duration = &duration
 			} else {
 				log.Info("PhysicalBackup started")
 				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "")
@@ -526,6 +534,8 @@ func (r *BackupReconciler) checkLROStatus(ctx context.Context, req ctrl.Request,
 		} else {
 			r.Recorder.Eventf(backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(rc, time.Second))
 			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
+			duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
+			backup.Status.Duration = &duration
 		}
 		if err := r.updateBackupStatus(ctx, backup, inst); err != nil {
 			log.Error(err, "failed to update the backup resource", "backup", backup)
