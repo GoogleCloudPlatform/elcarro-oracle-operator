@@ -52,13 +52,15 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request,
 	ctx context.Context,
 	stsParams controllers.StsParams) (ctrl.Result, error) {
 	r.Log.Info("restoreStateMachine start")
-	// Conditions not initialized yet
-	if instanceReadyCond == nil || dbInstanceCond == nil {
+
+	// Check instance is provisioned
+	if instanceReadyCond == nil || k8s.ConditionReasonEquals(instanceReadyCond, k8s.CreateInProgress) {
 		r.Log.Info("restoreStateMachine: instance not ready yet, proceed with main reconciliation")
 		return ctrl.Result{}, nil
 	}
 
-	if !k8s.ConditionReasonEquals(dbInstanceCond, k8s.AwaitingRestore) && !k8s.ConditionReasonEquals(dbInstanceCond, k8s.CreateComplete) {
+	// Check database instance is ready for restore
+	if dbInstanceCond == nil || (!k8s.ConditionReasonEquals(dbInstanceCond, k8s.AwaitingRestore) && !k8s.ConditionReasonEquals(dbInstanceCond, k8s.CreateComplete)) {
 		r.Log.Info("restoreStateMachine: database instance is not ready for restore, proceed with main reconciliation")
 		return ctrl.Result{}, nil
 	}
@@ -68,6 +70,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request,
 		r.Log.Info("instance is up and running. To replace (restore from a backup), set force=true")
 		return ctrl.Result{}, nil
 	}
+
 	// Find the requested backup resource
 	backup, err := r.findBackupForRestore(ctx, *inst, req.Namespace)
 	if err != nil {
