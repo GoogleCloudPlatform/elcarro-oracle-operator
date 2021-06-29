@@ -530,11 +530,7 @@ func TestProxyRunDbca(t *testing.T) {
 			t.Fatalf("failed to set up test dir %v", err)
 		}
 	}
-	for _, f := range []string{fmt.Sprintf("spfile%s.ora", fakeDBName), fmt.Sprintf("orapw%s", fakeDBName)} {
-		if _, err := os.Create(filepath.Join(sourceConfigDir, f)); err != nil {
-			t.Fatalf("failed to set up config file %v", err)
-		}
-	}
+
 	defer func() {
 		cleanup()
 		os.RemoveAll(testDir)
@@ -571,6 +567,11 @@ func TestProxyRunDbca(t *testing.T) {
 				fakeRunCommand: func(bin string, params []string) error {
 					gotBin = bin
 					gotParams = append(gotParams, params...)
+					for _, f := range []string{fmt.Sprintf("spfile%s.ora", fakeDBName), fmt.Sprintf("orapw%s", fakeDBName)} {
+						if _, err := os.Create(filepath.Join(sourceConfigDir, f)); err != nil {
+							t.Fatalf("failed to set up config file %v", err)
+						}
+					}
 					return nil
 				},
 			}
@@ -612,11 +613,6 @@ func TestProxyRunDbcaErrors(t *testing.T) {
 	for _, dir := range []string{filepath.Join(fakeHome, "dbs"), fakeConfigDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatalf("failed to set up test dir %v", err)
-		}
-	}
-	for _, f := range []string{fmt.Sprintf("spfile%s.ora", fakeDBName), fmt.Sprintf("orapw%s", fakeDBName)} {
-		if _, err := os.Create(filepath.Join(fakeConfigDir, f)); err != nil {
-			t.Fatalf("failed to set up config file %v", err)
 		}
 	}
 	defer func() {

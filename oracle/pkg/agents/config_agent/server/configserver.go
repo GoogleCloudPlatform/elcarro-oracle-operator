@@ -695,7 +695,7 @@ func (s *ConfigServer) BootstrapStandby(ctx context.Context, req *pb.BootstrapSt
 	return &pb.BootstrapStandbyResponse{Pdbs: migratedPDBs}, nil
 }
 
-// BootstrapDatabase bootstrap a CDB after creation.
+// BootstrapDatabase bootstrap a CDB after creation or restore.
 func (s *ConfigServer) BootstrapDatabase(ctx context.Context, req *pb.BootstrapDatabaseRequest) (*lropb.Operation, error) {
 	klog.InfoS("configagent/BootstrapDatabase", "req", req)
 
@@ -704,11 +704,40 @@ func (s *ConfigServer) BootstrapDatabase(ctx context.Context, req *pb.BootstrapD
 		return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to create database daemon client: %v", err)
 	}
 	defer closeConn()
-	task := provision.NewBootstrapDatabaseTaskForUnseeded(req.CdbName, req.DbUniqueName, req.Dbdomain, dbdClient)
 
-	if err := task.Call(ctx); err != nil {
-		return nil, fmt.Errorf("failed to bootstrap database : %v", err)
+	resp, err := dbdClient.FileExists(ctx, &dbdpb.FileExistsRequest{Name: consts.ProvisioningDoneFile})
+	if err != nil {
+		return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to check a provisioning file: %v", err)
 	}
+
+	if resp.Exists {
+		klog.InfoS("configagent/BootstrapDatabase: provisioning file found, skip bootstrapping")
+		return &lropb.Operation{Done: true}, nil
+	}
+
+	if req.GetMode() == pb.BootstrapDatabaseRequest_Provision {
+		task := provision.NewBootstrapDatabaseTaskForUnseeded(req.CdbName, req.DbUniqueName, req.Dbdomain, dbdClient)
+
+		if err := task.Call(ctx); err != nil {
+			return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to bootstrap database : %v", err)
+		}
+	}
+
+	if _, err = dbdClient.CreateListener(ctx, &dbdpb.CreateListenerRequest{
+		DatabaseName: req.GetCdbName(),
+		Port:         consts.SecureListenerPort,
+		Protocol:     "TCP",
+		DbDomain:     req.GetDbdomain(),
+	}); err != nil {
+		return nil, fmt.Errorf("configagent/BootstrapDatabase: error while creating listener: %v", err)
+	}
+
+	if _, err = dbdClient.CreateFile(ctx, &dbdpb.CreateFileRequest{
+		Path: consts.ProvisioningDoneFile,
+	}); err != nil {
+		return nil, fmt.Errorf("configagent/BootstrapDatabase: error while creating provisioning done file: %v", err)
+	}
+
 	return &lropb.Operation{Done: true}, nil
 }
 

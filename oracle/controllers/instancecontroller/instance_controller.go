@@ -539,7 +539,19 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		log.Error(err, "unable to determine image type")
 		return ctrl.Result{}, err
 	}
+
 	if !isImageSeeded && istatus == controllers.StatusInProgress {
+		if inst.Spec.Restore != nil {
+			log.Info("Skip creating a new CDB database, waiting to be restored")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.AwaitingRestore, "Awaiting restore CDB")
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if k8s.ConditionReasonEquals(instanceReadyCond, k8s.RestoreFailed) {
+			log.Error(err, "failed to restore to a new CDB database")
+			return ctrl.Result{}, nil
+		}
+
 		log.Info("Creating a new CDB database")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "Bootstrapping CDB")
 		if err := r.Status().Update(ctx, &inst); err != nil {
@@ -579,6 +591,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+
 	log.Info("reconciling database instance: DONE")
 
 	return ctrl.Result{}, nil
@@ -681,8 +694,7 @@ func diskSpecs(inst *v1alpha1.Instance, config *v1alpha1.Config) []commonv1alpha
 // bootstrapCDB is invoked during the instance creation phase for a database
 // image not containing a CDB and does the following.
 // a) Create a CDB for an unseeded image.
-// b) Invoke a provisioning workflow for unseeded images.
-// c) Creates the database listener.
+// b) Invoke a provisioning workflow for unseeded images, which will create listener.
 func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Instance, clusterIP string, log logr.Logger) error {
 	// TODO: add better error handling.
 	if inst.Spec.CDBName == "" || inst.Spec.DBUniqueName == "" {
@@ -731,20 +743,11 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 		CdbName:      inst.Spec.CDBName,
 		DbUniqueName: inst.Spec.DBUniqueName,
 		Dbdomain:     dbDomain,
+		Mode:         capb.BootstrapDatabaseRequest_Provision,
 	})
 
 	if err != nil {
 		return fmt.Errorf("bootstrapCDB: error while running post-creation bootstrapping steps: %v", err)
-	}
-
-	_, err = caClient.CreateListener(ctx, &capb.CreateListenerRequest{
-		Name:     inst.Spec.CDBName,
-		Port:     6021,
-		Protocol: "TCP",
-		DbDomain: dbDomain,
-	})
-	if err != nil {
-		return fmt.Errorf("bootstrapCDB: failed on listener gRPC call: %v", err)
 	}
 
 	return nil

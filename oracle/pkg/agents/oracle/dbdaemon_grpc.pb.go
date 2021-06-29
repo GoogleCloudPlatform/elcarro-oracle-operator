@@ -96,6 +96,8 @@ type DatabaseDaemonClient interface {
 	DownloadDirectoryFromGCS(ctx context.Context, in *DownloadDirectoryFromGCSRequest, opts ...grpc.CallOption) (*DownloadDirectoryFromGCSResponse, error)
 	// FetchServiceImageMetaData returns the service image metadata.
 	FetchServiceImageMetaData(ctx context.Context, in *FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*FetchServiceImageMetaDataResponse, error)
+	// CreateFile creates file based on file path and content.
+	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error)
 }
 
 type databaseDaemonClient struct {
@@ -385,6 +387,15 @@ func (c *databaseDaemonClient) FetchServiceImageMetaData(ctx context.Context, in
 	return out, nil
 }
 
+func (c *databaseDaemonClient) CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error) {
+	out := new(CreateFileResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateFile", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DatabaseDaemonServer is the server API for DatabaseDaemon service.
 // All implementations must embed UnimplementedDatabaseDaemonServer
 // for forward compatibility
@@ -465,6 +476,8 @@ type DatabaseDaemonServer interface {
 	DownloadDirectoryFromGCS(context.Context, *DownloadDirectoryFromGCSRequest) (*DownloadDirectoryFromGCSResponse, error)
 	// FetchServiceImageMetaData returns the service image metadata.
 	FetchServiceImageMetaData(context.Context, *FetchServiceImageMetaDataRequest) (*FetchServiceImageMetaDataResponse, error)
+	// CreateFile creates file based on file path and content.
+	CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonServer()
 }
 
@@ -564,6 +577,9 @@ func (UnimplementedDatabaseDaemonServer) DownloadDirectoryFromGCS(context.Contex
 }
 func (UnimplementedDatabaseDaemonServer) FetchServiceImageMetaData(context.Context, *FetchServiceImageMetaDataRequest) (*FetchServiceImageMetaDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchServiceImageMetaData not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateFile not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) mustEmbedUnimplementedDatabaseDaemonServer() {}
 
@@ -1136,6 +1152,24 @@ func _DatabaseDaemon_FetchServiceImageMetaData_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemon_CreateFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).CreateFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/CreateFile",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).CreateFile(ctx, req.(*CreateFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DatabaseDaemon_ServiceDesc is the grpc.ServiceDesc for DatabaseDaemon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1266,6 +1300,10 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchServiceImageMetaData",
 			Handler:    _DatabaseDaemon_FetchServiceImageMetaData_Handler,
+		},
+		{
+			MethodName: "CreateFile",
+			Handler:    _DatabaseDaemon_CreateFile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

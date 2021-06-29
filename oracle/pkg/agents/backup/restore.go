@@ -85,7 +85,6 @@ func PhysicalRestore(ctx context.Context, params *Params) (*lropb.Operation, err
 	if params.LocalPath != "" {
 		backupDir = params.LocalPath
 	}
-	klog.InfoS("oracle/PhysicalRestore", "backupDir", backupDir)
 
 	if params.GCSPath != "" {
 		backupDir = consts.RMANStagingDir
@@ -96,79 +95,46 @@ func PhysicalRestore(ctx context.Context, params *Params) (*lropb.Operation, err
 		klog.InfoS("oracle/PhysicalRestore", "restore from gcs, downloadReq", downloadReq)
 
 		if _, err := params.Client.DownloadDirectoryFromGCS(ctx, downloadReq); err != nil {
-			return nil, fmt.Errorf("failed to download rman backup from GCS bucket %s", err)
+			return nil, fmt.Errorf("PhysicalRestore: failed to download rman backup from GCS bucket %s", err)
 		}
 	}
+	klog.InfoS("oracle/PhysicalRestore", "backupDir", backupDir)
 
-	// Files stored in default format
-	// /u03/app/oracle/rman/id/DB_UNIQUE_NAME/backupset/2020_03_13/o1_mf_nnsnf_TAG20200313T214926_h6qzz6g6_.bkp
 	resp, err := params.Client.ReadDir(ctx, &dbdpb.ReadDirRequest{
 		Path:      backupDir,
 		Recursive: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read backup dir: %v", err)
-	}
-	var spfilesTime []fileTime
-	for _, fileInfo := range resp.SubPaths {
-		if !fileInfo.IsDir && strings.Contains(fileInfo.Name, "nnsnf") {
-			if err := fileInfo.ModTime.CheckValid(); err != nil {
-				return nil, fmt.Errorf("failed to convert timestamp: %v", err)
-			}
-			modTime := fileInfo.ModTime.AsTime()
-			spfilesTime = append(spfilesTime, fileTime{name: fileInfo.AbsPath, modTime: modTime})
-		}
-	}
-	if len(spfilesTime) < 1 {
-		return nil, fmt.Errorf("failed to find spfile candidates: %d", len(spfilesTime))
+		return nil, fmt.Errorf("PhysicalRestore: failed to read backup dir: %v", err)
 	}
 
-	for i, t := range spfilesTime {
-		klog.InfoS("spfiles time", "index", i, "name", t.name, "modTime", t.modTime)
+	// Files stored in default format:
+	// "nnsnf" is used to locate spfile backup piece;
+	// "ncnnf" is used to locate control file backup piece;
+	latestSpfileBackup, err := findLatestBackupPiece(resp, "nnsnf")
+	if err != nil {
+		return nil, fmt.Errorf("PhysicalRestore: failed to find latest spfile backup piece: %v", err)
+	}
+	latestControlfileBackup, err := findLatestBackupPiece(resp, "ncnnf")
+	if err != nil {
+		return nil, fmt.Errorf("PhysicalRestore: failed to find latest control file backup piece: %v", err)
 	}
 
-	sort.Slice(spfilesTime, func(i, j int) bool {
-		return spfilesTime[i].modTime.After(spfilesTime[j].modTime)
-	})
-
-	klog.InfoS("oracle/PhysicalRestore: sorted spfiles", "spfilesTime", spfilesTime)
-
-	var ctlfilesTime []fileTime
-	for _, fileInfo := range resp.SubPaths {
-		if !fileInfo.IsDir && strings.Contains(fileInfo.Name, "ncnnf") {
-			if err := fileInfo.ModTime.CheckValid(); err != nil {
-				return nil, fmt.Errorf("failed to convert timestamp: %v", err)
-			}
-			modTime := fileInfo.ModTime.AsTime()
-			ctlfilesTime = append(ctlfilesTime, fileTime{name: fileInfo.AbsPath, modTime: modTime})
-		}
-	}
-	if len(ctlfilesTime) < 1 {
-		return nil, fmt.Errorf("failed to find controlfile candidates: %d", len(ctlfilesTime))
+	// Delete spfile and datafiles.
+	if err := deleteFilesForRestore(ctx, params.Client, params.CDBName); err != nil {
+		klog.ErrorS(err, "PhysicalRestore: failed to delete the spfile and datafiles before restore")
 	}
 
-	sort.Slice(ctlfilesTime, func(i, j int) bool {
-		return ctlfilesTime[i].modTime.After(ctlfilesTime[j].modTime)
-	})
-	klog.InfoS("oracle/PhysicalRestore sorted control files", "ctlFilesTime", ctlfilesTime)
-
-	// Clear spfile and datafile dir.
+	// Ensures all required dirs are exist.
+	if err := createDirsForRestore(ctx, params.Client, params.CDBName); err != nil {
+		return nil, fmt.Errorf("PhysicalRestore: failed to createDirsForRestore: %v", err)
+	}
 
 	spfileLoc := filepath.Join(
 		fmt.Sprintf(consts.ConfigDir, consts.DataMount, params.CDBName),
 		fmt.Sprintf("spfile%s.ora", params.CDBName),
 	)
-
-	if _, err := params.Client.DeleteDir(ctx, &dbdpb.DeleteDirRequest{Path: spfileLoc}); err != nil {
-		klog.ErrorS(err, "failed to delete the spfile before restore")
-	}
-
-	dataDir := filepath.Join(consts.OracleBase, "oradata", "*")
-	if _, err := params.Client.DeleteDir(ctx, &dbdpb.DeleteDirRequest{Path: dataDir}); err != nil {
-		klog.ErrorS(err, "failed to delete the data files before restore", "dataDir", dataDir)
-	}
-
-	restoreStmt := fmt.Sprintf(restoreStmtTemplate, spfileLoc, spfilesTime[0].name, ctlfilesTime[0].name, channels)
+	restoreStmt := fmt.Sprintf(restoreStmtTemplate, spfileLoc, latestSpfileBackup, latestControlfileBackup, channels)
 
 	operation, err := params.Client.PhysicalRestoreAsync(ctx, &dbdpb.PhysicalRestoreAsyncRequest{
 		SyncRequest: &dbdpb.PhysicalRestoreRequest{
@@ -183,4 +149,76 @@ func PhysicalRestore(ctx context.Context, params *Params) (*lropb.Operation, err
 		return nil, fmt.Errorf("oracle/PhysicalRestore: failed to create database restore request: %v", err)
 	}
 	return operation, nil
+}
+
+// findLatestBackupPiece finds the latest modified backup piece whose name contains substr.
+func findLatestBackupPiece(readDirResp *dbdpb.ReadDirResponse, substr string) (string, error) {
+	var fileTimes []fileTime
+	for _, fileInfo := range readDirResp.SubPaths {
+		if !fileInfo.IsDir && strings.Contains(fileInfo.Name, substr) {
+			if err := fileInfo.ModTime.CheckValid(); err != nil {
+				return "", fmt.Errorf("findLatestBackupPiece: failed to convert timestamp: %v", err)
+			}
+			modTime := fileInfo.ModTime.AsTime()
+			fileTimes = append(fileTimes, fileTime{name: fileInfo.AbsPath, modTime: modTime})
+		}
+	}
+	if len(fileTimes) < 1 {
+		return "", fmt.Errorf("findLatestBackupPiece: failed to find candidates for substr %s: %d", substr, len(fileTimes))
+	}
+
+	for i, t := range fileTimes {
+		klog.InfoS(fmt.Sprintf("%s time", substr), "index", i, "name", t.name, "modTime", t.modTime)
+	}
+
+	sort.Slice(fileTimes, func(i, j int) bool {
+		return fileTimes[i].modTime.After(fileTimes[j].modTime)
+	})
+
+	klog.InfoS(fmt.Sprintf("findLatestBackupPiece: sorted %s files", substr), "fileTimes", fileTimes)
+
+	return fileTimes[0].name, nil
+}
+
+// Delete spfile and datafiles.
+func deleteFilesForRestore(ctx context.Context, dbdClient dbdpb.DatabaseDaemonClient, cdbName string) error {
+	spfileLoc := filepath.Join(
+		fmt.Sprintf(consts.ConfigDir, consts.DataMount, cdbName),
+		fmt.Sprintf("spfile%s.ora", cdbName),
+	)
+
+	if _, err := dbdClient.DeleteDir(ctx, &dbdpb.DeleteDirRequest{Path: spfileLoc}); err != nil {
+		klog.ErrorS(err, "deleteDirsForRestore: failed to delete the spfile before restore")
+	}
+
+	dataDir := filepath.Join(consts.OracleBase, "oradata", "*")
+	if _, err := dbdClient.DeleteDir(ctx, &dbdpb.DeleteDirRequest{Path: dataDir}); err != nil {
+		klog.ErrorS(err, "deleteDirsForRestore: failed to delete the data files before restore", "dataDir", dataDir)
+	}
+
+	return nil
+}
+
+// createDirsForRestore ensures all required dirs exist for restore.
+func createDirsForRestore(ctx context.Context, dbdClient dbdpb.DatabaseDaemonClient, cdbName string) error {
+	toCreate := []string{
+		// adump dir
+		fmt.Sprintf(consts.OracleBase, "admin", cdbName, "adump"),
+		// configfiles dir
+		fmt.Sprintf(consts.ConfigDir, consts.DataMount, cdbName),
+		// datafiles dir
+		fmt.Sprintf(consts.DataDir, consts.DataMount, cdbName),
+		// flash dir
+		fmt.Sprintf(consts.RecoveryAreaDir, consts.LogMount, cdbName),
+	}
+
+	for _, d := range toCreate {
+		if _, err := dbdClient.CreateDir(ctx, &dbdpb.CreateDirRequest{
+			Path: d,
+			Perm: 0760,
+		}); err != nil {
+			return fmt.Errorf("createDirsForRestore: failed to create dir %q: %v", d, err)
+		}
+	}
+	return nil
 }
