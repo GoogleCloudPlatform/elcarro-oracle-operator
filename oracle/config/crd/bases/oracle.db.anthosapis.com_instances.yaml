@@ -189,8 +189,9 @@ spec:
                     annotations:
                       additionalProperties:
                         type: string
-                      description: A map of string keys and values that can be used
-                        by external tooling to store and retrieve for the disk PVC.
+                      description: A map of string keys and values to be stored in
+                        the annotations of the PVC. These can be read and write by
+                        external tools through Kubernetes.
                       type: object
                     name:
                       description: 'Name of a disk. Allowed values are: DataDisk,LogDisk,BackupDisk'
