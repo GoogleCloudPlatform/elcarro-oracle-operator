@@ -495,9 +495,18 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 		}
 		sp.Log.Info("storage class identified", "disk", diskSpec.Name, "StorageClass", storageClass)
 
+		var pvcAnnotations map[string]string
+		if diskSpec.Annotations != nil {
+			pvcAnnotations = diskSpec.Annotations
+		}
+
 		pvc = corev1.PersistentVolumeClaim{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
-			ObjectMeta: metav1.ObjectMeta{Name: pvcName, Namespace: sp.Inst.Namespace},
+			TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        pvcName,
+				Namespace:   sp.Inst.Namespace,
+				Annotations: pvcAnnotations,
+			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
 				Resources:        corev1.ResourceRequirements{Requests: rl},
