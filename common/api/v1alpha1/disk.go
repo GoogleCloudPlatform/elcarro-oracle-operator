@@ -37,6 +37,11 @@ type DiskSpec struct {
 	// for disk provisioning.
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`
+
+	// A map of string keys and values that can be used by external tooling to
+	// store and retrieve for the disk PVC.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // DiskType is a type that points to the disk type
