@@ -38,8 +38,8 @@ type DiskSpec struct {
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`
 
-	// A map of string keys and values that can be used by external tooling to
-	// store and retrieve for the disk PVC.
+	// A map of string keys and values to be stored in the annotations of the PVC.
+	// These can be read and write by external tools through Kubernetes.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
