@@ -336,10 +336,11 @@ func (r *InstanceReconciler) restorePhysical(ctx context.Context, inst v1alpha1.
 	if err := restorePhysicalPreflightCheck(ctx, r, req.Namespace, inst.Name); err != nil {
 		return nil, err
 	}
-	if !*backup.Spec.Backupset {
+	if backup.Spec.Backupset != nil && !*backup.Spec.Backupset {
 		return nil, fmt.Errorf("preflight check: located a physical backup, but in this release the auto-restore is only supported from a Backupset backup: %v", backup.Spec.Backupset)
 	}
-	if backup.Spec.Subtype != "Instance" {
+
+	if backup.Spec.Subtype != "" && backup.Spec.Subtype != "Instance" {
 		return nil, fmt.Errorf("preflight check: located a physical backup, but in this release the auto-restore is only supported from a Backupset taken at the Instance level: %q", backup.Spec.Subtype)
 	}
 	r.Log.Info("preflight check for a restore from a physical backup - all DONE", "backup", backup)

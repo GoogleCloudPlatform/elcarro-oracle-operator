@@ -23,6 +23,7 @@ go_library(
         "@io_k8s_client_go//tools/record",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_utils//pointer",
     ],
 )
 
@@ -35,6 +36,7 @@ go_test(
         "//oracle/api/v1alpha1",
         "//oracle/controllers/testhelpers",
         "//oracle/pkg/k8s",
+        "@com_github_go_logr_logr//:logr",
         "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
         "@com_github_onsi_ginkgo//:ginkgo",
         "@com_github_onsi_gomega//:gomega",

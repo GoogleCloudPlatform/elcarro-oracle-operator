@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -80,17 +79,6 @@ const (
 	createDatabaseInstanceTimeout = 30 * time.Minute // 30 minutes because it can take 20+ minutes for unseeded CDB creations
 	dateFormat                    = "20060102"
 )
-
-var defaultDisks = []commonv1alpha1.DiskSpec{
-	{
-		Name: "DataDisk",
-		Size: resource.MustParse("100Gi"),
-	},
-	{
-		Name: "LogDisk",
-		Size: resource.MustParse("150Gi"),
-	},
-}
 
 // loadConfig attempts to find a customer specific Operator config
 // if it's been provided. There should be at most one config.
@@ -331,7 +319,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		StsName:        fmt.Sprintf(controllers.StsName, inst.Name),
 		PrivEscalation: false,
 		ConfigMap:      cm,
-		Disks:          diskSpecs(&inst, config),
+		Disks:          controllers.DiskSpecs(&inst, config),
 		Config:         config,
 		Log:            log,
 		Services:       enabledServices,
@@ -679,16 +667,6 @@ func (r *InstanceReconciler) overrideDefaultImages(config *v1alpha1.Config, imag
 		return ctrl.Result{}, fmt.Errorf("bootstrapCDB: Service image isn't defined in the config")
 	}
 	return ctrl.Result{}, nil
-}
-
-func diskSpecs(inst *v1alpha1.Instance, config *v1alpha1.Config) []commonv1alpha1.DiskSpec {
-	if inst != nil && inst.Spec.Disks != nil {
-		return inst.Spec.Disks
-	}
-	if config != nil && config.Spec.Disks != nil {
-		return config.Spec.Disks
-	}
-	return defaultDisks
 }
 
 // bootstrapCDB is invoked during the instance creation phase for a database
