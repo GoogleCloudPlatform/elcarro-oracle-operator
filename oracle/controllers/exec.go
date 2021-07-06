@@ -77,7 +77,7 @@ var ExecCmdFunc = func(p ExecCmdParams, cmd string) (string, error) {
 		})
 		if e != nil {
 			log.Error(fmt.Sprintf("exec.Stream failed, retrying, err: %v, stderr: %v, stdout: %v",
-				err, cmdErr.String(), cmdOut.String()))
+				e, cmdErr.String(), cmdOut.String()))
 		}
 		return e
 	}); err != nil {
