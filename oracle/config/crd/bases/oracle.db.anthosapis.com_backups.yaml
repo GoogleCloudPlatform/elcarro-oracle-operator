@@ -44,6 +44,12 @@ spec:
     - jsonPath: .status.backuptime
       name: Backup Time
       type: string
+    - jsonPath: .status.startTime
+      name: Start Time
+      type: string
+    - jsonPath: .status.duration
+      name: Duration
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: ReadyStatus
       priority: 1
@@ -264,8 +270,13 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              duration:
+                type: string
               phase:
                 description: Phase is a summary of current state of the Backup.
+                type: string
+              startTime:
+                format: date-time
                 type: string
             type: object
         type: object

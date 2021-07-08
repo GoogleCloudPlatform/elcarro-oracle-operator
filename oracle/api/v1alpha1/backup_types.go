@@ -124,6 +124,10 @@ type BackupStatus struct {
 
 	BackupID   string `json:"backupid,omitempty"`
 	BackupTime string `json:"backuptime,omitempty"`
+	// +optional
+	StartTime *metav1.Time `json:"startTime,omitempty"`
+	// +optional
+	Duration *metav1.Duration `json:"duration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -137,6 +141,8 @@ type BackupStatus struct {
 // +kubebuilder:printcolumn:JSONPath=".status.phase",name="Phase",type="string"
 // +kubebuilder:printcolumn:JSONPath=".status.backupid",name="Backup ID",type="string"
 // +kubebuilder:printcolumn:JSONPath=".status.backuptime",name="Backup Time",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.startTime",name="Start Time",type="string"
+// +kubebuilder:printcolumn:JSONPath=".status.duration",name="Duration",type="string"
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].status`,name="ReadyStatus",type="string",priority=1
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].reason`,name="ReadyReason",type="string",priority=1
 // +kubebuilder:printcolumn:JSONPath=`.status.conditions[?(@.type=="Ready")].message`,name="ReadyMessage",type="string",priority=1
