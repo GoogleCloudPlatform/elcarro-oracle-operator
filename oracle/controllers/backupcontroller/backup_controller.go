@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -45,6 +46,9 @@ import (
 var (
 	backupName           = "%s-%s-%s-%d"
 	verifyExistsInterval = time.Minute * 5
+	requeueInterval      = time.Second
+	statusCheckInterval  = time.Minute
+	msgSep               = "; "
 )
 
 // BackupReconciler reconciles a Backup object.
@@ -54,6 +58,194 @@ type BackupReconciler struct {
 	Scheme        *runtime.Scheme
 	ClientFactory controllers.ConfigAgentClientFactory
 	Recorder      record.EventRecorder
+}
+
+type oracleBackup interface {
+	create(ctx context.Context) error
+	status(ctx context.Context) (done bool, err error)
+	generateID() string
+}
+
+type snapshotBackup struct {
+	r      *BackupReconciler
+	log    logr.Logger
+	backup *v1alpha1.Backup
+	inst   *v1alpha1.Instance
+}
+
+func (b *snapshotBackup) create(ctx context.Context) error {
+	// Load default preferences (aka "config") if provided by a customer.
+	config, err := b.r.loadConfig(ctx, b.backup.Namespace)
+	if err != nil {
+		return err
+	}
+
+	if config != nil {
+		b.log.Info("customer config loaded", "config", config)
+	} else {
+		b.log.Info("no customer specific config found, assuming all defaults")
+	}
+
+	vsc, err := controllers.ConfigAttribute("VolumeSnapshotClass", b.backup.Spec.VolumeSnapshotClass, config)
+	if err != nil || vsc == "" {
+		return fmt.Errorf("failed to identify a volumeSnapshotClassName for instance: %q", b.backup.Spec.Instance)
+	}
+	b.log.Info("VolumeSnapshotClass", "volumeSnapshotClass", vsc)
+
+	getPvcNames := func(spec commonv1alpha1.DiskSpec) (string, string, string) {
+		shortPVCName, mount := controllers.GetPVCNameAndMount(b.inst.Name, spec.Name)
+		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, b.inst.Name))
+		snapshotName := fmt.Sprintf("%s-%s", b.backup.Status.BackupID, mount)
+		return fullPVCName, snapshotName, vsc
+	}
+	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("backup-controller")}
+
+	return utils.SnapshotDisks(ctx, controllers.DiskSpecs(b.inst, config), b.backup, b.r.Client, b.r.Scheme, getPvcNames, applyOpts)
+}
+
+func (b *snapshotBackup) status(ctx context.Context) (done bool, err error) {
+	b.log.Info("found a backup request in-progress")
+	ns := b.backup.Namespace
+	sel := labels.NewSelector()
+	vsLabels := []string{b.backup.Status.BackupID + "-u02", b.backup.Status.BackupID + "-u03"}
+	req1, err := labels.NewRequirement("name", selection.In, vsLabels)
+	if err != nil {
+		return false, err
+	}
+	sel.Add(*req1)
+
+	req2, err := labels.NewRequirement("namespace", selection.Equals, []string{ns})
+	if err != nil {
+		return false, err
+	}
+	sel.Add(*req2)
+
+	listOpts := []client.ListOption{
+		client.InNamespace(ns),
+		client.MatchingLabelsSelector{Selector: sel},
+	}
+
+	var volSnaps snapv1.VolumeSnapshotList
+	if err := b.r.List(ctx, &volSnaps, listOpts...); err != nil {
+		b.log.Error(err, "failed to get a volume snapshot")
+		return false, err
+	}
+	b.log.Info("list of found volume snapshots", "volSnaps", volSnaps)
+
+	if len(volSnaps.Items) < 1 {
+		b.log.Info("no volume snapshots found for a backup request marked as in-progress.", "backup.Status", b.backup.Status)
+		return false, errors.New("no volume snapshots found")
+	}
+	b.log.Info("found a volume snapshot(s) for a backup request in-progress")
+
+	vsStatus := make(map[string]bool)
+	for i, vs := range volSnaps.Items {
+		b.log.Info("iterating over volume snapshots", "VolumeSnapshot#", i, "name", vs.Name)
+		vsStatus[vs.Name] = false
+
+		if vs.Status == nil {
+			b.log.Info("not yet ready: Status missing for Volume Snapshot", "namespace", vs.Namespace, "volumeSnapshotName", vs.Name, "volumeSnapshotStatus", vs.Status)
+			return false, nil
+		}
+
+		if vs.Status.Error != nil {
+			b.log.Error(errors.New("the volumeSnapshot is failed"), "namespace", vs.Namespace, "volumeSnapshotName", vs.Name, "volumeSnapshotStatus", vs.Status, "VolumeSnapshotError", vs.Status.Error)
+			return true, fmt.Errorf("volumeSnapshot %s/%s failed with: %s", vs.Namespace, vs.Name, *vs.Status.Error.Message)
+		}
+
+		if !*vs.Status.ReadyToUse {
+			b.log.Info("not yet ready: Status found, but it's not flipped to DONE yet for VolumeSnapshot", "namespace", vs.Namespace, "volumeSnapshotName", vs.Name, "volumeSnapshotStatus", vs.Status)
+			return false, nil
+		}
+
+		b.log.Info("ready to use status", "VolumeSnapshot#", i, "name", vs, "status", *vs.Status.ReadyToUse)
+		vsStatus[vs.Name] = true
+	}
+	b.log.Info("summary of VolumeSnapshot statuses", "vsStatus", vsStatus)
+
+	return true, nil
+}
+
+func (b *snapshotBackup) generateID() string {
+	return fmt.Sprintf(backupName, b.backup.Spec.Instance, time.Now().Format("20060102"), "snap", time.Now().Nanosecond())
+}
+
+type physicalBackup struct {
+	r      *BackupReconciler
+	log    logr.Logger
+	backup *v1alpha1.Backup
+}
+
+func (b *physicalBackup) create(ctx context.Context) error {
+	timeLimitMinutes := controllers.PhysBackupTimeLimitDefault
+	if b.backup.Spec.TimeLimitMinutes != 0 {
+		timeLimitMinutes = time.Duration(b.backup.Spec.TimeLimitMinutes) * time.Minute
+	}
+
+	dop := int32(1)
+	if b.backup.Spec.Dop != 0 {
+		dop = b.backup.Spec.Dop
+	}
+
+	// the default is backupset true, not image copy
+	backupset := pointer.Bool(true)
+	if b.backup.Spec.Backupset != nil {
+		backupset = b.backup.Spec.Backupset
+	}
+
+	ctxBackup, cancel := context.WithTimeout(ctx, timeLimitMinutes)
+	defer cancel()
+
+	caClient, closeConn, err := b.r.ClientFactory.New(ctxBackup, b.r, b.backup.Namespace, b.backup.Spec.Instance)
+	if err != nil {
+		b.log.Error(err, "failed to create config agent client")
+		return err
+	}
+	defer closeConn()
+
+	if _, err := caClient.PhysicalBackup(ctxBackup, &capb.PhysicalBackupRequest{
+		BackupSubType: backupSubType(b.backup.Spec.Subtype),
+		BackupItems:   b.backup.Spec.BackupItems,
+		Backupset:     *backupset,
+		CheckLogical:  b.backup.Spec.CheckLogical,
+		Compressed:    b.backup.Spec.Compressed,
+		Dop:           dop,
+		Level:         b.backup.Spec.Level,
+		Filesperset:   b.backup.Spec.Filesperset,
+		SectionSize:   b.backup.Spec.SectionSize,
+		LocalPath:     b.backup.Spec.LocalPath,
+		GcsPath:       b.backup.Spec.GcsPath,
+		LroInput:      &capb.LROInput{OperationId: lroOperationID(b.backup)},
+	}); err != nil && !controllers.IsAlreadyExistsError(err) {
+		return fmt.Errorf("failed on PhysicalBackup gRPC call: %v", err)
+	}
+	return nil
+}
+
+func (b *physicalBackup) status(ctx context.Context) (done bool, err error) {
+	id := lroOperationID(b.backup)
+	operation, err := controllers.GetLROOperation(b.r.ClientFactory, ctx, b.r, b.backup.Namespace, id, b.backup.Spec.Instance)
+	if err != nil {
+		b.log.Error(err, "GetLROOperation error")
+		return false, err
+	}
+
+	if operation.Done {
+		b.log.Info("LRO is DONE", "id", id)
+		if operation.GetError() != nil {
+			err = errors.New(operation.GetError().GetMessage())
+		}
+		if err := controllers.DeleteLROOperation(b.r.ClientFactory, ctx, b.r, b.backup.Namespace, id, b.backup.Spec.Instance); err != nil {
+			b.log.Error(err, "failed to delete a LRO ")
+		}
+		return true, err
+	}
+	b.log.Info("LRO is in progress", "id", id)
+	return false, nil
+}
+
+func (b *physicalBackup) generateID() string {
+	return fmt.Sprintf(backupName, b.backup.Spec.Instance, time.Now().Format("20060102"), "phys", time.Now().Nanosecond())
 }
 
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=backups,verbs=get;list;watch;create;update;patch;delete
@@ -84,72 +276,6 @@ func backupSubType(st string) capb.PhysicalBackupRequest_Type {
 	return capb.PhysicalBackupRequest_INSTANCE
 }
 
-func (r *BackupReconciler) checkSnapshotStatus(ctx context.Context, backup v1alpha1.Backup, ns string, inst *v1alpha1.Instance, log logr.Logger) error {
-	log.Info("found a backup request in-progress")
-
-	sel := labels.NewSelector()
-	vsLabels := []string{backup.Status.BackupID + "-u02", backup.Status.BackupID + "-u03"}
-	req1, err := labels.NewRequirement("name", selection.In, vsLabels)
-	if err != nil {
-		return err
-	}
-	sel.Add(*req1)
-
-	req2, err := labels.NewRequirement("namespace", selection.Equals, []string{ns})
-	if err != nil {
-		return err
-	}
-	sel.Add(*req2)
-
-	listOpts := []client.ListOption{
-		client.InNamespace(ns),
-		client.MatchingLabelsSelector{Selector: sel},
-	}
-
-	var volSnaps snapv1.VolumeSnapshotList
-	if err := r.List(ctx, &volSnaps, listOpts...); err != nil {
-		log.Error(err, "failed to get a volume snapshot")
-		return err
-	}
-	log.Info("list of found volume snapshots", "volSnaps", volSnaps)
-
-	if len(volSnaps.Items) < 1 {
-		log.Info("no volume snapshots found for a backup request marked as in-progress.", "backup.Status", backup.Status)
-		return nil
-	}
-	log.Info("found a volume snapshot(s) for a backup request in-progress")
-
-	vsStatus := make(map[string]bool)
-	for i, vs := range volSnaps.Items {
-		log.Info("iterating over volume snapshots", "VolumeSnapshot#", i, "name", vs.Name)
-		vsStatus[vs.Name] = false
-
-		if vs.Status == nil {
-			return fmt.Errorf("not yet ready: Status missing for Volume Snapshot %s/%s: %v", vs.Namespace, vs.Name, vs)
-		}
-
-		if !*vs.Status.ReadyToUse {
-			return fmt.Errorf("not yet ready: Status found, but it's not flipped to DONE yet for VolumeSnapshot %s/%s: %v", vs.Namespace, vs.Name, vs.Status)
-		}
-		log.Info("ready to use status", "VolumeSnapshot#", i, "name", vs, "status", *vs.Status.ReadyToUse)
-		vsStatus[vs.Name] = true
-	}
-	log.Info("summary of VolumeSnapshot statuses", "vsStatus", vsStatus)
-
-	r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(backup.Status.Conditions, k8s.Ready), time.Second))
-	backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
-	duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
-	backup.Status.Duration = &duration
-
-	log.Info("snapshot is ready")
-	if err := r.updateBackupStatus(ctx, &backup, inst); err != nil {
-		r.Log.Error(err, "failed to flip the snapshot status from in-progress to ready")
-		return err
-	}
-
-	return nil
-}
-
 // loadConfig attempts to find a customer specific Operator config
 // if it's been provided. There should be at most one config.
 // If no config is provided by a customer, no errors are raised and
@@ -174,7 +300,9 @@ func (r *BackupReconciler) loadConfig(ctx context.Context, ns string) (*v1alpha1
 // updateBackupStatus updates the phase of Backup and Instance objects to the required state.
 func (r *BackupReconciler) updateBackupStatus(ctx context.Context, backup *v1alpha1.Backup, inst *v1alpha1.Instance) error {
 	readyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
-	if k8s.ConditionReasonEquals(readyCond, k8s.BackupInProgress) {
+	if k8s.ConditionReasonEquals(readyCond, k8s.BackupPending) {
+		backup.Status.Phase = commonv1alpha1.BackupPending
+	} else if k8s.ConditionReasonEquals(readyCond, k8s.BackupInProgress) {
 		backup.Status.Phase = commonv1alpha1.BackupInProgress
 	} else if k8s.ConditionReasonEquals(readyCond, k8s.BackupFailed) {
 		backup.Status.Phase = commonv1alpha1.BackupFailed
@@ -205,206 +333,11 @@ func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (resul
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Check if the Backup object is already reconciled
-	readyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
-	namespace := req.NamespacedName.Namespace
-
 	if backup.Spec.Mode == v1alpha1.VerifyExists {
-		return r.reconcileVerifyExists(ctx, &backup)
+		return r.reconcileVerifyExists(ctx, &backup, log)
 	}
 
-	if k8s.ConditionReasonEquals(readyCond, k8s.BackupReady) || k8s.ConditionReasonEquals(readyCond, k8s.BackupFailed) {
-		log.Info("Backup reconciler: nothing to do, backup status", "readyCond", readyCond, "Status", backup.Status)
-		return ctrl.Result{}, nil
-	}
-
-	// Verify preflight conditions
-	var inst v1alpha1.Instance
-	// skip instReady if backup is ready
-	if !k8s.ConditionStatusEquals(readyCond, v1.ConditionTrue) {
-		if err := r.instReady(ctx, req.Namespace, backup.Spec.Instance, &inst); err != nil {
-			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, err.Error())
-			if updateErr := r.updateBackupStatus(ctx, &backup, &inst); updateErr != nil {
-				log.Error(updateErr, "unable to update backup status")
-			}
-			r.Recorder.Event(&backup, corev1.EventTypeWarning, "BackupFailed", err.Error())
-			return ctrl.Result{}, err
-		}
-	}
-
-	if k8s.ConditionReasonEquals(readyCond, k8s.BackupInProgress) {
-		if backup.Spec.Type == "Snapshot" {
-			if err := r.checkSnapshotStatus(ctx, backup, namespace, &inst, log); err != nil {
-				return ctrl.Result{}, err
-			}
-		} else {
-			c, err, done := r.checkLROStatus(ctx, req, &backup, readyCond, &inst, log)
-			if !done {
-				return c, err
-			}
-		}
-
-		// Don't proceed to checking new backups requests until all in-progress are resolved.
-		log.Info("in-progress backup has been marked as resolved: DONE",
-			"new phase", backup.Status.Phase)
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("new backup request detected", "backup", backup)
-
-	// If a snapshot type backup doesn't have a sub-type set or
-	// if it's set to anything other than Instance, force Instance.
-	// (this is because it's the only supported sub-type for a snapshot
-	// and it's a reasonable default for RMAN backup too).
-
-	log.Info("BEFORE", "backup.Spec.Subtype", backup.Spec.Subtype)
-	if backup.Spec.Subtype == "" || (backup.Spec.Type == "Snapshot" && backup.Spec.Subtype != "Instance") {
-		backup.Spec.Subtype = "Instance"
-	}
-	log.Info("AFTER", "backup.Spec.Subtype", backup.Spec.Subtype)
-
-	if err := r.Update(ctx, &backup); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	timeLimitMinutes := controllers.PhysBackupTimeLimitDefault
-
-	var bktype string
-
-	switch backup.Spec.Type {
-	case "Snapshot":
-		bktype = "snap"
-
-	case "Physical":
-		bktype = "phys"
-
-		// If omitted, the default DOP is 1.
-		if backup.Spec.Dop == 0 {
-			backup.Spec.Dop = 1
-		}
-
-		// If omitted, the default is backupset, not image copy, so flip it to true.
-		// If set, just pass it along "as is".
-		if backup.Spec.Backupset == nil {
-			backup.Spec.Backupset = func() *bool { b := true; return &b }()
-		}
-
-		if backup.Spec.TimeLimitMinutes != 0 {
-			timeLimitMinutes = time.Duration(backup.Spec.TimeLimitMinutes) * time.Minute
-		}
-
-	default:
-		return ctrl.Result{}, fmt.Errorf("unsupported backup request type: %q", backup.Spec.Type)
-	}
-
-	if backup.Spec.Instance == "" {
-		return ctrl.Result{}, fmt.Errorf("spec.Instance is not set in the backup request: %v", backup)
-	}
-
-	// Load default preferences (aka "config") if provided by a customer.
-	config, err := r.loadConfig(ctx, namespace)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if config != nil {
-		log.Info("customer config loaded", "config", config)
-	} else {
-		log.Info("no customer specific config found, assuming all defaults")
-	}
-
-	vsc, err := controllers.ConfigAttribute("VolumeSnapshotClass", backup.Spec.VolumeSnapshotClass, config)
-	if err != nil || vsc == "" {
-		return ctrl.Result{}, fmt.Errorf("failed to identify a volumeSnapshotClassName for instance: %q", inst.Name)
-	}
-	log.Info("VolumeSnapshotClass", "volumeSnapshotClass", vsc)
-
-	backupID := fmt.Sprintf(backupName, inst.Name, time.Now().Format("20060102"), bktype, time.Now().Nanosecond())
-	startTime := metav1.Now()
-	backup.Status.StartTime = &startTime
-	log.Info("backup started at:", "StartTime", backup.Status.StartTime)
-
-	getPvcNames := func(spec commonv1alpha1.DiskSpec) (string, string, string) {
-		shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, spec.Name)
-		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
-		snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
-		return fullPVCName, snapshotName, vsc
-	}
-
-	if backup.Spec.Type == "Snapshot" {
-		applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("backup-controller")}
-
-		if err := utils.SnapshotDisks(ctx, inst.Spec.Disks, &backup, r.Client, r.Scheme, getPvcNames, applyOpts); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "")
-
-	} else {
-		if err := preflightCheck(ctx, r, namespace, backup.Spec.Instance); err != nil {
-			log.Error(err, "external LB is not ready")
-			return ctrl.Result{}, err
-		}
-
-		ctxBackup, cancel := context.WithTimeout(context.Background(), timeLimitMinutes)
-		defer cancel()
-
-		caClient, closeConn, err := r.ClientFactory.New(ctxBackup, r, namespace, backup.Spec.Instance)
-		if err != nil {
-			log.Error(err, "failed to create config agent client")
-			return ctrl.Result{}, err
-		}
-		defer closeConn()
-
-		resp, err := caClient.PhysicalBackup(ctxBackup, &capb.PhysicalBackupRequest{
-			BackupSubType: backupSubType(backup.Spec.Subtype),
-			BackupItems:   backup.Spec.BackupItems,
-			Backupset:     *backup.Spec.Backupset,
-			CheckLogical:  backup.Spec.CheckLogical,
-			Compressed:    backup.Spec.Compressed,
-			Dop:           backup.Spec.Dop,
-			Level:         backup.Spec.Level,
-			Filesperset:   backup.Spec.Filesperset,
-			SectionSize:   backup.Spec.SectionSize,
-			LocalPath:     backup.Spec.LocalPath,
-			GcsPath:       backup.Spec.GcsPath,
-			LroInput:      &capb.LROInput{OperationId: lroOperationID(&backup)},
-		})
-		if err != nil {
-			if !controllers.IsAlreadyExistsError(err) {
-				return ctrl.Result{}, fmt.Errorf("failed on PhysicalBackup gRPC call: %v", err)
-			}
-			log.Info("operation already exists")
-			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "")
-		} else {
-			log.Info("caClient.PhysicalBackup", "response", resp)
-			if resp.Done {
-				log.Info("PhysicalBackup succeeded")
-				r.Recorder.Eventf(&backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(readyCond, time.Second))
-				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
-				duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
-				backup.Status.Duration = &duration
-			} else {
-				log.Info("PhysicalBackup started")
-				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "")
-			}
-		}
-	}
-
-	if err := r.Update(ctx, &backup); err != nil {
-		log.Info("failed to update the backup resource", "backup", backup)
-		return ctrl.Result{}, err
-	}
-
-	backup.Status.BackupID = backupID
-	backup.Status.BackupTime = time.Now().Format("20060102150405")
-	if err := r.updateBackupStatus(ctx, &backup, &inst); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.Info("reconciling backup: DONE")
-
-	return ctrl.Result{}, nil
+	return r.reconcileBackupCreation(ctx, &backup, log)
 }
 
 func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -428,8 +361,8 @@ func (r *BackupReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// reconcileVerifyExists verifies the existence of a backup and update the result to backup status.
-func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1alpha1.Backup) (ctrl.Result, error) {
+// reconcileVerifyExists verifies the existence of a backup and updates the result to backup status.
+func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1alpha1.Backup, log logr.Logger) (ctrl.Result, error) {
 	var errMsgs []string
 	if backup.Spec.Type != commonv1alpha1.BackupTypePhysical {
 		errMsgs = append(errMsgs, fmt.Sprintf("%v backup does not support VerifyExists mode", backup.Spec.Type))
@@ -441,7 +374,7 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 
 	if len(errMsgs) > 0 {
 		backup.Status.Phase = commonv1alpha1.BackupFailed
-		msg := strings.Join(errMsgs, "; ")
+		msg := strings.Join(errMsgs, msgSep)
 		r.Recorder.Event(backup, corev1.EventTypeWarning, k8s.NotSupported, msg)
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.NotSupported, msg)
 		return ctrl.Result{}, r.Status().Update(ctx, backup)
@@ -453,11 +386,11 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 	// so that verification does not depend on the instance pod.
 	inst := &v1alpha1.Instance{}
 	// ensure data plane is ready
-	if err := r.instReady(ctx, backup.Namespace, backup.Spec.Instance, inst); err != nil {
-		r.Log.Error(err, "instance not ready")
-		return ctrl.Result{RequeueAfter: time.Second}, nil
+	if err := r.instReady(ctx, backup.Namespace, backup.Spec.Instance, inst, log); err != nil {
+		log.Error(err, "instance not ready")
+		return ctrl.Result{RequeueAfter: requeueInterval}, nil
 	}
-	r.Log.Info("Verifying the existence of a backup")
+	log.Info("Verifying the existence of a backup")
 
 	caClient, closeConn, err := r.ClientFactory.New(ctx, r, backup.Namespace, inst.Name)
 	if err != nil {
@@ -468,7 +401,7 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 		GcsPath: backup.Spec.GcsPath,
 	})
 	if err != nil {
-		r.Log.Error(err, "failed to verify a physical backup")
+		log.Error(err, "failed to verify a physical backup")
 		// retry
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -479,21 +412,155 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, msg)
 	} else {
 		backup.Status.Phase = commonv1alpha1.BackupFailed
-		msg := fmt.Sprintf("Failed to verify the existence of a physical backup: %s", strings.Join(resp.GetErrMsgs(), "; "))
+		msg := fmt.Sprintf("Failed to verify the existence of a physical backup: %s", strings.Join(resp.GetErrMsgs(), msgSep))
 		r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupVerifyFailed", msg)
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, msg)
 	}
 	return ctrl.Result{RequeueAfter: verifyExistsInterval}, r.Status().Update(ctx, backup)
 }
 
+func validateBackupCreationSpec(backup *v1alpha1.Backup) bool {
+	var errMsgs []string
+	if backup.Spec.Type != commonv1alpha1.BackupTypeSnapshot && backup.Spec.Type != commonv1alpha1.BackupTypePhysical {
+		errMsgs = append(errMsgs, fmt.Sprintf("backup does not support type %q", backup.Spec.Type))
+	}
+	if backup.Spec.Type == commonv1alpha1.BackupTypeSnapshot && backup.Spec.Subtype != "" && backup.Spec.Subtype != "Instance" {
+		errMsgs = append(errMsgs, fmt.Sprintf("%s backup only support .spec.subtype 'Instance'", backup.Spec.Type))
+	}
+	if backup.Spec.Instance == "" {
+		errMsgs = append(errMsgs, fmt.Sprintf("spec.Instance is not set in the backup request: %v", backup))
+	}
+	if len(errMsgs) > 0 {
+		reason := ""
+		brc := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
+		if brc != nil {
+			// do not change condition reason
+			reason = brc.Reason
+		}
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionUnknown, reason, strings.Join(errMsgs, msgSep))
+		return false
+	}
+	return true
+}
+
+// reconcileBackupCreation creates a backup and updates the result to backup status.
+func (r *BackupReconciler) reconcileBackupCreation(ctx context.Context, backup *v1alpha1.Backup, log logr.Logger) (ctrl.Result, error) {
+	if v := validateBackupCreationSpec(backup); !v {
+		return ctrl.Result{}, r.Status().Update(ctx, backup)
+	}
+
+	state := ""
+	backupReadyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
+	if backupReadyCond != nil {
+		state = backupReadyCond.Reason
+	}
+	switch state {
+	case "":
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupPending, "Waiting for the instance to be ready.")
+		backup.Status.Phase = commonv1alpha1.BackupPending
+		log.Info("reconcileBackupCreation: ->BackupPending")
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.Status().Update(ctx, backup)
+
+	case k8s.BackupPending:
+		inst := &v1alpha1.Instance{}
+		// ensure the inst is ready to create a backup
+		if err := r.instReady(ctx, backup.Namespace, backup.Spec.Instance, inst, log); err != nil {
+			msg := fmt.Sprintf("instance not ready: %v", err)
+			r.Recorder.Event(backup, corev1.EventTypeWarning, k8s.BackupFailed, msg)
+			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, msg)
+			backup.Status.Phase = commonv1alpha1.BackupFailed
+			log.Info("reconcileBackupCreation: BackupPending->BackupFailed")
+			return ctrl.Result{}, r.Status().Update(ctx, backup)
+		}
+		// backup type is validated in validateBackupSpec
+		var b oracleBackup
+		if backup.Spec.Type == commonv1alpha1.BackupTypeSnapshot {
+			b = &snapshotBackup{
+				r:      r,
+				log:    log,
+				backup: backup,
+				inst:   inst,
+			}
+		} else {
+			b = &physicalBackup{
+				r:      r,
+				log:    log,
+				backup: backup,
+			}
+		}
+		if backup.Status.BackupID == "" || backup.Status.BackupTime == "" || backup.Status.StartTime == nil {
+			backup.Status.BackupID = b.generateID()
+			backup.Status.BackupTime = time.Now().Format("20060102150405")
+			startTime := metav1.Now()
+			backup.Status.StartTime = &startTime
+			log.Info("backup started at:", "StartTime", backup.Status.StartTime)
+			// commit backup id and time
+			return ctrl.Result{RequeueAfter: requeueInterval}, r.updateBackupStatus(ctx, backup, inst)
+		}
+
+		if err := b.create(ctx); err != nil {
+			// default retry
+			return ctrl.Result{}, err
+		}
+		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupInProgress, "Starting to create a backup.")
+		log.Info("reconcileBackupCreation: BackupPending->BackupInProgress")
+		return ctrl.Result{RequeueAfter: requeueInterval}, r.updateBackupStatus(ctx, backup, inst)
+
+	case k8s.BackupInProgress:
+		inst := &v1alpha1.Instance{}
+		if err := r.Get(ctx, types.NamespacedName{Namespace: backup.Namespace, Name: backup.Spec.Instance}, inst); err != nil {
+			return ctrl.Result{}, err
+		}
+		// backup type is validated in validateBackupSpec
+		var b oracleBackup
+		if backup.Spec.Type == commonv1alpha1.BackupTypeSnapshot {
+			b = &snapshotBackup{
+				r:      r,
+				log:    log,
+				backup: backup,
+				inst:   inst,
+			}
+		} else {
+			b = &physicalBackup{
+				r:      r,
+				log:    log,
+				backup: backup,
+			}
+		}
+		done, err := b.status(ctx)
+		if done {
+			if err == nil {
+				r.Recorder.Eventf(backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(backup.Status.Conditions, k8s.Ready), time.Second))
+				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
+				duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
+				backup.Status.Duration = &duration
+				log.Info("reconcileBackupCreation: BackupInProgress->BackupReady")
+			} else {
+				r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupFailed", err.Error())
+				backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, err.Error())
+				log.Info("reconcileBackupCreation: BackupInProgress->BackupFailed")
+			}
+			log.Info("reconciling backup creation: DONE")
+
+			return ctrl.Result{}, r.updateBackupStatus(ctx, backup, inst)
+		}
+		log.Info("reconciling backup creation: InProgress")
+		return ctrl.Result{RequeueAfter: statusCheckInterval}, nil
+
+	default:
+		log.Info("no action needed", "backupReady", backupReadyCond)
+		return ctrl.Result{}, nil
+	}
+}
+
 // instReady returns non-nil error if instance is not in ready state.
-func (r *BackupReconciler) instReady(ctx context.Context, ns, instName string, inst *v1alpha1.Instance) error {
+func (r *BackupReconciler) instReady(ctx context.Context, ns, instName string, inst *v1alpha1.Instance, log logr.Logger) error {
 	if err := r.Get(ctx, types.NamespacedName{Namespace: ns, Name: instName}, inst); err != nil {
-		r.Log.Error(err, "error finding instance for backup validation")
+		log.Error(err, "error finding instance for backup validation")
 		return fmt.Errorf("error finding instance - %v", err)
 	}
 	if !k8s.ConditionStatusEquals(k8s.FindCondition(inst.Status.Conditions, k8s.Ready), v1.ConditionTrue) {
-		r.Log.Error(fmt.Errorf("instance not in ready state"), "Instance not in ready state for backup", "inst.Status.Conditions", inst.Status.Conditions)
+		log.Error(fmt.Errorf("instance not in ready state"), "Instance not in ready state for backup", "inst.Status.Conditions", inst.Status.Conditions)
 		return errors.New("instance is not in a ready state")
 	}
 	return nil
@@ -503,7 +570,7 @@ func lroOperationID(backup *v1alpha1.Backup) string {
 	return fmt.Sprintf("Backup_%s", backup.GetUID())
 }
 
-var preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
+var preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
 	// Confirm that an external LB is ready.
 	svc := &corev1.Service{}
 	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(controllers.SvcName, instName), Namespace: namespace}, svc); err != nil {
@@ -513,37 +580,6 @@ var preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, i
 	if len(svc.Status.LoadBalancer.Ingress) == 0 {
 		return fmt.Errorf("preflight check: physical backup: external LB is NOT ready")
 	}
-	r.Log.Info("preflight check: physical backup, external LB service is ready", "succeededExecCmd#:", 1, "svc", svc.Name)
+	log.Info("preflight check: physical backup, external LB service is ready", "succeededExecCmd#:", 1, "svc", svc.Name)
 	return nil
-}
-
-// checkLROStatus checks the status of a long-running operation (LRO) backup. LRO's are done through the db agent and thus needs to be monitored periodically. This method returns true if LRO is done and false if not.
-func (r *BackupReconciler) checkLROStatus(ctx context.Context, req ctrl.Request, backup *v1alpha1.Backup, rc *v1.Condition, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error, bool) {
-	id := lroOperationID(backup)
-	operation, err := controllers.GetLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
-	if err != nil {
-		log.Error(err, "GetLROOperation error")
-		return ctrl.Result{}, err, false
-	}
-	if operation.Done {
-		log.Info("LRO is DONE", "id", id)
-		if operation.GetError() != nil {
-			log.Error(fmt.Errorf(operation.GetError().GetMessage()), "backup failed")
-			r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupFailed", operation.GetError().GetMessage())
-			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, operation.GetError().GetMessage())
-		} else {
-			r.Recorder.Eventf(backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(rc, time.Second))
-			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, "")
-			duration := metav1.Duration{Duration: metav1.Now().Sub(backup.Status.StartTime.Time)}
-			backup.Status.Duration = &duration
-		}
-		if err := r.updateBackupStatus(ctx, backup, inst); err != nil {
-			log.Error(err, "failed to update the backup resource", "backup", backup)
-			return ctrl.Result{}, err, false
-		}
-		_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, backup.Spec.Instance)
-		return ctrl.Result{}, nil, true
-	}
-	log.Info("LRO is in progress", "id", id)
-	return ctrl.Result{RequeueAfter: time.Minute}, nil, false
 }

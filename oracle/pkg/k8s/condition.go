@@ -33,6 +33,7 @@ const (
 	// Condition Reasons
 	// Backup schedule concurrent policy is relying on the backup ready condition’s reason,
 	// BackupReady and BackupFailed means backup job is not running and scheduler will continue creating backup.
+	BackupPending                  = "BackupPending"
 	BackupReady                    = "BackupReady"
 	BackupInProgress               = "BackupInProgress"
 	BackupFailed                   = "BackupFailed"

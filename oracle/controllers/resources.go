@@ -65,6 +65,16 @@ var (
 	defaultDiskSize  = resource.MustParse("100Gi")
 	dialTimeout      = 3 * time.Minute
 	configList       = []string{configAgentName, OperatorName}
+	defaultDisks     = []commonv1alpha1.DiskSpec{
+		{
+			Name: "DataDisk",
+			Size: resource.MustParse("100Gi"),
+		},
+		{
+			Name: "LogDisk",
+			Size: resource.MustParse("150Gi"),
+		},
+	}
 )
 
 type platformConfig struct {
@@ -853,4 +863,14 @@ func addHostpathInitContainer(sp StsParams, containers []corev1.Container, uid, 
 		},
 		VolumeMounts: volumeMounts,
 	})
+}
+
+func DiskSpecs(inst *v1alpha1.Instance, config *v1alpha1.Config) []commonv1alpha1.DiskSpec {
+	if inst != nil && inst.Spec.Disks != nil {
+		return inst.Spec.Disks
+	}
+	if config != nil && config.Spec.Disks != nil {
+		return config.Spec.Disks
+	}
+	return defaultDisks
 }

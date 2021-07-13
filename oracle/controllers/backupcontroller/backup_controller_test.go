@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -193,43 +194,10 @@ var _ = Describe("Backup controller", func() {
 		})
 	})
 
-	Context("New backup through RMAN", func() {
-		It("Should create RMAN backup correctly", func() {
-			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
-				return nil
-			}
-			defer func() { preflightCheck = oldFunc }()
-
-			By("By creating a RMAN type backup of the instance")
-			backup := &v1alpha1.Backup{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: Namespace,
-					Name:      BackupName,
-				},
-				Spec: v1alpha1.BackupSpec{
-					BackupSpec: commonv1alpha1.BackupSpec{
-						Instance: instance.Name,
-						Type:     commonv1alpha1.BackupTypePhysical,
-					},
-				},
-			}
-
-			objKey := client.ObjectKey{Namespace: Namespace, Name: BackupName}
-			testhelpers.K8sCreateWithRetry(k8sClient, ctx, backup)
-
-			By("By checking that a physical backup is created")
-			Eventually(func() (string, error) {
-				return getConditionReason(ctx, objKey, k8s.Ready)
-			}, timeout, interval).Should(Equal(k8s.BackupReady))
-			Expect(fakeClientFactory.Caclient.PhysicalBackupCalledCnt()).Should(Equal(1))
-		})
-	})
-
 	Context("New backup through RMAN with VerifyExists mode", func() {
 		It("Should verify RMAN backup correctly", func() {
 			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
+			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
 				return nil
 			}
 			defer func() { preflightCheck = oldFunc }()
@@ -264,7 +232,7 @@ var _ = Describe("Backup controller", func() {
 	Context("New backup through RMAN in LRO async environment", func() {
 		It("Should create RMAN backup correctly", func() {
 			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
+			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
 				return nil
 			}
 			defer func() { preflightCheck = oldFunc }()
@@ -324,7 +292,7 @@ var _ = Describe("Backup controller", func() {
 
 		It("Should mark unsuccessful RMAN backup as Failed", func() {
 			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string) error {
+			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
 				return nil
 			}
 			defer func() { preflightCheck = oldFunc }()
