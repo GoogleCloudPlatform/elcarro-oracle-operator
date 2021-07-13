@@ -446,6 +446,10 @@ func (m *mockDatabaseDaemonProxyClient) SetEnv(ctx context.Context, in *dbdpb.Se
 	panic("implement me")
 }
 
+func (m *mockDatabaseDaemonProxyClient) ProxyRunInitOracle(ctx context.Context, in *dbdpb.ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*dbdpb.ProxyRunInitOracleResponse, error) {
+	panic("implement me")
+}
+
 // Mock osUtil
 type mockOsUtil struct {
 	commands []string

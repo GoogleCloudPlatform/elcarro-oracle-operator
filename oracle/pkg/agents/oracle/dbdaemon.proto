@@ -153,6 +153,10 @@ service DatabaseDaemon {
 
   // CreateFile creates file based on file path and content.
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+
+  // BootstrapDatabase bootstraps seeded database by executing init_oracle
+  rpc BootstrapDatabase(BootstrapDatabaseRequest)
+      returns (BootstrapDatabaseResponse) {}
 }
 
 message CreateDirRequest {
@@ -467,3 +471,10 @@ message CreateFileRequest {
   string content = 2;
 }
 message CreateFileResponse {}
+
+message BootstrapDatabaseRequest {
+  string cdb_name = 1;
+  string db_domain = 2;
+}
+
+message BootstrapDatabaseResponse {}

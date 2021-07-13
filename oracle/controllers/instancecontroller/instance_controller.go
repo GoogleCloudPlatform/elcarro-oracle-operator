@@ -535,9 +535,9 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
-	if !isImageSeeded && istatus == controllers.StatusInProgress {
+	if istatus == controllers.StatusInProgress {
 		if inst.Spec.Restore != nil {
-			log.Info("Skip creating a new CDB database, waiting to be restored")
+			log.Info("Skip bootstrap CDB database, waiting to be restored")
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.AwaitingRestore, "Awaiting restore CDB")
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -553,13 +553,13 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 			log.Error(err, "failed to update the instance status")
 		}
 
-		if err = r.bootstrapCDB(ctx, inst, svc.Spec.ClusterIP, log); err != nil {
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, fmt.Sprintf("Error creating CDB: %v", err))
-			log.Error(err, "Error while creating CDB database")
+		if err = r.bootstrapCDB(ctx, inst, svc.Spec.ClusterIP, log, isImageSeeded); err != nil {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, fmt.Sprintf("Error bootstrapping CDB: %v", err))
+			log.Error(err, "Error while bootstrapping CDB database")
 			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, "DatabaseInstanceCreateFailed", fmt.Sprintf("Error creating CDB: %v", err))
 			return ctrl.Result{}, err // No point in proceeding if the instance isn't provisioned
 		}
-		log.Info("Finished creating new CDB database")
+		log.Info("Finished bootstrapping CDB database")
 	}
 
 	dbiCond = k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
@@ -678,14 +678,13 @@ func (r *InstanceReconciler) overrideDefaultImages(config *v1alpha1.Config, imag
 	return ctrl.Result{}, nil
 }
 
-// bootstrapCDB is invoked during the instance creation phase for a database
-// image not containing a CDB and does the following.
-// a) Create a CDB for an unseeded image.
-// b) Invoke a provisioning workflow for unseeded images, which will create listener.
-func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Instance, clusterIP string, log logr.Logger) error {
+// bootstrapCDB is invoked during the instance creation phase to bootstrap a database and does the following.
+// For seeded image, it invokes init_oracle to perform seeded bootstrap tasks.
+// For unseeded image, it creates a CDB using DBCA and performs unseeded bootstrap tasks.
+func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Instance, clusterIP string, log logr.Logger, isImageSeeded bool) error {
 	// TODO: add better error handling.
-	if inst.Spec.CDBName == "" || inst.Spec.DBUniqueName == "" {
-		return fmt.Errorf("bootstrapCDB: at least one of the following required arguments is not defined: CDBName, DBUniqueName")
+	if !isImageSeeded && (inst.Spec.CDBName == "" || inst.Spec.DBUniqueName == "") {
+		return fmt.Errorf("bootstrapCDB: using unseeded image requires specifying both arguments: CDBName, DBUniqueName")
 	}
 
 	log.Info("bootstrapCDB: new database requested clusterIP", clusterIP)
@@ -702,32 +701,39 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 		return err
 	}
 	defer closeConn()
-	_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
-		Sid:           inst.Spec.CDBName,
-		DbUniqueName:  inst.Spec.DBUniqueName,
-		DbDomain:      controllers.GetDBDomain(&inst),
-		CharacterSet:  inst.Spec.CharacterSet,
-		MemoryPercent: int32(inst.Spec.MemoryPercent),
-		//DBCA expects the parameters in the following string array format
-		// ["key1=val1", "key2=val2","key3=val3"]
-		AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
-	})
-	if err != nil {
-		return fmt.Errorf("bootstrapCDB: failed on CreateDatabase gRPC call: %v", err)
+
+	if !isImageSeeded {
+		_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
+			Sid:           inst.Spec.CDBName,
+			DbUniqueName:  inst.Spec.DBUniqueName,
+			DbDomain:      controllers.GetDBDomain(&inst),
+			CharacterSet:  inst.Spec.CharacterSet,
+			MemoryPercent: int32(inst.Spec.MemoryPercent),
+			//DBCA expects the parameters in the following string array format
+			// ["key1=val1", "key2=val2","key3=val3"]
+			AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
+		})
+		if err != nil {
+			return fmt.Errorf("bootstrapCDB: failed on CreateDatabase gRPC call: %v", err)
+		}
+
+		inst.Status.CurrentParameters = inst.Spec.Parameters
+		if err := r.Status().Update(ctx, &inst); err != nil {
+			log.Error(err, "failed to update an Instance status returning error")
+			return err
+		}
 	}
 
-	inst.Status.CurrentParameters = inst.Spec.Parameters
-	if err := r.Status().Update(ctx, &inst); err != nil {
-		log.Error(err, "failed to update an Instance status returning error")
-		return err
+	bootstrapMode := capb.BootstrapDatabaseRequest_ProvisionUnseeded
+	if isImageSeeded {
+		bootstrapMode = capb.BootstrapDatabaseRequest_ProvisionSeeded
 	}
 
-	dbDomain := controllers.GetDBDomain(&inst)
 	_, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
 		CdbName:      inst.Spec.CDBName,
 		DbUniqueName: inst.Spec.DBUniqueName,
-		Dbdomain:     dbDomain,
-		Mode:         capb.BootstrapDatabaseRequest_Provision,
+		Dbdomain:     controllers.GetDBDomain(&inst),
+		Mode:         bootstrapMode,
 	})
 
 	if err != nil {

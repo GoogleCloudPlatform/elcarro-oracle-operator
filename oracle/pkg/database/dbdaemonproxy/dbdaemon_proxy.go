@@ -386,6 +386,23 @@ func (s *Server) ProxyRunNID(ctx context.Context, req *dbdpb.ProxyRunNIDRequest)
 	return &dbdpb.ProxyRunNIDResponse{}, nil
 }
 
+// ProxyRunInitOracle execute the init_oracle binary with input params
+func (s *Server) ProxyRunInitOracle(ctx context.Context, req *dbdpb.ProxyRunInitOracleRequest) (*dbdpb.ProxyRunInitOracleResponse, error) {
+	cmd := exec.Command("./agents/init_oracle",
+		req.GetParams()...)
+
+	out, err := cmd.CombinedOutput()
+	klog.Infof("proxy/ProxyRunInitOracle: init_oracle log: \n %s", string(out))
+
+	if err != nil {
+		klog.InfoS("proxy/ProxyRunInitOracle: FAIL")
+		return nil, fmt.Errorf("init_oracle failed: %v", err)
+	}
+
+	klog.InfoS("proxy/ProxyRunInitOracle: DONE")
+	return &dbdpb.ProxyRunInitOracleResponse{}, nil
+}
+
 // SetEnv moves/relink oracle config files
 func (s *Server) SetEnv(ctx context.Context, req *dbdpb.SetEnvRequest) (*dbdpb.SetEnvResponse, error) {
 	klog.InfoS("proxy/SetEnv", "req", req)

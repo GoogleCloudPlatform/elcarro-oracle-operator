@@ -36,6 +36,9 @@ service DatabaseDaemonProxy {
   rpc ProxyRunNID(ProxyRunNIDRequest) returns (ProxyRunNIDResponse);
   // SetEnv RPC call moves/relinks oracle config files within oracledb container
   rpc SetEnv(SetEnvRequest) returns (SetEnvResponse);
+  // ProxyRunInitOracle RPC call exec init_oracle binary with specified params
+  rpc ProxyRunInitOracle(ProxyRunInitOracleRequest)
+      returns (ProxyRunInitOracleResponse) {}
 }
 
 message SetEnvRequest {
@@ -61,3 +64,9 @@ message ProxyRunDbcaRequest {
 }
 
 message ProxyRunDbcaResponse {}
+
+message ProxyRunInitOracleRequest {
+  repeated string params = 3;
+}
+
+message ProxyRunInitOracleResponse {}

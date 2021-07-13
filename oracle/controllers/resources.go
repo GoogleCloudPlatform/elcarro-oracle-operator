@@ -582,8 +582,18 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			Name:      "oracledb",
 			Resources: dbResource,
 			Image:     sp.Images["service"],
-			Command:   []string{fmt.Sprintf("%s/init_oracle.sh", scriptDir)},
-			Args:      []string{cdbName, DBDomain},
+			Command:   []string{fmt.Sprintf("%s/init_container.sh", scriptDir)},
+			Env: []corev1.EnvVar{
+				{
+					Name:  "SCRIPTS_DIR",
+					Value: scriptDir,
+				},
+				{
+					Name:  "PROVISIONDONE_FILE",
+					Value: consts.ProvisioningDoneFile,
+				},
+			},
+			Args: []string{cdbName, DBDomain},
 			Ports: []corev1.ContainerPort{
 				{Name: "secure-listener", Protocol: "TCP", ContainerPort: consts.SecureListenerPort},
 				{Name: "ssl-listener", Protocol: "TCP", ContainerPort: consts.SSLListenerPort},
