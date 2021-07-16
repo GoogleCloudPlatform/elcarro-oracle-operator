@@ -38,7 +38,7 @@ sanity_check_params() {
 
   if [[ "${CREATE_CDB}" == true ]]; then
     if [ -z "${CDB_NAME}" ]; then
-      CDB_NAME="MYDB"
+      CDB_NAME="GCLOUD"
     fi
     db_name_len=`expr length "${CDB_NAME}"`
     if [[ "${db_name_len}" -le 0 || "${db_name_len}" -gt 8 ]]; then
