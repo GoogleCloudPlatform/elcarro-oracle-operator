@@ -20,6 +20,8 @@
 
 FROM docker.io/oraclelinux:7-slim as base
 ARG DB_VERSION
+ARG ORACLE_HOME
+ARG ORACLE_BASE
 ARG CREATE_CDB
 ARG CDB_NAME
 ARG CHARACTER_SET
@@ -45,6 +47,10 @@ RUN /bin/bash -c \
       rm -rf $INSTALL_SCRIPT && \
       rm -rf $STAGE_DIR; \
     fi'
+
+ENV ORACLE_HOME=$ORACLE_HOME
+ENV ORACLE_BASE=$ORACLE_BASE
+ENV LD_LIBRARY_PATH=$ORACLE_HOME/lib:/usr/lib
 
 VOLUME ["/u02", "/u03"]
 # TODO: make the port number configurable
