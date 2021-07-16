@@ -210,6 +210,7 @@ operator-presubmit: prepare-prow
 
 # Prow canary test job entry point: operator-canary
 operator-canary: prepare-prow
+	scripts/canary_build_dbimage_image_build.sh
 	$(MAKE) operator-presubmit
 
 # Github presubmit Prow job entry point
