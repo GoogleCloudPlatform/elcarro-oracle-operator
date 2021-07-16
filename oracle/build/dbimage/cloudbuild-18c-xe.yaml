@@ -22,6 +22,8 @@ steps:
   - 'build'
   - '--no-cache'
   - '--build-arg=DB_VERSION=18c'
+  - '--build-arg=ORACLE_HOME=$_ORACLE_HOME'
+  - '--build-arg=ORACLE_BASE=$_ORACLE_BASE'
   - '--build-arg=CDB_NAME=$_CDB_NAME'
   - '--build-arg=CHARACTER_SET=$_CHARACTER_SET'
   - '--build-arg=EDITION=xe'

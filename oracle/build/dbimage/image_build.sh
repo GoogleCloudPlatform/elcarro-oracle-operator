@@ -28,6 +28,8 @@ MEM_PCT=25
 IMAGE_NAME_SUFFIX=''
 INSTALL_PATH=''
 NO_DRY_RUN=false
+ORACLE_HOME=''
+ORACLE_BASE=''
 PROJECT_ID=''
 LOCAL_BUILD=false
 TAG=''
@@ -71,7 +73,7 @@ sanity_check_params() {
     usage
   fi
 
-  if [[ "${DB_VERSION}" = "${ORACLE_18}" ]]; then
+  if [[ "${DB_VERSION}" == "${ORACLE_18}" ]]; then
     EDITION="xe"
   fi
 }
@@ -239,17 +241,25 @@ execute_command() {
     CDB_NAME="${DUMMY_VALUE}"
   fi
 
+  if [ "${DB_VERSION}" == "${ORACLE_18}" ] && [ "${EDITION}" == "xe" ]; then
+    ORACLE_HOME="/opt/oracle/product/18c/dbhomeXE"
+    ORACLE_BASE="/opt/oracle"
+  else
+    ORACLE_HOME="/u01/app/oracle/product/${DB_VERSION}/db"
+    ORACLE_BASE="/u01/app/oracle"
+  fi
+
   if [ -z "${TAG}" ]; then
     TAG="gcr.io/${GCR_PROJECT_ID}/oracle-database-images/oracle-${DB_VERSION}-${EDITION}-${IMAGE_NAME_SUFFIX}:latest"
   fi
 
   if [ "${LOCAL_BUILD}" == true ]; then
-    BUILD_CMD=$(echo sudo docker build --no-cache --build-arg=DB_VERSION=${DB_VERSION} --build-arg=CREATE_CDB=${CREATE_CDB} --build-arg=CDB_NAME=${CDB_NAME} --build-arg=CHARACTER_SET=${CHARACTER_SET} --build-arg=MEM_PCT=${MEM_PCT} --build-arg=EDITION=${EDITION} --build-arg=PATCH_VERSION=${PATCH_VERSION} --tag=$TAG .)
+    BUILD_CMD=$(echo docker build --no-cache --build-arg=DB_VERSION=${DB_VERSION} --build-arg=ORACLE_HOME=${ORACLE_HOME} --build-arg=ORACLE_BASE=${ORACLE_BASE} --build-arg=CREATE_CDB=${CREATE_CDB} --build-arg=CDB_NAME=${CDB_NAME} --build-arg=CHARACTER_SET=${CHARACTER_SET} --build-arg=MEM_PCT=${MEM_PCT} --build-arg=EDITION=${EDITION} --build-arg=PATCH_VERSION=${PATCH_VERSION} --tag=$TAG .)
   else
     if [ "${DB_VERSION}" == "${ORACLE_18}" ]; then
-      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild-18c-xe.yaml --substitutions=_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
+      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild-18c-xe.yaml --substitutions=_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
     else
-      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild.yaml --substitutions=_INSTALL_PATH="${INSTALL_PATH}",_DB_VERSION="${DB_VERSION}",_EDITION="${EDITION}",_CREATE_CDB="${CREATE_CDB}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_MEM_PCT="${MEM_PCT}",_TAG="${TAG}",_PATCH_VERSION="${PATCH_VERSION}")
+      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild.yaml --substitutions=_INSTALL_PATH="${INSTALL_PATH}",_DB_VERSION="${DB_VERSION}",_EDITION="${EDITION}",_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CREATE_CDB="${CREATE_CDB}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_MEM_PCT="${MEM_PCT}",_TAG="${TAG}",_PATCH_VERSION="${PATCH_VERSION}")
     fi
   fi
 
