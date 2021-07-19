@@ -34,6 +34,7 @@ COPY --from=builder /build/dbdaemon \
 /build/init_oracle \
 /build/oracle/cmd/init_oracle/init_oracle.sh \
 /build/oracle/cmd/init_oracle/stop_oracle.sh \
+/build/oracle/cmd/dbdaemon/init_dbdaemon.sh \
 /build/oracle/pkg/database/provision/bootstrap-database-initfile.template \
 /build/oracle/pkg/database/provision/bootstrap-database-initfile-oracle-xe.template \
 /build/oracle/pkg/database/provision/bootstrap-database-crcf.template \

@@ -611,8 +611,8 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		{
 			Name:    "dbdaemon",
 			Image:   sp.Images["service"],
-			Command: []string{"/agents/dbdaemon"},
-			Args:    []string{fmt.Sprintf("--cdb_name=%s", cdbName)},
+			Command: []string{fmt.Sprintf("%s/init_dbdaemon.sh", scriptDir)},
+			Args:    []string{cdbName},
 			Ports: []corev1.ContainerPort{
 				{Name: "dbdaemon", Protocol: "TCP", ContainerPort: consts.DefaultDBDaemonPort},
 			},
