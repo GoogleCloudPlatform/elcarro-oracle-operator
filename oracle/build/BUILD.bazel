@@ -21,6 +21,7 @@ container_image(
     directory = "agent_repo",
     files = [
         "//oracle/cmd/dbdaemon",
+        "//oracle/cmd/dbdaemon:init_dbdaemon_files",
         "//oracle/cmd/dbdaemon_proxy",
         "//oracle/cmd/init_oracle",
         "//oracle/cmd/init_oracle:init_oracle_files",

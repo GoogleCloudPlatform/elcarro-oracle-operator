@@ -21,6 +21,14 @@ go_binary(
 )
 
 filegroup(
+    name = "init_dbdaemon_files",
+    srcs = [
+        "init_dbdaemon.sh",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "package-srcs",
     srcs = glob(["**"]),
     tags = ["automanaged"],
