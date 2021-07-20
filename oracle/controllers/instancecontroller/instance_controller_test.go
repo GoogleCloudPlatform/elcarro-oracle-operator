@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -86,6 +87,21 @@ var _ = Describe("Instance controller", func() {
 		interval = time.Millisecond * 15
 	)
 
+	BeforeEach(func() {
+		fakeClientFactory.Reset()
+		fakeClientFactory.Caclient.SetMethodToRespFunc(
+			map[string]func(interface{}) (interface{}, error){
+				"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
+					return &pb.FetchServiceImageMetaDataResponse{
+						Version:    "12.2",
+						CdbName:    "GCLOUD",
+						OracleHome: "/u01/app/oracle/product/12.2/db",
+					}, nil
+				},
+			},
+		)
+	})
+
 	Context("New instance", func() {
 		It("Should create statefulset/deployment/svc", func() {
 			By("creating a new Instance")
@@ -138,7 +154,6 @@ var _ = Describe("Instance controller", func() {
 	Context("instance status observedGeneration and isChangeApplied fields", func() {
 
 		It("should update observedGeneration", func() {
-			fakeClientFactory.Reset()
 			objKey := client.ObjectKey{Namespace: "default", Name: "generation-test-inst"}
 			By("creating a new Instance")
 			ctx := context.Background()
@@ -227,6 +242,17 @@ var _ = Describe("Instance controller", func() {
 			fakeConfigAgentClient = fakeClientFactory.Caclient
 
 			fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
+			fakeConfigAgentClient.SetMethodToRespFunc(
+				map[string]func(interface{}) (interface{}, error){
+					"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
+						return &pb.FetchServiceImageMetaDataResponse{
+							Version:    "19.3",
+							CdbName:    "",
+							OracleHome: "/u01/app/oracle/product/19.3/db",
+						}, nil
+					},
+				},
+			)
 			restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconciler, namespace, instName string) error {
 				return nil
 			}
@@ -450,6 +476,17 @@ var _ = Describe("Instance controller", func() {
 
 			// reset method call counters used later
 			fakeConfigAgentClient.Reset()
+			fakeConfigAgentClient.SetMethodToRespFunc(
+				map[string]func(interface{}) (interface{}, error){
+					"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
+						return &pb.FetchServiceImageMetaDataResponse{
+							Version:    "12.2",
+							CdbName:    "GCLOUD",
+							OracleHome: "/u01/app/oracle/product/12.2/db",
+						}, nil
+					},
+				},
+			)
 			fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 
 			By("restoring from same backup with later RequestTime")
@@ -700,6 +737,17 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 	fakeClientFactory := &testhelpers.FakeClientFactory{}
 	fakeClientFactory.Reset()
 	fakeConfigAgentClient := fakeClientFactory.Caclient
+	fakeConfigAgentClient.SetMethodToRespFunc(
+		map[string]func(interface{}) (interface{}, error){
+			"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
+				return &pb.FetchServiceImageMetaDataResponse{
+					Version:    "19.3",
+					CdbName:    "GCLOUD",
+					OracleHome: "/u01/app/oracle/product/19.3/db",
+				}, nil
+			},
+		},
+	)
 
 	for _, tc := range tests {
 		instanceSpec := v1alpha1.InstanceSpec{

@@ -24,7 +24,6 @@ import (
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -235,7 +234,12 @@ var _ = Describe("Backup controller", func() {
 			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
 				return nil
 			}
-			defer func() { preflightCheck = oldFunc }()
+			oldStatusCheckInterval := statusCheckInterval
+			statusCheckInterval = interval
+			defer func() {
+				preflightCheck = oldFunc
+				statusCheckInterval = oldStatusCheckInterval
+			}()
 
 			// configure fake ConfigAgent to be in LRO mode
 			fakeConfigAgentClient := fakeClientFactory.Caclient
@@ -266,12 +270,11 @@ var _ = Describe("Backup controller", func() {
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupInProgress))
-			Expect(fakeConfigAgentClient.PhysicalBackupCalledCnt()).Should(Equal(1))
+			Expect(fakeConfigAgentClient.PhysicalBackupCalledCnt()).Should(BeNumerically(">=", 1))
 
 			By("By checking that reconciler watches backup LRO status")
 			getOperationCallsCntBefore := fakeConfigAgentClient.GetOperationCalledCnt()
 
-			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() int {
 				return fakeConfigAgentClient.GetOperationCalledCnt()
 			}, timeout, interval).ShouldNot(Equal(getOperationCallsCntBefore))
@@ -282,12 +285,11 @@ var _ = Describe("Backup controller", func() {
 
 			By("By checking that physical backup is Ready on backup LRO completion")
 			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
-			Expect(triggerReconcile(ctx, objKey)).Should(Succeed())
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupReady))
 
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
+			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
 		})
 
 		It("Should mark unsuccessful RMAN backup as Failed", func() {
@@ -358,21 +360,4 @@ func getInstanceConditionStatus(ctx context.Context, objKey client.ObjectKey, co
 		return "", fmt.Errorf("%v condition type not found", condType)
 	}
 	return cond.Status, nil
-}
-
-// triggerReconcile invokes k8s reconcile action by updating
-// an irrelevant field.
-func triggerReconcile(ctx context.Context, objKey client.ObjectKey) error {
-	var backup v1alpha1.Backup
-	if err := k8sClient.Get(ctx, objKey, &backup); err != nil {
-		return err
-	}
-
-	backup.Spec.SectionSize++
-
-	err := k8sClient.Update(ctx, &backup)
-	if errors.IsConflict(err) {
-		return nil
-	}
-	return err
 }

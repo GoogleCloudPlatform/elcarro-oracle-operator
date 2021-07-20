@@ -428,7 +428,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
 	inst.Status.URL = controllers.SvcURL(svcLB, consts.SecureListenerPort)
 
-	isImageSeeded, err := isImageSeeded(ctx, svc.Spec.ClusterIP, log)
+	isImageSeeded, err := r.isImageSeeded(ctx, &inst, log)
 	if err != nil {
 		log.Error(err, "unable to determine image type")
 		return ctrl.Result{}, err
@@ -597,23 +597,21 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 }
 
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
-func isImageSeeded(ctx context.Context, clusterIP string, log logr.Logger) (bool, error) {
+func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
 
-	log.Info("isImageSeeded: new database requested clusterIP", clusterIP)
+	log.Info("isImageSeeded: new database requested", inst.GetName())
 
 	dialTimeout := 1 * time.Minute
 	// Establish a connection to a Config Agent.
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", clusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
+	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
 	if err != nil {
-		log.Error(err, "isImageSeeded: failed to create a conn via gRPC.Dial")
+		log.Error(err, "failed to create config agent client")
 		return false, err
 	}
-	defer conn.Close()
-
-	caClient := capb.NewConfigAgentClient(conn)
+	defer closeConn()
 	serviceImageMetaData, err := caClient.FetchServiceImageMetaData(ctx, &capb.FetchServiceImageMetaDataRequest{})
 	if err != nil {
 		return false, fmt.Errorf("isImageSeeded: failed on FetchServiceImageMetaData call: %v", err)
@@ -698,14 +696,12 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", clusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
+	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
 	if err != nil {
-		log.Error(err, "bootstrapCDB: failed to create a conn via gRPC.Dial")
+		log.Error(err, "failed to create config agent client")
 		return err
 	}
-	defer conn.Close()
-
-	caClient := capb.NewConfigAgentClient(conn)
+	defer closeConn()
 	_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
 		Sid:           inst.Spec.CDBName,
 		DbUniqueName:  inst.Spec.DBUniqueName,
@@ -726,7 +722,6 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 		return err
 	}
 
-	caClient = capb.NewConfigAgentClient(conn)
 	dbDomain := controllers.GetDBDomain(&inst)
 	_, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
 		CdbName:      inst.Spec.CDBName,
