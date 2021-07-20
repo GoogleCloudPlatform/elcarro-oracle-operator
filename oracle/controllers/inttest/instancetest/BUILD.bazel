@@ -4,14 +4,13 @@ load("//oracle:scripts/ginkgo_test.bzl", "ginkgo_test")
 
 ginkgo_test(
     name = "instancetest_test",
-    timeout = "eternal",
+    timeout = "eternal",  # 60m
     srcs = ["instance_test.go"],
-    nodes = 5,
+    nodes = 3,
     tags = ["integration"],
     deps = [
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
-        "//oracle/controllers/instancecontroller",
         "//oracle/controllers/testhelpers",
         "//oracle/pkg/k8s",
         "@com_github_onsi_ginkgo//:ginkgo",

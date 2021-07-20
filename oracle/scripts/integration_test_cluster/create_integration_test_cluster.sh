@@ -25,7 +25,7 @@ set -o pipefail
 [[ -z "$PROW_PROJECT" ]] && { echo "PROW_PROJECT envvar was not set. Did you try to test without make?" ; exit 1; }
 
 MACHINE="n1-standard-4"
-NODECOUNT="10"
+NODECOUNT="8"
 
 echo "Creating cluster '${PROW_CLUSTER}' (this may take a few minutes)..."
 echo "If this fails due to insufficient project quota, request more quota at GCP console"
