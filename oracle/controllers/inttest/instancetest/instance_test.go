@@ -33,7 +33,6 @@ import (
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/instancecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
@@ -64,7 +63,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 		k8sEnv.Close()
 	})
 
-	TestInstanceCreationAndDatabaseProvisioning := func(version string, edition string, extra string, isImageSeeded bool) {
+	TestInstanceCreationAndDatabaseProvisioning := func(version string, edition string) {
 		It("Should create instance and provision database", func() {
 			ctx := context.Background()
 			k8sClient, err := client.New(k8sEnv.Env.Config, client.Options{})
@@ -79,8 +78,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 				Spec: v1alpha1.InstanceSpec{
 					// Keep the CDBName in the spec different from the CDB name in the image (GCLOUD).
 					// Doing this implicitly test the CDB renaming feature.
-					CDBName:      "MYDB",
-					DBUniqueName: "MYDB",
+					CDBName: "mydb",
 					InstanceSpec: commonv1alpha1.InstanceSpec{
 						Version: version,
 						Disks: []commonv1alpha1.DiskSpec{
@@ -99,7 +97,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 							},
 						},
 						Images: map[string]string{
-							"service": testhelpers.TestImageForVersion(version, edition, extra),
+							"service": testhelpers.TestImageForVersion(version, edition, ""),
 						},
 					},
 				},
@@ -108,13 +106,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 			createdInstance := &v1alpha1.Instance{}
 			instKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
-
-			insTimeout := instancecontroller.InstanceProvisionTimeoutUnseeded
-			dbTimeout := instancecontroller.CreateDatabaseInstanceTimeoutUnSeeded
-			if isImageSeeded {
-				insTimeout = instancecontroller.InstanceProvisionTimeoutSeeded
-				dbTimeout = instancecontroller.CreateDatabaseInstanceTimeoutSeeded
-			}
 
 			By("By checking that Instance is created")
 			// Wait until the instance is "Ready" (requires 5+ minutes to download image)
@@ -125,7 +116,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 					return cond.Status
 				}
 				return metav1.ConditionUnknown
-			}, insTimeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			}, 20*time.Minute, 5*time.Second).Should(Equal(metav1.ConditionTrue))
 
 			By("By checking that Database is provisioned")
 			Eventually(func() metav1.ConditionStatus {
@@ -135,7 +126,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 					return cond.Status
 				}
 				return metav1.ConditionUnknown
-			}, dbTimeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			}, 20*time.Minute, 5*time.Second).Should(Equal(metav1.ConditionTrue))
 
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
@@ -153,23 +144,15 @@ var _ = Describe("Instance and Database provisioning", func() {
 	}
 
 	Context("Oracle 12.2 EE", func() {
-		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "", true)
-	})
-
-	Context("Oracle 12.2 EE unseeded", func() {
-		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "31741641-unseeded", false)
+		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE")
 	})
 
 	Context("Oracle 19.3 EE", func() {
-		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "", true)
-	})
-
-	Context("Oracle 19.3 EE unseeded", func() {
-		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
+		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE")
 	})
 
 	Context("Oracle 18c XE", func() {
-		TestInstanceCreationAndDatabaseProvisioning("18c", "XE", "", true)
+		TestInstanceCreationAndDatabaseProvisioning("18c", "XE")
 	})
 })
 

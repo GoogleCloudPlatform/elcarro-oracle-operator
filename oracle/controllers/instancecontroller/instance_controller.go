@@ -74,12 +74,10 @@ type InstanceReconciler struct {
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=configs,verbs=get;list;watch;create;update;patch;delete
 
 const (
-	physicalRestore                       = "PhysicalRestore"
-	InstanceProvisionTimeoutSeeded        = 20 * time.Minute
-	InstanceProvisionTimeoutUnseeded      = 50 * time.Minute // 50 minutes because it can take 40+ minutes for unseeded CDB creations
-	CreateDatabaseInstanceTimeoutSeeded   = 20 * time.Minute
-	CreateDatabaseInstanceTimeoutUnSeeded = 50 * time.Minute // 50 minutes because it can take 40+ minutes for unseeded CDB creations
-	dateFormat                            = "20060102"
+	physicalRestore               = "PhysicalRestore"
+	instanceProvisionTimeout      = 30 * time.Minute
+	createDatabaseInstanceTimeout = 30 * time.Minute // 30 minutes because it can take 20+ minutes for unseeded CDB creations
+	dateFormat                    = "20060102"
 )
 
 // loadConfig attempts to find a customer specific Operator config
@@ -428,17 +426,6 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
 	inst.Status.URL = controllers.SvcURL(svcLB, consts.SecureListenerPort)
 
-	isImageSeeded, err := isImageSeeded(ctx, svc.Spec.ClusterIP, log)
-	if err != nil {
-		log.Error(err, "unable to determine image type")
-		return ctrl.Result{}, err
-	}
-
-	instanceProvisionTimeout := InstanceProvisionTimeoutUnseeded
-	if isImageSeeded {
-		instanceProvisionTimeout = InstanceProvisionTimeoutSeeded
-	}
-
 	// RequeueAfter 30 seconds to avoid constantly reconcile errors before statefulSet is ready.
 	// Update status when the Service is ready (for the initial provisioning).
 	// Also confirm that the StatefulSet is up and running.
@@ -535,6 +522,12 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
+	isImageSeeded, err := isImageSeeded(ctx, svc.Spec.ClusterIP, log)
+	if err != nil {
+		log.Error(err, "unable to determine image type")
+		return ctrl.Result{}, err
+	}
+
 	if !isImageSeeded && istatus == controllers.StatusInProgress {
 		if inst.Spec.Restore != nil {
 			log.Info("Skip creating a new CDB database, waiting to be restored")
@@ -567,10 +560,6 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		log.Info("database instance doesn't appear to be ready yet...")
 
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(dbiCond, time.Second)
-		createDatabaseInstanceTimeout := CreateDatabaseInstanceTimeoutUnSeeded
-		if isImageSeeded {
-			createDatabaseInstanceTimeout = CreateDatabaseInstanceTimeoutSeeded
-		}
 		if elapsed < createDatabaseInstanceTimeout {
 			log.Info(fmt.Sprintf("database instance creation in progress for %v, requeue after 30 seconds", elapsed))
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "")
@@ -693,7 +682,7 @@ func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Ins
 	log.Info("bootstrapCDB: new database requested clusterIP", clusterIP)
 
 	// TODO: Remove this timeout workaround once we have the LRO thing figured out.
-	dialTimeout := 50 * time.Minute
+	dialTimeout := 30 * time.Minute
 	// Establish a connection to a Config Agent.
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
