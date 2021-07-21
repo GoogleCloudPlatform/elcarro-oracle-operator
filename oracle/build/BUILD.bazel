@@ -82,6 +82,8 @@ container_image(
         "//oracle/cmd/logging",
     ],
     symlinks = {"/logging_main": "/logging"},
+    user = "54321:54322",  # oracle:dba,
+    workdir = "/home/oracle",
 )
 
 container_push(
