@@ -40,7 +40,6 @@ go_test(
         "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
         "@com_github_onsi_ginkgo//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
-        "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",

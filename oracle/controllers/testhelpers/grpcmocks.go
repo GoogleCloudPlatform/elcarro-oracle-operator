@@ -77,6 +77,7 @@ type FakeConfigAgentClient struct {
 	fetchServiceImageMetaDataCnt int32
 	asyncPhysicalBackup          bool
 	asyncPhysicalRestore         bool
+	methodToRespFunc             map[string]func(interface{}) (interface{}, error)
 	nextGetOperationStatus       FakeOperationStatus
 }
 
@@ -300,6 +301,14 @@ func (cli *FakeConfigAgentClient) RecoverConfigFile(ctx context.Context, in *cap
 
 func (cli *FakeConfigAgentClient) FetchServiceImageMetaData(ctx context.Context, in *capb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*capb.FetchServiceImageMetaDataResponse, error) {
 	atomic.AddInt32(&cli.fetchServiceImageMetaDataCnt, 1)
+	if cli.methodToRespFunc == nil {
+		return nil, nil
+	}
+	method := "FetchServiceImageMetaData"
+	if fun, ok := cli.methodToRespFunc[method]; ok {
+		out, err := fun(in)
+		return out.(*capb.FetchServiceImageMetaDataResponse), err
+	}
 	return nil, nil
 }
 
@@ -325,4 +334,10 @@ func (cli *FakeConfigAgentClient) SetAsyncPhysicalRestore(async bool) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.asyncPhysicalRestore = async
+}
+
+func (cli *FakeConfigAgentClient) SetMethodToRespFunc(m map[string]func(interface{}) (interface{}, error)) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.methodToRespFunc = m
 }

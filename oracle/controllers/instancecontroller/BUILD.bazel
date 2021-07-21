@@ -46,6 +46,7 @@ go_test(
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
         "//oracle/controllers/testhelpers",
+        "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/k8s",
         "@com_github_go_logr_logr//:logr",
         "@com_github_onsi_ginkgo//:ginkgo",
