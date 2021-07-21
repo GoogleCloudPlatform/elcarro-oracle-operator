@@ -14,7 +14,6 @@ go_library(
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/agents/security",
-        "//oracle/pkg/database/common",
         "@com_github_godror_godror//:godror",
         "@io_k8s_klog_v2//:klog",
     ],

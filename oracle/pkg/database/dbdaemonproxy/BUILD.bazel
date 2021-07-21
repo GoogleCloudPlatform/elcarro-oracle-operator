@@ -8,7 +8,6 @@ go_library(
     deps = [
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
-        "//oracle/pkg/database/common",
         "//oracle/pkg/database/provision",
         "@com_github_godror_godror//:godror",
         "@io_k8s_klog_v2//:klog",

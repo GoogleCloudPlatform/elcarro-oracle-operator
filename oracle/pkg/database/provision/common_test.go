@@ -109,3 +109,25 @@ func TestInitParamOverridesAndMerges(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOracleVersionUsingOracleHome(t *testing.T) {
+	testCases := []struct {
+		oracleHome            string
+		expectedOracleVersion string
+	}{
+		{
+			oracleHome:            "/opt/oracle/product/12.2.0.1/dbhome_1",
+			expectedOracleVersion: "12.2.0.1",
+		},
+		{
+			oracleHome:            "/u01/app/oracle/product/19c/db",
+			expectedOracleVersion: "19c",
+		},
+	}
+
+	for _, tc := range testCases {
+		if oracleVersion := getOracleVersionUsingOracleHome(tc.oracleHome); oracleVersion != tc.expectedOracleVersion {
+			t.Errorf("getOracleVersionUsingOracleHome(%s) = %s instead of %s", tc.oracleHome, oracleVersion, tc.expectedOracleVersion)
+		}
+	}
+}

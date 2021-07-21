@@ -75,30 +75,6 @@ const (
 	//Oracle18c Version for Oracle 18c XE
 	Oracle18c = "18c"
 
-	// SourceOracleHome is the ORACLE_HOME home path where Oracle EE or SE is installed.
-	SourceOracleHome = "/u01/app/oracle/product/%s/db"
-
-	// SourceOracleXeHome is the ORACLE_HOME path where Oracle 18c XE is installed.
-	SourceOracleXeHome = "/opt/oracle/product/%s/dbhomeXE"
-
-	// SourceOracleBase is the ORACLE_BASE path where Oracle EE or SE is installed.
-	SourceOracleBase = "/u01/app/oracle"
-
-	// SourceOracleXeBase is the ORACLE_BASE path where Oracle 18c XE is installed.
-	SourceOracleXeBase = "/opt/oracle"
-
-	// SourceOracleInventory is the source OraInventory path for Oracle EE or SE
-	SourceOracleInventory = "/u01/app/oracle"
-
-	// SourceOracleXeInventory is the source OraInventory path for Oracle 18c XE.
-	SourceOracleXeInventory = "/opt/oracle"
-
-	// SourceOracleDataDirectory is where the docker image holds the data files for EE and SE Oracle.
-	SourceOracleDataDirectory = "/u01/app/oracle/oradata"
-
-	// SourceOracleXeDataDirectory is where the docker image holds the data files for Oracle 18c XE.
-	SourceOracleXeDataDirectory = "/opt/oracle/oradata"
-
 	// SourceDatabaseHost is the hostname used during image build process.
 	SourceDatabaseHost = "ol7-db12201-gi-cdb-docker-template-vm"
 

@@ -17,12 +17,12 @@ package provision
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/common"
 )
 
 // oracleCDB provides Oracle CDB information.
@@ -64,7 +64,7 @@ func (db *oracleCDB) GetDataFilesDir() string {
 
 // GetSourceDataFilesDir returns data files directory location of the pre-built DB.
 func (db *oracleCDB) GetSourceDataFilesDir() string {
-	return filepath.Join(common.GetSourceOracleDataDirectory(db.GetVersion()), db.GetSourceDatabaseName())
+	return filepath.Join(os.Getenv("ORACLE_BASE"), "oradata", db.GetSourceDatabaseName())
 }
 
 // GetConfigFilesDir returns config file directory location.
@@ -114,7 +114,7 @@ func (db *oracleCDB) GetSourceDatabaseName() string {
 
 // GetDatabaseHome returns database home location.
 func (db *oracleCDB) GetDatabaseHome() string {
-	return common.GetSourceOracleHome(db.GetVersion())
+	return os.Getenv("ORACLE_HOME")
 }
 
 // GetDataFiles returns initial data files associated with the DB.

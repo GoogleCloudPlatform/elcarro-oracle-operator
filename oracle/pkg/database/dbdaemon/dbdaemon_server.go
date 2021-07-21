@@ -307,10 +307,6 @@ func (d *DB) openPDBs(ctx context.Context) error {
 
 // CreatePasswordFile is a Database Daemon method to create password file.
 func (s *Server) CreatePasswordFile(ctx context.Context, req *dbdpb.CreatePasswordFileRequest) (*dbdpb.CreatePasswordFileResponse, error) {
-	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-		return nil, fmt.Errorf("failed to set env variable: %v", err)
-	}
-
 	if req.GetDatabaseName() == "" {
 		return nil, fmt.Errorf("missing database name for req: %v", req)
 	}
@@ -618,9 +614,6 @@ func (s *Server) runCommand(bin string, params []string) error {
 	if err := os.Setenv("ORACLE_SID", s.databaseSid.val); err != nil {
 		return fmt.Errorf("failed to set env variable: %v", err)
 	}
-	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-		return fmt.Errorf("failed to set env variable: %v", err)
-	}
 
 	return s.osUtil.runCommand(bin, params)
 }
@@ -750,10 +743,6 @@ func (d *DB) runQuery(ctx context.Context, sqls []string, db oracleDatabase) ([]
 }
 
 func (s *Server) runSQLPlusHelper(ctx context.Context, req *dbdpb.RunSQLPlusCMDRequest, formattedSQL bool) (*dbdpb.RunCMDResponse, error) {
-
-	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-		return nil, fmt.Errorf("failed to set env variable: %v", err)
-	}
 	if req.GetTnsAdmin() != "" {
 		if err := os.Setenv("TNS_ADMIN", req.GetTnsAdmin()); err != nil {
 			return nil, fmt.Errorf("failed to set env variable: %v", err)
@@ -943,9 +932,7 @@ func (s *Server) CheckDatabaseState(ctx context.Context, req *dbdpb.CheckDatabas
 		if err := os.Setenv("ORACLE_SID", req.GetDatabaseName()); err != nil {
 			return nil, err
 		}
-		if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-			return nil, err
-		}
+
 		// Even for CDB check, use TNS connection to verify listener health.
 		cs, pass, err := security.SetupConnStringOnServer(ctx, s, consts.SecurityUser, req.GetDatabaseName(), req.GetDbDomain())
 		if err != nil {
@@ -1003,9 +990,7 @@ func (s *Server) RunRMAN(ctx context.Context, req *dbdpb.RunRMANRequest) (*dbdpb
 	if err := os.Setenv("ORACLE_SID", s.databaseSid.val); err != nil {
 		return nil, fmt.Errorf("failed to set env variable: %v", err)
 	}
-	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-		return nil, fmt.Errorf("failed to set env variable: %v", err)
-	}
+
 	if req.GetTnsAdmin() != "" {
 		if err := os.Setenv("TNS_ADMIN", req.GetTnsAdmin()); err != nil {
 			return nil, fmt.Errorf("failed to set env variable: %v", err)
@@ -1114,9 +1099,7 @@ func (s *Server) NID(ctx context.Context, req *dbdpb.NIDRequest) (*dbdpb.NIDResp
 	if req.GetSid() == "" {
 		return nil, fmt.Errorf("dbdaemon/NID: missing sid for req: %v", req)
 	}
-	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
-		return nil, fmt.Errorf("dbdaemon/NID: set env ORACLE_HOME failed: %v", err)
-	}
+
 	if err := os.Setenv("ORACLE_SID", req.GetSid()); err != nil {
 		return nil, fmt.Errorf("dbdaemon/NID: set env ORACLE_SID failed: %v", err)
 	}
@@ -1719,10 +1702,7 @@ func New(ctx context.Context, cdbNameFromYaml string) (*Server, error) {
 		gcsUtil:        &gcsUtilImpl{},
 	}
 
-	oracleHome, _, _, err := provision.FetchMetaDataFromImage(provision.MetaDataFile)
-	if err != nil {
-		return nil, fmt.Errorf("error while fetching metadata from image: %v", err)
-	}
+	oracleHome := os.Getenv("ORACLE_HOME")
 	if err := setEnvNew(s, oracleHome, cdbNameFromYaml); err != nil {
 		return nil, fmt.Errorf("failed to setup environment: %v", err)
 	}
@@ -1780,7 +1760,7 @@ func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.Downlo
 
 // FetchServiceImageMetaData fetches the image metadata from the image.
 func (s *Server) FetchServiceImageMetaData(ctx context.Context, req *dbdpb.FetchServiceImageMetaDataRequest) (*dbdpb.FetchServiceImageMetaDataResponse, error) {
-	oracleHome, cdbName, version, err := provision.FetchMetaDataFromImage(provision.MetaDataFile)
+	oracleHome, cdbName, version, err := provision.FetchMetaDataFromImage()
 	if err != nil {
 		return &dbdpb.FetchServiceImageMetaDataResponse{}, nil
 	}
