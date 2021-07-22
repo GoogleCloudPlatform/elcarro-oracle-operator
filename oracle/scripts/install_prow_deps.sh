@@ -42,7 +42,7 @@ apt-key add - < Release.key
 # everything we can get from debian packages.
 apt-get update -qq
 apt-get install -y \
-  clang-format buildah fuse-overlayfs gettext-base
+  clang-format buildah fuse-overlayfs gettext-base jq
 
 # Use fuse-overlayfs to run buildah within k8s container.
 sed -i -e 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' /etc/containers/storage.conf
