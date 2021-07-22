@@ -26,10 +26,10 @@ set -o pipefail
 STALE_TIME="-P6H"
 
 # Look for clusters inttests-XXX created more than STALE_TIME hours ago
-STALE_CLUSTERS=$(gcloud beta container clusters list --project ${PROW_PROJECT} \
---filter "name:inttests- AND createTime<${STALE_TIME}" --format="value(name)")
+STALE_CLUSTERS=($(gcloud beta container clusters list --project "${PROW_PROJECT}" \
+--filter "name:inttests- AND createTime<${STALE_TIME}" --format="value(name)"))
 
-for c in $STALE_CLUSTERS; do
+for c in "${STALE_CLUSTERS[@]}"; do
   echo " * Deleting stale cluster * ${c}";
   set -x #echo on
   gcloud beta container clusters delete --async -q "${c}" --zone="${PROW_CLUSTER_ZONE}" --project="${PROW_PROJECT}"
@@ -37,10 +37,10 @@ for c in $STALE_CLUSTERS; do
 done
 
 # Look for PVCs created more than STALE_TIME hours ago
-STALE_PVCS=$(gcloud compute disks list --project ${PROW_PROJECT} \
---filter "creationTimestamp<${STALE_TIME} AND users=null" --format="value(name)")
+STALE_PVCS=($(gcloud compute disks list --project ${PROW_PROJECT} \
+--filter "creationTimestamp<${STALE_TIME} AND users=null" --format="value(name)"))
 
-for c in $STALE_PVCS; do
+for c in "${STALE_PVCS[@]}"; do
   echo " * Deleting orphan pvc * ${c}";
   set -x #echo on
   # Ignore errors as there might be concurrent jobs running
@@ -64,5 +64,30 @@ for tp in "${STALE_TARGET_POOLS[@]}"; do
   # Ignore errors as there might be concurrent jobs running
   # gcloud will not delete target pools that are being referenced by forwarding rules
   gcloud compute target-pools delete -q "${tp}" --project="${PROW_PROJECT}" || true
+  set +x #echo off
+done
+
+# Look for Firewall rules created more than STALE_TIME hours ago
+STALE_FIREWALL_RULES=($(gcloud compute firewall-rules list --project "${PROW_PROJECT}" \
+--filter "creationTimestamp<${STALE_TIME} AND targetTags.list(show=\"keys\"):gke-inttests*" --format="value(name)"))
+
+for c in "${STALE_FIREWALL_RULES[@]}"; do
+  echo " * Deleting firewall rule * ${c}";
+  set -x #echo on
+  # Ignore errors as there might be concurrent jobs running
+  gcloud compute firewall-rules delete -q "${c}" --project="${PROW_PROJECT}" || true
+  set +x #echo off
+done
+
+# Cleanup GCS bucket bindings for deleted accounts
+STALE_GCS_SA=($(gsutil iam get gs://"${PROW_PROJECT}" | jq -r ".bindings[].members[]|select(startswith(\"deleted\"))"))
+
+for c in "${STALE_GCS_SA[@]}"; do
+  echo " * Deleting GCS binding ${c}";
+  set -x #echo on
+  # Ignore errors as there might be concurrent jobs running
+  gsutil iam ch -d "${c}":objectCreator gs://"${PROW_PROJECT}" || true
+  gsutil iam ch -d "${c}":objectViewer gs://"${PROW_PROJECT}" || true
+  gsutil iam ch -d "${c}":legacyBucketReader gs://"${PROW_PROJECT}" || true
   set +x #echo off
 done
