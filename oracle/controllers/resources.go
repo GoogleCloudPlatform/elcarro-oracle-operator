@@ -36,7 +36,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/common"
 )
 
 const (
@@ -280,10 +279,6 @@ func NewConfigMap(inst *v1alpha1.Instance, scheme *runtime.Scheme, cmName string
 			"SCRIPTS_DIR":           scriptDir,
 			"INSTALL_DIR":           "/stage",
 			"HEALTHCHECK_DB_SCRIPT": "health-check-db.sh",
-			"ORACLE_BASE":           common.GetSourceOracleBase(inst.Spec.Version),
-			"ORACLE_INV":            common.GetSourceOracleInventory(inst.Spec.Version),
-			"ORACLE_HOME":           common.GetSourceOracleHome(inst.Spec.Version),
-			"LD_LIBRARY_PATH":       fmt.Sprintf("export LD_LIBRARY_PATH=%s/lib:/usr/lib\n", common.GetSourceOracleHome(inst.Spec.Version)),
 		},
 	}
 

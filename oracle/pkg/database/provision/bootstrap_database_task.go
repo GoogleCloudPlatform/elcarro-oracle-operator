@@ -33,7 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/common"
 )
 
 // Max number of retries for db startup.
@@ -92,18 +91,12 @@ func (task *BootstrapTask) createDirs(ctx context.Context) error {
 
 func (task *BootstrapTask) setSourceEnv(ctx context.Context) error {
 	// Sets env to mount the starter DB for running nid.
-	if err := os.Setenv("ORACLE_SID", task.db.GetSourceDatabaseName()); err != nil {
-		return err
-	}
-	return os.Setenv("ORACLE_HOME", task.db.GetDatabaseHome())
+	return os.Setenv("ORACLE_SID", task.db.GetSourceDatabaseName())
 }
 
 func (task *BootstrapTask) setEnv(ctx context.Context) error {
 	// Sets env to mount the starter DB for running nid.
-	if err := os.Setenv("ORACLE_SID", task.db.GetDatabaseName()); err != nil {
-		return err
-	}
-	return os.Setenv("ORACLE_HOME", task.db.GetDatabaseHome())
+	return os.Setenv("ORACLE_SID", task.db.GetDatabaseName())
 }
 
 func (task *BootstrapTask) setParameters(ctx context.Context) error {
@@ -240,7 +233,7 @@ func (task *BootstrapTask) moveConfigFiles(ctx context.Context) error {
 func (task *BootstrapTask) moveDataFiles(ctx context.Context) error {
 	for _, f := range task.db.GetDataFiles() {
 		if err := MoveFile(filepath.Join(task.db.GetSourceDataFilesDir(), f), filepath.Join(task.db.GetDataFilesDir(), f)); err != nil {
-			return fmt.Errorf("moveDataFiles: failed to move data file from %s to %s : %v", f, task.db.GetDataFilesDir(), err)
+			return fmt.Errorf("moveDataFiles: failed to move data file from %s to %s : %v", filepath.Join(task.db.GetSourceDataFilesDir(), f), task.db.GetDataFilesDir(), err)
 		}
 	}
 	return nil
@@ -516,7 +509,7 @@ func (task *BootstrapTask) createPDBSeedTemp(ctx context.Context) error {
 
 	// Ask dbdaemon to remove empty /u01/app/oracle/admin/<SOURCE_DB>/dpdump/ directory
 	// in its own container as it might cause issues with Oracle 19x on FUSE filesystems.
-	dpDumpDir := fmt.Sprintf("%s/admin/%s/dpdump/", common.GetSourceOracleBase(task.db.GetVersion()), task.db.GetSourceDatabaseName())
+	dpDumpDir := fmt.Sprintf("%s/admin/%s/dpdump/", os.Getenv("ORACLE_BASE"), task.db.GetSourceDatabaseName())
 	if _, err := task.dbdClient.DeleteDir(ctx, &dbdpb.DeleteDirRequest{Path: dpDumpDir, Force: true}); err != nil {
 		klog.ErrorS(err, "createPDBSeedTemp: unable to delete", dpDumpDir)
 	}
@@ -543,9 +536,6 @@ var runSQLPlus = func(ctx context.Context, version, dbname string, sqls []string
 	// Required for local connections
 	// (when no SID is specified on connect string)
 	if err := os.Setenv("ORACLE_SID", dbname); err != nil {
-		return nil, fmt.Errorf("failed to set env variable: %v", err)
-	}
-	if err := os.Setenv("ORACLE_HOME", common.GetSourceOracleHome(version)); err != nil {
 		return nil, fmt.Errorf("failed to set env variable: %v", err)
 	}
 

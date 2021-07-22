@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	supportedVersions = map[string]bool{"12.2": true, "18.3": true, "18c": true, "19.2": true, "19.3": true}
+	supportedVersions = map[string]bool{"12.2": true, "18.3": true, "18c": true, "19c": true, "19.2": true, "19.3": true}
 	pgaMB             = flag.Uint64("pga", consts.DefaultPGAMB, "Oracle Database PGA memory sizing in MB")
 	sgaMB             = flag.Uint64("sga", consts.DefaultSGAMB, "Oracle Database SGA memory sizing in MB")
 	dbDomain          = flag.String("db_domain", "", "Oracle db_domain init parameter")
@@ -186,9 +186,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), bootstrapTimeout)
 	defer cancel()
 
-	oracleHome, cdbNameFromImage, version, err := provision.FetchMetaDataFromImage(provision.MetaDataFile)
+	oracleHome, cdbNameFromImage, version, err := provision.FetchMetaDataFromImage()
 	if err != nil {
-		klog.Error(err, "error while parsing image's metadata file")
+		klog.Error(err, "error while extracting metadata from image")
 		os.Exit(consts.DefaultExitErrorCode)
 	}
 

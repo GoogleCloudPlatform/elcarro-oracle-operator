@@ -412,9 +412,29 @@ func GrantUserCmd(user, permissions string) string {
 }
 
 // FetchMetaDataFromImage returns Oracle Home, CDB name, Version by parsing
-// database image metadata file.
-func FetchMetaDataFromImage(path string) (string, string, string, error) {
-	f, err := os.Open(path)
+// database image metadata file if it exists. Otherwise, environment variables are used.
+func FetchMetaDataFromImage() (oracleHome, cdbName, version string, err error) {
+	if _, err = os.Stat(MetaDataFile); os.IsNotExist(err) {
+		//some images such as OCR images may not contain a .metadata file
+		return fetchMetaDataFromEnvironmentVars()
+	}
+	return fetchMetaDataFromMetadataFile()
+}
+
+func fetchMetaDataFromEnvironmentVars() (oracleHome, cdbName, version string, err error) {
+	if os.Getenv("ORACLE_SID") != "" {
+		cdbName = os.Getenv("ORACLE_SID")
+		//the existence of the ORACLE_SID env variable isn't enough to conclude that a CDB of that name exists
+		//The existence of an oradata directory containing ORACLE_SID confirms the existence of a CDB of that name
+		if _, err = os.Stat(os.Getenv("ORACLE_BASE") + "/oradata/" + os.Getenv("ORACLE_SID")); os.IsNotExist(err) {
+			cdbName = ""
+		}
+	}
+	return os.Getenv("ORACLE_HOME"), cdbName, getOracleVersionUsingOracleHome(os.Getenv("ORACLE_HOME")), nil
+}
+
+func fetchMetaDataFromMetadataFile() (oracleHome, cdbName, version string, err error) {
+	f, err := os.Open(MetaDataFile)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -424,7 +444,6 @@ func FetchMetaDataFromImage(path string) (string, string, string, error) {
 		}
 	}()
 
-	var cdbName, oracleHome, version string
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -440,6 +459,12 @@ func FetchMetaDataFromImage(path string) (string, string, string, error) {
 		}
 	}
 	return oracleHome, cdbName, version, nil
+}
+
+// getVersionUsingOracleHome infers the version of the ORACLE Database installation from the specified ORACLE_HOME path
+func getOracleVersionUsingOracleHome(oracleHome string) string {
+	tokens := strings.Split(oracleHome, "/")
+	return tokens[len(tokens)-2]
 }
 
 // GetDefaultInitParams returns default init parameters, which will be set in DB creation.
