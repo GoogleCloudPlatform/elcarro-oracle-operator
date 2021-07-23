@@ -715,12 +715,22 @@ func (s *ConfigServer) BootstrapDatabase(ctx context.Context, req *pb.BootstrapD
 		return &lropb.Operation{Done: true}, nil
 	}
 
-	if req.GetMode() == pb.BootstrapDatabaseRequest_Provision {
+	switch req.GetMode() {
+	case pb.BootstrapDatabaseRequest_ProvisionUnseeded:
 		task := provision.NewBootstrapDatabaseTaskForUnseeded(req.CdbName, req.DbUniqueName, req.Dbdomain, dbdClient)
 
 		if err := task.Call(ctx); err != nil {
 			return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to bootstrap database : %v", err)
 		}
+	case pb.BootstrapDatabaseRequest_ProvisionSeeded:
+		if _, err = dbdClient.BootstrapDatabase(ctx, &dbdpb.BootstrapDatabaseRequest{
+			CdbName:  req.GetCdbName(),
+			DbDomain: req.GetDbdomain(),
+		}); err != nil {
+			return nil, fmt.Errorf("configagent/BootstrapDatabase: error while call dbdaemon/BootstrapDatabase: %v", err)
+		}
+		return &lropb.Operation{Done: true}, nil
+	default:
 	}
 
 	if _, err = dbdClient.CreateListener(ctx, &dbdpb.CreateListenerRequest{

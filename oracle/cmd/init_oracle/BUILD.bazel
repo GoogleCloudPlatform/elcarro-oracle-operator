@@ -25,7 +25,7 @@ go_binary(
 filegroup(
     name = "init_oracle_files",
     srcs = [
-        "init_oracle.sh",
+        "init_container.sh",
         "stop_oracle.sh",
     ],
     visibility = ["//visibility:public"],

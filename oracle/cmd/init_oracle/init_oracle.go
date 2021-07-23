@@ -49,6 +49,7 @@ var (
 	sgaMB             = flag.Uint64("sga", consts.DefaultSGAMB, "Oracle Database SGA memory sizing in MB")
 	dbDomain          = flag.String("db_domain", "", "Oracle db_domain init parameter")
 	cdbNameFromYaml   = flag.String("cdb_name", "GCLOUD", "Name of the CDB to create")
+	reinit            = flag.Bool("reinit", false, "Reinitialize provisioned Oracle Database in case of pod restart")
 	zoneName          string
 	zoneNameOnce      sync.Once
 )
@@ -99,18 +100,14 @@ func retrieveZoneName() (string, error) {
 	return zoneName, nil
 }
 
-func provisionHost(ctx context.Context, cdbNameFromImage string, cdbNameFromYaml string, version string) error {
-	p, err := hostProvisioned(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to determine host provision state: %v", err)
-	}
+func provisionSeededHost(ctx context.Context, cdbNameFromImage string, cdbNameFromYaml string, version string, provisined bool) error {
 	dbdClient, closeConn, err := newDBDClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create database daemon client: %v", err)
 	}
 	defer closeConn()
 
-	task, err := newBootstrapDatabaseTask(ctx, true, cdbNameFromImage, cdbNameFromYaml, version, *pgaMB, *sgaMB, p, dbdClient)
+	task, err := newBootstrapDatabaseTask(ctx, true, cdbNameFromImage, cdbNameFromYaml, version, *pgaMB, *sgaMB, provisined, dbdClient)
 	if err != nil {
 		return fmt.Errorf("failed to create bootstrap task: %v", err)
 	}
@@ -119,25 +116,12 @@ func provisionHost(ctx context.Context, cdbNameFromImage string, cdbNameFromYaml
 		return fmt.Errorf("failed to bootstrap database : %v", err)
 	}
 
-	if !p {
+	if !provisined {
 		if err := markProvisioned(); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-//  hostProvisioned returns true if provisioner already ran.
-func hostProvisioned(ctx context.Context) (bool, error) {
-	_, err := os.Stat(consts.ProvisioningDoneFile)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	// Something is wrong. Do not start provisioning.
-	return false, fmt.Errorf("failed to determine host status: %v", err)
 }
 
 // markProvisioned creates a flag file to indicate that provisioning completed successfully
@@ -150,7 +134,7 @@ func markProvisioned() error {
 	return nil
 }
 
-func postProvision(ctx context.Context, oracleHome, cdbName string) error {
+func reinitUnseededHost(ctx context.Context, oracleHome, cdbName string) error {
 	if err := provision.RelinkConfigFiles(oracleHome, cdbName); err != nil {
 		return err
 	}
@@ -191,41 +175,70 @@ func main() {
 		klog.Error(err, "error while extracting metadata from image")
 		os.Exit(consts.DefaultExitErrorCode)
 	}
+	klog.InfoS("metadata is as follows", "oracleHome", oracleHome, "cdbNameFromYaml", *cdbNameFromYaml, "cdbNameFromImage", cdbNameFromImage, "version", version)
 
 	if !supportedVersions[version] {
 		klog.InfoS("preflight check", "unsupported version", version)
 		os.Exit(consts.DefaultExitErrorCode)
 	}
 
-	if freeMem, err := getFreeMemInfoFromProc(); err != nil || freeMem < minRequiredFreeMemInKB {
-		klog.InfoS("Unable to determine free memory or not enough memory available to initiate bootstrapping", "available free memory", freeMem, "required free mem", minRequiredFreeMemInKB)
-		os.Exit(consts.DefaultExitErrorCode)
+	if *reinit {
+		if err := reinitProvisionedHost(ctx, oracleHome, cdbNameFromImage, *cdbNameFromYaml, version); err != nil {
+			klog.ErrorS(err, "Reinit provisioned host failed")
+			os.Exit(consts.DefaultExitErrorCode)
+		}
+		return
 	}
 
-	klog.InfoS("metadata is as follows", "home", oracleHome, "cdbNameFromYaml", *cdbNameFromYaml, "version", version)
+	klog.InfoS("Start provisioning database...")
 	if cdbNameFromImage == "" {
-		if _, err := os.Stat(consts.ProvisioningDoneFile); err == nil {
-			if err := postProvision(ctx, oracleHome, *cdbNameFromYaml); err != nil {
-				klog.Error(err, "postProvision failed")
-			}
-		} else {
-			klog.InfoS("CDB provisioning skipped")
-			if *cdbNameFromYaml != "" {
-				klog.InfoS("CDB name presents in yaml, relink config files")
-				if err := provision.RelinkConfigFiles(oracleHome, *cdbNameFromYaml); err != nil {
-					klog.ErrorS(err, "RelinkConfigFiles failed")
-				}
+		klog.InfoS("image doesn't contain CDB, provisioning skipped")
+
+		if *cdbNameFromYaml != "" {
+			klog.InfoS("CDB name presents in yaml, relink config files")
+			if err := provision.RelinkConfigFiles(oracleHome, *cdbNameFromYaml); err != nil {
+				klog.ErrorS(err, "RelinkConfigFiles failed")
 			}
 		}
-		os.Exit(consts.DefaultExitErrorCode)
-	}
-	klog.InfoS("image contains CDB, starting provisioning")
+	} else {
+		klog.InfoS("image contains CDB, start provisioning")
 
-	if err := provisionHost(ctx, cdbNameFromImage, *cdbNameFromYaml, version); err != nil {
-		klog.ErrorS(err, "CDB provisioning failed")
-		os.Exit(consts.DefaultExitErrorCode)
+		if freeMem, err := getFreeMemInfoFromProc(); err != nil || freeMem < minRequiredFreeMemInKB {
+			klog.InfoS("Unable to determine free memory or not enough memory available to initiate bootstrapping", "available free memory", freeMem, "required free mem", minRequiredFreeMemInKB)
+			os.Exit(consts.DefaultExitErrorCode)
+		}
+
+		if err := provisionSeededHost(ctx, cdbNameFromImage, *cdbNameFromYaml, version, false); err != nil {
+			klog.ErrorS(err, "CDB provisioning failed")
+			os.Exit(consts.DefaultExitErrorCode)
+		}
+
+		klog.ErrorS(err, "CDB provisioning DONE")
 	}
-	klog.InfoS("CDB provisioning: DONE")
+}
+
+func reinitProvisionedHost(ctx context.Context, oracleHome, cdbNameFromImage, cdbNameFromYaml, version string) error {
+	isImageSeeded := cdbNameFromImage != ""
+	if isImageSeeded {
+		klog.InfoS("Reinitialize provisioned seeded database")
+
+		if err := provisionSeededHost(ctx, cdbNameFromImage, cdbNameFromYaml, version, true); err != nil {
+			klog.ErrorS(err, "CDB reinitialization failed")
+			return fmt.Errorf("failed to reinitialize provisioned seeded database: %v", err)
+		}
+
+		klog.InfoS("Reinitialize provisioned seeded database DONE")
+	} else {
+		klog.InfoS("Reinitialize provisioned unseeded database")
+
+		if err := reinitUnseededHost(ctx, oracleHome, cdbNameFromYaml); err != nil {
+			klog.Error(err, "CDB reinitialization failed")
+			return fmt.Errorf("failed to reinitialize provisioned unseeded database: %v", err)
+		}
+
+		klog.InfoS("Reinitialize provisioned unseeded database DONE")
+	}
+	return nil
 }
 
 func getFreeMemInfoFromProc() (int, error) {

@@ -274,8 +274,9 @@ message LROInput {
 
 message BootstrapDatabaseRequest {
   enum BootstrapMode {
-    Provision = 0;
-    Restore = 1;
+    ProvisionUnseeded = 0;
+    ProvisionSeeded = 1;
+    Restore = 2;
   }
   string cdb_name = 1;
   string version = 2;

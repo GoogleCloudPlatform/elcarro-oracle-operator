@@ -28,6 +28,8 @@ type DatabaseDaemonProxyClient interface {
 	ProxyRunNID(ctx context.Context, in *ProxyRunNIDRequest, opts ...grpc.CallOption) (*ProxyRunNIDResponse, error)
 	// SetEnv RPC call moves/relinks oracle config files within oracledb container
 	SetEnv(ctx context.Context, in *SetEnvRequest, opts ...grpc.CallOption) (*SetEnvResponse, error)
+	// ProxyRunInitOracle RPC call exec init_oracle binary with specified params
+	ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error)
 }
 
 type databaseDaemonProxyClient struct {
@@ -83,6 +85,15 @@ func (c *databaseDaemonProxyClient) SetEnv(ctx context.Context, in *SetEnvReques
 	return out, nil
 }
 
+func (c *databaseDaemonProxyClient) ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error) {
+	out := new(ProxyRunInitOracleResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/ProxyRunInitOracle", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DatabaseDaemonProxyServer is the server API for DatabaseDaemonProxy service.
 // All implementations must embed UnimplementedDatabaseDaemonProxyServer
 // for forward compatibility
@@ -97,6 +108,8 @@ type DatabaseDaemonProxyServer interface {
 	ProxyRunNID(context.Context, *ProxyRunNIDRequest) (*ProxyRunNIDResponse, error)
 	// SetEnv RPC call moves/relinks oracle config files within oracledb container
 	SetEnv(context.Context, *SetEnvRequest) (*SetEnvResponse, error)
+	// ProxyRunInitOracle RPC call exec init_oracle binary with specified params
+	ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonProxyServer()
 }
 
@@ -118,6 +131,9 @@ func (UnimplementedDatabaseDaemonProxyServer) ProxyRunNID(context.Context, *Prox
 }
 func (UnimplementedDatabaseDaemonProxyServer) SetEnv(context.Context, *SetEnvRequest) (*SetEnvResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetEnv not implemented")
+}
+func (UnimplementedDatabaseDaemonProxyServer) ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProxyRunInitOracle not implemented")
 }
 func (UnimplementedDatabaseDaemonProxyServer) mustEmbedUnimplementedDatabaseDaemonProxyServer() {}
 
@@ -222,6 +238,24 @@ func _DatabaseDaemonProxy_SetEnv_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemonProxy_ProxyRunInitOracle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProxyRunInitOracleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonProxyServer).ProxyRunInitOracle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemonProxy/ProxyRunInitOracle",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonProxyServer).ProxyRunInitOracle(ctx, req.(*ProxyRunInitOracleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DatabaseDaemonProxy_ServiceDesc is the grpc.ServiceDesc for DatabaseDaemonProxy service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -248,6 +282,10 @@ var DatabaseDaemonProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetEnv",
 			Handler:    _DatabaseDaemonProxy_SetEnv_Handler,
+		},
+		{
+			MethodName: "ProxyRunInitOracle",
+			Handler:    _DatabaseDaemonProxy_ProxyRunInitOracle_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

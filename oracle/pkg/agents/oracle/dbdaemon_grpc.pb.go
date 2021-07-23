@@ -98,6 +98,8 @@ type DatabaseDaemonClient interface {
 	FetchServiceImageMetaData(ctx context.Context, in *FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*FetchServiceImageMetaDataResponse, error)
 	// CreateFile creates file based on file path and content.
 	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error)
+	// BootstrapDatabase bootstraps seeded database by executing init_oracle
+	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*BootstrapDatabaseResponse, error)
 }
 
 type databaseDaemonClient struct {
@@ -396,6 +398,15 @@ func (c *databaseDaemonClient) CreateFile(ctx context.Context, in *CreateFileReq
 	return out, nil
 }
 
+func (c *databaseDaemonClient) BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*BootstrapDatabaseResponse, error) {
+	out := new(BootstrapDatabaseResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/BootstrapDatabase", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DatabaseDaemonServer is the server API for DatabaseDaemon service.
 // All implementations must embed UnimplementedDatabaseDaemonServer
 // for forward compatibility
@@ -478,6 +489,8 @@ type DatabaseDaemonServer interface {
 	FetchServiceImageMetaData(context.Context, *FetchServiceImageMetaDataRequest) (*FetchServiceImageMetaDataResponse, error)
 	// CreateFile creates file based on file path and content.
 	CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error)
+	// BootstrapDatabase bootstraps seeded database by executing init_oracle
+	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonServer()
 }
 
@@ -580,6 +593,9 @@ func (UnimplementedDatabaseDaemonServer) FetchServiceImageMetaData(context.Conte
 }
 func (UnimplementedDatabaseDaemonServer) CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateFile not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) mustEmbedUnimplementedDatabaseDaemonServer() {}
 
@@ -1170,6 +1186,24 @@ func _DatabaseDaemon_CreateFile_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemon_BootstrapDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BootstrapDatabaseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).BootstrapDatabase(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/BootstrapDatabase",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).BootstrapDatabase(ctx, req.(*BootstrapDatabaseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DatabaseDaemon_ServiceDesc is the grpc.ServiceDesc for DatabaseDaemon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1304,6 +1338,10 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateFile",
 			Handler:    _DatabaseDaemon_CreateFile_Handler,
+		},
+		{
+			MethodName: "BootstrapDatabase",
+			Handler:    _DatabaseDaemon_BootstrapDatabase_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
