@@ -283,7 +283,10 @@ func cleanupK8Cluster(namespace string, k8sClient client.Client) {
 		},
 	}
 	if k8sClient != nil {
-		k8sClient.Delete(context.Background(), nsObj)
+		policy := metav1.DeletePropagationForeground
+		k8sClient.Delete(context.Background(), nsObj, &client.DeleteOptions{
+			PropagationPolicy: &policy,
+		})
 	}
 	os.Remove(fmt.Sprintf("/tmp/.kubectl/config-%v", namespace))
 }

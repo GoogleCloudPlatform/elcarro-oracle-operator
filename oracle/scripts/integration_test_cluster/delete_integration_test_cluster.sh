@@ -24,6 +24,10 @@ set -o pipefail
 [[ -z "$PROW_CLUSTER_ZONE" ]] && { echo "PROW_CLUSTER_ZONE envvar was not set. Did you try to test without make?" ; exit 1; }
 [[ -z "$PROW_PROJECT" ]] && { echo "PROW_PROJECT envvar was not set. Did you try to test without make?" ; exit 1; }
 
+# Add a grace period before test cluster deletion, so that kubernetes controllers
+# have chance to cleanup related resources.
+sleep 100
+
 echo "Deleting cluster '${PROW_CLUSTER}' (this may take a few minutes)..."
 
 set -x #echo on
