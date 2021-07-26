@@ -48,3 +48,21 @@ for c in $STALE_PVCS; do
   set +x #echo off
 done
 
+STALE_FORWARDING_RULES=($(gcloud compute forwarding-rules list --project ${PROW_PROJECT} --format="value(selfLink)" --filter "creationTimestamp<${STALE_TIME} AND description:-test-"))
+for fr in "${STALE_FORWARDING_RULES[@]}"; do
+  echo " * Deleting stale forwarding rule * ${fr}";
+  set -x #echo on
+  # Ignore errors as there might be concurrent jobs running
+  gcloud compute forwarding-rules delete -q "${fr}" --project="${PROW_PROJECT}" || true
+  set +x #echo off
+done
+
+STALE_TARGET_POOLS=($(gcloud compute target-pools list --project ${PROW_PROJECT} --format="value(selfLink)" --filter "creationTimestamp<${STALE_TIME} AND description:-test-"))
+for tp in "${STALE_TARGET_POOLS[@]}"; do
+  echo " * Deleting stale target pool * ${tp}";
+  set -x #echo on
+  # Ignore errors as there might be concurrent jobs running
+  # gcloud will not delete target pools that are being referenced by forwarding rules
+  gcloud compute target-pools delete -q "${tp}" --project="${PROW_PROJECT}" || true
+  set +x #echo off
+done
