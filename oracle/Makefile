@@ -199,7 +199,7 @@ operator-checks: prepare-prow
 # Prow presubmit job entry point: operator-presubmit
 operator-presubmit: prepare-prow
 	$(MAKE) -j8 buildah-push-all
-	# Remove stale clusters from the project
+	# Remove stale resources from the project
 	scripts/integration_test_cluster/cleanup_integration_test_clusters.sh
 	# Create a new GKE cluster for int tests
 	scripts/integration_test_cluster/create_integration_test_cluster.sh
