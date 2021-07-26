@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
@@ -180,14 +179,7 @@ func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.I
 
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
 func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
-
 	log.Info("isImageSeeded: new database requested", inst.GetName())
-
-	dialTimeout := 1 * time.Minute
-	// Establish a connection to a Config Agent.
-	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-	defer cancel()
-
 	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
 	if err != nil {
 		log.Error(err, "failed to create config agent client")
@@ -252,76 +244,11 @@ func (r *InstanceReconciler) overrideDefaultImages(config *v1alpha1.Config, imag
 	}
 
 	if inst.Spec.CDBName == "" {
-		return fmt.Errorf("bootstrapCDB: CDBName isn't defined in the config")
+		return fmt.Errorf("overrideDefaultImages: CDBName isn't defined in the config")
 	}
 	if !serviceImageDefined {
-		return fmt.Errorf("bootstrapCDB: Service image isn't defined in the config")
+		return fmt.Errorf("overrideDefaultImages: Service image isn't defined in the config")
 	}
-	return nil
-}
-
-// bootstrapCDB is invoked during the instance creation phase to bootstrap a database and does the following.
-// For seeded image, it invokes init_oracle to perform seeded bootstrap tasks.
-// For unseeded image, it creates a CDB using DBCA and performs unseeded bootstrap tasks.
-func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Instance, clusterIP string, log logr.Logger, isImageSeeded bool) error {
-	// TODO: add better error handling.
-	if !isImageSeeded && (inst.Spec.CDBName == "" || inst.Spec.DBUniqueName == "") {
-		return fmt.Errorf("bootstrapCDB: using unseeded image requires specifying both arguments: CDBName, DBUniqueName")
-	}
-
-	log.Info("bootstrapCDB: new database requested clusterIP", clusterIP)
-
-	// TODO: Remove this timeout workaround once we have the LRO thing figured out.
-	dialTimeout := 50 * time.Minute
-	// Establish a connection to a Config Agent.
-	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-	defer cancel()
-
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
-	if err != nil {
-		log.Error(err, "failed to create config agent client")
-		return err
-	}
-	defer closeConn()
-
-	if !isImageSeeded {
-		_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
-			Sid:           inst.Spec.CDBName,
-			DbUniqueName:  inst.Spec.DBUniqueName,
-			DbDomain:      controllers.GetDBDomain(&inst),
-			CharacterSet:  inst.Spec.CharacterSet,
-			MemoryPercent: int32(inst.Spec.MemoryPercent),
-			//DBCA expects the parameters in the following string array format
-			// ["key1=val1", "key2=val2","key3=val3"]
-			AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
-		})
-		if err != nil {
-			return fmt.Errorf("bootstrapCDB: failed on CreateDatabase gRPC call: %v", err)
-		}
-
-		inst.Status.CurrentParameters = inst.Spec.Parameters
-		if err := r.Status().Update(ctx, &inst); err != nil {
-			log.Error(err, "failed to update an Instance status returning error")
-			return err
-		}
-	}
-
-	bootstrapMode := capb.BootstrapDatabaseRequest_ProvisionUnseeded
-	if isImageSeeded {
-		bootstrapMode = capb.BootstrapDatabaseRequest_ProvisionSeeded
-	}
-
-	_, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
-		CdbName:      inst.Spec.CDBName,
-		DbUniqueName: inst.Spec.DBUniqueName,
-		Dbdomain:     controllers.GetDBDomain(&inst),
-		Mode:         bootstrapMode,
-	})
-
-	if err != nil {
-		return fmt.Errorf("bootstrapCDB: error while running post-creation bootstrapping steps: %v", err)
-	}
-
 	return nil
 }
 

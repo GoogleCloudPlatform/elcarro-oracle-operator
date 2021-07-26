@@ -41,7 +41,11 @@ go_library(
 
 go_test(
     name = "instancecontroller_test",
-    srcs = ["instance_controller_test.go"],
+    srcs = [
+        "instance_controller_parameters_test.go",
+        "instance_controller_restore_test.go",
+        "instance_controller_test.go",
+    ],
     embed = [":instancecontroller"],
     deps = [
         "//common/api/v1alpha1",

@@ -16,7 +16,7 @@ package instancecontroller
 
 import (
 	"context"
-	go_errors "errors"
+	goerrors "errors"
 	"fmt"
 	"time"
 
@@ -56,7 +56,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 	}
 
 	// Check database instance is ready for restore
-	if dbInstanceCond == nil || (!k8s.ConditionReasonEquals(dbInstanceCond, k8s.AwaitingRestore) && !k8s.ConditionReasonEquals(dbInstanceCond, k8s.CreateComplete)) {
+	if dbInstanceCond == nil || (!k8s.ConditionReasonEquals(dbInstanceCond, k8s.RestorePending) && !k8s.ConditionReasonEquals(dbInstanceCond, k8s.CreateComplete)) {
 		log.Info("restoreStateMachine: database instance is not ready for restore, proceed with main reconciliation")
 		return ctrl.Result{}, nil
 	}
@@ -179,12 +179,19 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 		case "Snapshot":
 			done, err = r.isSnapshotRestoreDone(ctx, *inst, log)
 		case "Physical":
-			done, err = r.isPhysicalRestoreDone(ctx, req, *inst, log)
+			id := lroRestoreOperationID(physicalRestore, *inst)
+			done, err = controllers.IsLROOperationDone(r.ClientFactory, ctx, r, req.Namespace, id, inst.Name)
 			// Clean up LRO after we are done.
 			// The job will remain available for `ttlAfterDelete`.
 			if done {
-				id := lroRestoreOperationID(physicalRestore, *inst)
 				_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, inst.Name)
+				if err != nil {
+					backupID := inst.Spec.Restore.BackupID
+					backupType := inst.Spec.Restore.BackupType
+
+					err = fmt.Errorf("Failed to restore on %s-%d from backup %s (type %s): %v.", time.Now().Format(dateFormat),
+						time.Now().Nanosecond(), backupID, backupType, err.Error())
+				}
 			}
 		default:
 			r.setRestoreFailed(ctx, inst, "Unknown restore type", log)
@@ -247,7 +254,7 @@ func (r *InstanceReconciler) setRestoreSucceeded(ctx context.Context, inst *v1al
 
 // Update spec and status of the instance to reflect restore failure.
 func (r *InstanceReconciler) setRestoreFailed(ctx context.Context, inst *v1alpha1.Instance, reason string, log logr.Logger) {
-	log.Error(go_errors.New(reason), "Restore failed")
+	log.Error(goerrors.New(reason), "Restore failed")
 	// Create event.
 	r.Recorder.Eventf(inst, corev1.EventTypeWarning, "RestoreFailed", reason)
 	// Remove restore spec. Update the inst object in place.
@@ -373,7 +380,7 @@ func (r *InstanceReconciler) restoreSnapshot(ctx context.Context, inst v1alpha1.
 	// Set Restore field in sts params.
 	sp.Restore = inst.Spec.Restore
 	// Create PVC and STS objects from sts params (will use restore logic).
-	err, sts, _ := r.constructSTSandPVCs(ctx, inst, sp, log)
+	err, sts, _ := r.constructSTSandPVCs(inst, sp, log)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet")
 		return err
@@ -437,7 +444,7 @@ func lroRestoreOperationID(opType string, instance v1alpha1.Instance) string {
 }
 
 // Return STS and PVC objects from given sts params.
-func (r *InstanceReconciler) constructSTSandPVCs(ctx context.Context, inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (error, *appsv1.StatefulSet, []corev1.PersistentVolumeClaim) {
+func (r *InstanceReconciler) constructSTSandPVCs(inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (error, *appsv1.StatefulSet, []corev1.PersistentVolumeClaim) {
 	// Create PVCs.
 	newPVCs, err := controllers.NewPVCs(sp)
 	if err != nil {
@@ -461,7 +468,7 @@ func (r *InstanceReconciler) constructSTSandPVCs(ctx context.Context, inst v1alp
 // Return (false, err) if unrecoverable error occurred.
 func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context, inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (bool, error) {
 	// Create PVC and STS objects from sts params.
-	err, sts, newPVCs := r.constructSTSandPVCs(ctx, inst, sp, log)
+	err, sts, newPVCs := r.constructSTSandPVCs(inst, sp, log)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet")
 		return false, err

@@ -92,11 +92,12 @@ service DatabaseDaemon {
   rpc BootstrapStandby(BootstrapStandbyRequest)
       returns (BootstrapStandbyResponse);
 
-  // CreateCDB creates a database instance.
-  rpc CreateCDB(CreateCDBRequest) returns (CreateCDBResponse);
-
   // CreateCDBAsync creates a database instance asynchronously.
   rpc CreateCDBAsync(CreateCDBAsyncRequest)
+      returns (google.longrunning.Operation);
+
+  // BootstrapDatabaseAsync bootstraps seeded database asynchronously.
+  rpc BootstrapDatabaseAsync(BootstrapDatabaseAsyncRequest)
       returns (google.longrunning.Operation);
 
   // CreateListener creates a database listener.
@@ -475,6 +476,11 @@ message CreateFileResponse {}
 message BootstrapDatabaseRequest {
   string cdb_name = 1;
   string db_domain = 2;
+}
+
+message BootstrapDatabaseAsyncRequest {
+  BootstrapDatabaseRequest sync_request = 1;
+  LROInput lro_input = 2;
 }
 
 message BootstrapDatabaseResponse {}

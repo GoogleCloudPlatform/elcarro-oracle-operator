@@ -34,7 +34,7 @@ import (
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	commonutils "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
@@ -71,12 +71,11 @@ type InstanceReconciler struct {
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=configs,verbs=get;list;watch;create;update;patch;delete
 
 const (
-	physicalRestore                       = "PhysicalRestore"
-	InstanceProvisionTimeoutSeeded        = 20 * time.Minute
-	InstanceProvisionTimeoutUnseeded      = 55 * time.Minute // 55 minutes because it can take 40+ minutes for unseeded CDB creations
-	CreateDatabaseInstanceTimeoutSeeded   = 20 * time.Minute
-	CreateDatabaseInstanceTimeoutUnSeeded = 55 * time.Minute // 55 minutes because it can take 40+ minutes for unseeded CDB creations
-	dateFormat                            = "20060102"
+	physicalRestore                      = "PhysicalRestore"
+	InstanceReadyTimeout                 = 20 * time.Minute
+	DatabaseInstanceReadyTimeoutSeeded   = 20 * time.Minute
+	DatabaseInstanceReadyTimeoutUnseeded = 55 * time.Minute // 55 minutes because it can take 40+ minutes for unseeded CDB creations
+	dateFormat                           = "20060102"
 )
 
 func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
@@ -221,24 +220,13 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
 	inst.Status.URL = controllers.SvcURL(svcLB, consts.SecureListenerPort)
 
-	isImageSeeded, err := r.isImageSeeded(ctx, &inst, log)
-	if err != nil {
-		log.Error(err, "unable to determine image type")
-		return ctrl.Result{}, err
-	}
-
-	instanceProvisionTimeout := InstanceProvisionTimeoutUnseeded
-	if isImageSeeded {
-		instanceProvisionTimeout = InstanceProvisionTimeoutSeeded
-	}
-
 	// RequeueAfter 30 seconds to avoid constantly reconcile errors before statefulSet is ready.
 	// Update status when the Service is ready (for the initial provisioning).
 	// Also confirm that the StatefulSet is up and running.
 	if k8s.ConditionReasonEquals(instanceReadyCond, k8s.CreateInProgress) {
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(instanceReadyCond, time.Second)
-		if elapsed > instanceProvisionTimeout {
-			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, "InstanceReady", fmt.Sprintf("Instance provision timed out after %v", instanceProvisionTimeout))
+		if elapsed > InstanceReadyTimeout {
+			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, "InstanceReady", fmt.Sprintf("Instance provision timed out after %v", InstanceReadyTimeout))
 			msg := fmt.Sprintf("Instance provision timed out. Elapsed Time: %v", elapsed)
 			log.Info(msg)
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, msg)
@@ -322,69 +310,186 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	log.Info("reconciling instance: DONE")
 
-	istatus, err := controllers.CheckStatusInstanceFunc(ctx, inst.Name, inst.Spec.CDBName, svc.Spec.ClusterIP, controllers.GetDBDomain(&inst), log)
+	result, err := r.reconcileDatabaseInstance(ctx, &inst, r.Log)
+	log.Info("reconciling database instance: DONE", "result", result, "err", err)
+
+	return result, nil
+}
+
+// Create a name for the createCDB LRO operation based on instance GUID.
+func lroCreateCDBOperationID(instance v1alpha1.Instance) string {
+	return fmt.Sprintf("CreateCDB_%s", instance.GetUID())
+}
+
+// Create a name for the bootstrapCDB LRO operation based on instance GUID.
+func lroBootstrapCDBOperationID(instance v1alpha1.Instance) string {
+	return fmt.Sprintf("BootstrapCDB_%s", instance.GetUID())
+}
+
+// reconcileDatabaseInstance reconciling the underlying database instance.
+// Successful state transition for seeded instance:
+// nil->BootstrapPending->BootstrapInProgress->CreateFailed/CreateComplete
+// Successful state transition for unseeded instance:
+// nil->CreatePending->CreateInProgress->BootstrapPending->BootstrapInProgress->CreateFailed/CreateComplete
+// Successful state transition for instance with restoreSpec:
+// nil->RestorePending->CreateComplete
+func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
+	log.Info("reconciling database instance: ", "instanceReadyCond", instanceReadyCond, "dbInstanceCond", dbInstanceCond)
+
+	// reconcile database only when instance is ready
+	if !k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) {
+		return ctrl.Result{}, nil
+	}
+
+	isImageSeeded, err := r.isImageSeeded(ctx, inst, log)
 	if err != nil {
-		log.Error(err, "failed to check the database instance status")
+		log.Error(err, "unable to determine image type")
 		return ctrl.Result{}, err
 	}
 
-	if istatus == controllers.StatusInProgress {
+	if dbInstanceCond == nil {
 		if inst.Spec.Restore != nil {
 			log.Info("Skip bootstrap CDB database, waiting to be restored")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.AwaitingRestore, "Awaiting restore CDB")
-			return ctrl.Result{Requeue: true}, nil
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.RestorePending, "Awaiting restore CDB")
+		} else if !isImageSeeded {
+			log.Info("Unseeded image used, waiting to be created")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreatePending, "Awaiting create CDB")
+		} else {
+			log.Info("Seeded image used, waiting to be bootstrapped")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.BootstrapPending, "Awaiting bootstrap CDB")
 		}
-
-		if k8s.ConditionReasonEquals(instanceReadyCond, k8s.RestoreFailed) {
-			log.Error(err, "failed to restore to a new CDB database")
-			return ctrl.Result{}, nil
-		}
-
-		log.Info("Creating a new CDB database")
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "Bootstrapping CDB")
-		if err := r.Status().Update(ctx, &inst); err != nil {
-			log.Error(err, "failed to update the instance status")
-		}
-
-		if err = r.bootstrapCDB(ctx, inst, svc.Spec.ClusterIP, log, isImageSeeded); err != nil {
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, fmt.Sprintf("Error bootstrapping CDB: %v", err))
-			log.Error(err, "Error while bootstrapping CDB database")
-			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, "DatabaseInstanceCreateFailed", fmt.Sprintf("Error creating CDB: %v", err))
-			return ctrl.Result{}, err // No point in proceeding if the instance isn't provisioned
-		}
-		log.Info("Finished bootstrapping CDB database")
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	}
 
-	dbInstanceCond = k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
-	if istatus != controllers.StatusReady {
-		log.Info("database instance doesn't appear to be ready yet...")
-
+	// Check for timeout
+	if !k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(dbInstanceCond, time.Second)
-		createDatabaseInstanceTimeout := CreateDatabaseInstanceTimeoutUnSeeded
-		if isImageSeeded {
-			createDatabaseInstanceTimeout = CreateDatabaseInstanceTimeoutSeeded
+		createDatabaseInstanceTimeout := DatabaseInstanceReadyTimeoutSeeded
+		if !isImageSeeded {
+			createDatabaseInstanceTimeout = DatabaseInstanceReadyTimeoutUnseeded
 		}
 		if elapsed < createDatabaseInstanceTimeout {
-			log.Info(fmt.Sprintf("database instance creation in progress for %v, requeue after 30 seconds", elapsed))
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "")
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+			log.Info(fmt.Sprintf("database instance creation in progress for %v", elapsed))
+		} else {
+			log.Info(fmt.Sprintf("database instance creation timed out. Elapsed Time: %v", elapsed))
+			if !strings.Contains(dbInstanceCond.Message, "Warning") { // so that we would create only one database instance timeout event
+				r.Recorder.Eventf(inst, corev1.EventTypeWarning, k8s.DatabaseInstanceTimeout, "DatabaseInstance has been in progress for over %v, please try delete and recreate.", createDatabaseInstanceTimeout)
+			}
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, dbInstanceCond.Reason, "Warning: db instance is taking too long to start up - please try delete and recreate")
+			return ctrl.Result{}, nil
 		}
-
-		log.Info(fmt.Sprintf("database instance creation timed out. Elapsed Time: %v", elapsed))
-		if !strings.Contains(dbInstanceCond.Message, "Warning") { // so that we would create only one database instance timeout event
-			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, k8s.DatabaseInstanceTimeout, "DatabaseInstance has been in progress for over %v, please verify if it is stuck and should be recreated.", createDatabaseInstanceTimeout)
-		}
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "Warning: db instance is taking a long time to start up - verify that instance has not failed")
-		return ctrl.Result{}, nil // return nil so reconcile loop would not retry
 	}
 
-	if !k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
-		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.DatabaseInstanceReady, "DatabaseInstance has been created successfully. Elapsed Time: %v", k8s.ElapsedTimeFromLastTransitionTime(dbInstanceCond, time.Second))
+	switch dbInstanceCond.Reason {
+	case k8s.CreatePending:
+		// Launch the CreateCDB LRO
+		caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
+		if err != nil {
+			log.Error(err, "failed to create config agent client")
+			return ctrl.Result{}, err
+		}
+		defer closeConn()
+		_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
+			Sid:           inst.Spec.CDBName,
+			DbUniqueName:  inst.Spec.DBUniqueName,
+			DbDomain:      controllers.GetDBDomain(inst),
+			CharacterSet:  inst.Spec.CharacterSet,
+			MemoryPercent: int32(inst.Spec.MemoryPercent),
+			//DBCA expects the parameters in the following string array format
+			// ["key1=val1", "key2=val2","key3=val3"]
+			AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
+			LroInput:         &capb.LROInput{OperationId: lroCreateCDBOperationID(*inst)},
+		})
+		if err != nil {
+			if !controllers.IsAlreadyExistsError(err) {
+				log.Error(err, "CreateCDB failed")
+				return ctrl.Result{}, err
+			}
+		} else {
+			log.Info("CreateCDB started")
+		}
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "Database creation in progress")
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.CreateInProgress:
+		id := lroCreateCDBOperationID(*inst)
+		done, err := controllers.IsLROOperationDone(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		if !done {
+			log.Info("CreateCDB still in progress, waiting")
+			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		}
+		controllers.DeleteLROOperation(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		if err != nil {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, "CreateCDB LRO returned error")
+			log.Error(err, "CreateCDB LRO returned error")
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+		}
+		log.Info("CreateCDB done successfully")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.BootstrapPending, "")
+		// Reconcile again
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.BootstrapPending:
+		// Launch the BootstrapDatabase LRO
+		caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
+		if err != nil {
+			log.Error(err, "failed to create config agent client")
+			return ctrl.Result{}, err
+		}
+		defer closeConn()
+		bootstrapMode := capb.BootstrapDatabaseRequest_ProvisionUnseeded
+		if isImageSeeded {
+			bootstrapMode = capb.BootstrapDatabaseRequest_ProvisionSeeded
+		}
+
+		lro, err := caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
+			CdbName:      inst.Spec.CDBName,
+			DbUniqueName: inst.Spec.DBUniqueName,
+			Dbdomain:     controllers.GetDBDomain(inst),
+			Mode:         bootstrapMode,
+			LroInput:     &capb.LROInput{OperationId: lroBootstrapCDBOperationID(*inst)},
+		})
+
+		if err != nil {
+			if !controllers.IsAlreadyExistsError(err) {
+				log.Error(err, "BootstrapDatabase failed")
+				return ctrl.Result{}, err
+			}
+		} else if lro.GetDone() {
+			// handle synchronous version of BootstrapDatabase
+			r.Log.Info("encountered synchronous version of BootstrapDatabase")
+			r.Log.Info("BootstrapDatabase DONE")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+		}
+		log.Info("BootstrapDatabase started")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.BootstrapInProgress, "Database bootstrap in progress")
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.BootstrapInProgress:
+		id := lroBootstrapCDBOperationID(*inst)
+		done, err := controllers.IsLROOperationDone(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		if !done {
+			log.Info("BootstrapDatabase still in progress, waiting")
+			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+		}
+		controllers.DeleteLROOperation(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		if err != nil {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, "BootstrapDatabase LRO returned error")
+			log.Error(err, "BootstrapDatabase LRO returned error")
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+		}
+		log.Info("BootstrapDatabase done successfully")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+		// Reconcile again
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.RestorePending:
+		if k8s.ConditionReasonEquals(instanceReadyCond, k8s.RestoreComplete) {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+		}
+	default:
+		r.Log.Info("reconcileDatabaseInstance: no action needed, proceed with main reconciliation")
 	}
-
-	k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
-
-	log.Info("reconciling database instance: DONE")
 
 	return ctrl.Result{}, nil
 }

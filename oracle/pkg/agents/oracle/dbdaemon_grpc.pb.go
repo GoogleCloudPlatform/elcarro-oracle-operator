@@ -60,10 +60,10 @@ type DatabaseDaemonClient interface {
 	SetListenerRegistration(ctx context.Context, in *SetListenerRegistrationRequest, opts ...grpc.CallOption) (*BounceListenerResponse, error)
 	// BootstrapStandby performs bootstrap tasks that have to be done by dbdaemon.
 	BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error)
-	// CreateCDB creates a database instance.
-	CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*CreateCDBResponse, error)
 	// CreateCDBAsync creates a database instance asynchronously.
 	CreateCDBAsync(ctx context.Context, in *CreateCDBAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
+	// BootstrapDatabaseAsync bootstraps seeded database asynchronously.
+	BootstrapDatabaseAsync(ctx context.Context, in *BootstrapDatabaseAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	// CreateListener creates a database listener.
 	CreateListener(ctx context.Context, in *CreateListenerRequest, opts ...grpc.CallOption) (*CreateListenerResponse, error)
 	// FileExists runs a simple check to confirm whether a requested file
@@ -272,18 +272,18 @@ func (c *databaseDaemonClient) BootstrapStandby(ctx context.Context, in *Bootstr
 	return out, nil
 }
 
-func (c *databaseDaemonClient) CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*CreateCDBResponse, error) {
-	out := new(CreateCDBResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateCDB", in, out, opts...)
+func (c *databaseDaemonClient) CreateCDBAsync(ctx context.Context, in *CreateCDBAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
+	out := new(longrunning.Operation)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateCDBAsync", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *databaseDaemonClient) CreateCDBAsync(ctx context.Context, in *CreateCDBAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
+func (c *databaseDaemonClient) BootstrapDatabaseAsync(ctx context.Context, in *BootstrapDatabaseAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateCDBAsync", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/BootstrapDatabaseAsync", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -451,10 +451,10 @@ type DatabaseDaemonServer interface {
 	SetListenerRegistration(context.Context, *SetListenerRegistrationRequest) (*BounceListenerResponse, error)
 	// BootstrapStandby performs bootstrap tasks that have to be done by dbdaemon.
 	BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error)
-	// CreateCDB creates a database instance.
-	CreateCDB(context.Context, *CreateCDBRequest) (*CreateCDBResponse, error)
 	// CreateCDBAsync creates a database instance asynchronously.
 	CreateCDBAsync(context.Context, *CreateCDBAsyncRequest) (*longrunning.Operation, error)
+	// BootstrapDatabaseAsync bootstraps seeded database asynchronously.
+	BootstrapDatabaseAsync(context.Context, *BootstrapDatabaseAsyncRequest) (*longrunning.Operation, error)
 	// CreateListener creates a database listener.
 	CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error)
 	// FileExists runs a simple check to confirm whether a requested file
@@ -552,11 +552,11 @@ func (UnimplementedDatabaseDaemonServer) SetListenerRegistration(context.Context
 func (UnimplementedDatabaseDaemonServer) BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BootstrapStandby not implemented")
 }
-func (UnimplementedDatabaseDaemonServer) CreateCDB(context.Context, *CreateCDBRequest) (*CreateCDBResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateCDB not implemented")
-}
 func (UnimplementedDatabaseDaemonServer) CreateCDBAsync(context.Context, *CreateCDBAsyncRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCDBAsync not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) BootstrapDatabaseAsync(context.Context, *BootstrapDatabaseAsyncRequest) (*longrunning.Operation, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabaseAsync not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateListener not implemented")
@@ -934,24 +934,6 @@ func _DatabaseDaemon_BootstrapStandby_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DatabaseDaemon_CreateCDB_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateCDBRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DatabaseDaemonServer).CreateCDB(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemon/CreateCDB",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonServer).CreateCDB(ctx, req.(*CreateCDBRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DatabaseDaemon_CreateCDBAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateCDBAsyncRequest)
 	if err := dec(in); err != nil {
@@ -966,6 +948,24 @@ func _DatabaseDaemon_CreateCDBAsync_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DatabaseDaemonServer).CreateCDBAsync(ctx, req.(*CreateCDBAsyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DatabaseDaemon_BootstrapDatabaseAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BootstrapDatabaseAsyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).BootstrapDatabaseAsync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/BootstrapDatabaseAsync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).BootstrapDatabaseAsync(ctx, req.(*BootstrapDatabaseAsyncRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1284,12 +1284,12 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DatabaseDaemon_BootstrapStandby_Handler,
 		},
 		{
-			MethodName: "CreateCDB",
-			Handler:    _DatabaseDaemon_CreateCDB_Handler,
-		},
-		{
 			MethodName: "CreateCDBAsync",
 			Handler:    _DatabaseDaemon_CreateCDBAsync_Handler,
+		},
+		{
+			MethodName: "BootstrapDatabaseAsync",
+			Handler:    _DatabaseDaemon_BootstrapDatabaseAsync_Handler,
 		},
 		{
 			MethodName: "CreateListener",
