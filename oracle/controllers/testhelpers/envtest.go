@@ -724,7 +724,10 @@ func TestImageForVersion(version string, edition string, extra string) string {
 						{
 							return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_32545013")
 						}
-
+					case "ocr":
+						{
+							return os.Getenv("TEST_IMAGE_OCR_ORACLE_19_3_EE_UNSEEDED_29517242")
+						}
 					default:
 						{
 							return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_SEEDED")

@@ -152,6 +152,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 		})
 	}
 
+	// Images built using El Carro scripts
 	Context("Oracle 12.2 EE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "", true)
 	})
@@ -170,6 +171,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 	Context("Oracle 18c XE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("18c", "XE", "", true)
+	})
+
+	// Images from OCR
+	Context("Oracle 19.3 EE unseeded from OCR", func() {
+		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "ocr", false)
 	})
 })
 
