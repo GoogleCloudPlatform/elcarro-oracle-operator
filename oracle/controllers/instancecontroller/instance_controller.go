@@ -347,79 +347,16 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, nil
 	}
 
-	newPVCs, err := controllers.NewPVCs(sp)
-	if err != nil {
-		r.Log.Error(err, "NewPVCs failed")
-		return ctrl.Result{}, err
-	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(&inst))
-	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
-	if err != nil {
-		log.Error(err, "failed to create a StatefulSet", "sts", sts)
-		return ctrl.Result{}, err
-	}
-	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
-
-	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the StatefulSet", "sts.Status", sts.Status)
-		return ctrl.Result{}, err
+	if result, err := r.createStatefulSet(ctx, &inst, sp, applyOpts, log); err != nil {
+		return result, err
 	}
 
-	agentParam := controllers.AgentDeploymentParams{
-		Inst:           &inst,
-		Config:         config,
-		Scheme:         r.Scheme,
-		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
-		Images:         images,
-		PrivEscalation: false,
-		Log:            log,
-		Args:           controllers.GetLogLevelArgs(config),
-		Services:       enabledServices,
-	}
-	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
-	if err != nil {
-		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
-		return ctrl.Result{}, err
-	}
-	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
-		return ctrl.Result{}, err
+	if result, err := r.createAgentDeployment(ctx, inst, config, images, enabledServices, applyOpts, log); err != nil {
+		return result, err
 	}
 
 	// Create LB/NodePort Services if needed.
-	var svcLB *corev1.Service
-	for _, s := range services {
-		svc, err := controllers.NewSvc(&inst, r.Scheme, s)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		if s == "lb" {
-			svcLB = svc
-		}
-	}
-
-	svc, err := controllers.NewDBDaemonSvc(&inst, r.Scheme)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	svc, err = controllers.NewAgentSvc(&inst, r.Scheme)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-		return ctrl.Result{}, err
-	}
+	svcLB, svc, err := r.createServices(ctx, inst, services, applyOpts)
 
 	if iReadyCond == nil {
 		iReadyCond = k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, "")
@@ -756,4 +693,92 @@ func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&source.Kind{Type: &v1alpha1.Database{}},
 			&handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alpha1.Instance, sp controllers.StsParams, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
+	newPVCs, err := controllers.NewPVCs(sp)
+	if err != nil {
+		r.Log.Error(err, "NewPVCs failed")
+		return ctrl.Result{}, err
+	}
+	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
+	if err != nil {
+		log.Error(err, "failed to create a StatefulSet", "sts", sts)
+		return ctrl.Result{}, err
+	}
+	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
+
+	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
+		log.Error(err, "failed to patch the StatefulSet", "sts.Status", sts.Status)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1alpha1.Instance, config *v1alpha1.Config, images map[string]string, enabledServices []commonv1alpha1.Service, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
+	agentParam := controllers.AgentDeploymentParams{
+		Inst:           &inst,
+		Config:         config,
+		Scheme:         r.Scheme,
+		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
+		Images:         images,
+		PrivEscalation: false,
+		Log:            log,
+		Args:           controllers.GetLogLevelArgs(config),
+		Services:       enabledServices,
+	}
+	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
+	if err != nil {
+		log.Info("createAgentDeployment: error in function NewAgentDeployment")
+		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
+		return ctrl.Result{}, err
+	}
+	log.Info("createAgentDeployment: function NewAgentDeployment succeeded")
+	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
+		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
+		return ctrl.Result{}, err
+	}
+	log.Info("createAgentDeployment: function Patch succeeded")
+	if err := r.Status().Update(ctx, &inst); err != nil {
+		log.Error(err, "failed to update an Instance status agent image returning error")
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.Instance, services []string, applyOpts []client.PatchOption) (*corev1.Service, *corev1.Service, error) {
+	var svcLB *corev1.Service
+	for _, s := range services {
+		svc, err := controllers.NewSvc(&inst, r.Scheme, s)
+		if err != nil {
+			return nil, nil, nil
+		}
+
+		if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+			return nil, nil, nil
+		}
+
+		if s == "lb" {
+			svcLB = svc
+		}
+	}
+
+	svc, err := controllers.NewDBDaemonSvc(&inst, r.Scheme)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+		return nil, nil, err
+	}
+
+	svc, err = controllers.NewAgentSvc(&inst, r.Scheme)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+		return nil, nil, err
+	}
+	return svcLB, svc, nil
 }
