@@ -357,6 +357,9 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	// Create LB/NodePort Services if needed.
 	svcLB, svc, err := r.createServices(ctx, inst, services, applyOpts)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if iReadyCond == nil {
 		iReadyCond = k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, "")
