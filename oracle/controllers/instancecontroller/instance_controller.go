@@ -17,7 +17,6 @@ package instancecontroller
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
@@ -37,8 +36,6 @@ import (
 	commonutils "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/databasecontroller"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
@@ -82,149 +79,6 @@ const (
 	dateFormat                            = "20060102"
 )
 
-// loadConfig attempts to find a customer specific Operator config
-// if it's been provided. There should be at most one config.
-// If no config is provided by a customer, no errors are raised and
-// all defaults are assumed.
-func (r *InstanceReconciler) loadConfig(ctx context.Context, ns string) (*v1alpha1.Config, error) {
-	var configs v1alpha1.ConfigList
-	if err := r.List(ctx, &configs, client.InNamespace(ns)); err != nil {
-		return nil, err
-	}
-
-	if len(configs.Items) == 0 {
-		return nil, nil
-	}
-
-	if len(configs.Items) != 1 {
-		return nil, fmt.Errorf("number of customer provided configs is not one: %d", len(configs.Items))
-	}
-
-	return &configs.Items[0], nil
-}
-
-// statusProgress tracks the progress of an ongoing instance creation and returns the progress in terms of percentage.
-func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string) (int, error) {
-	var sts appsv1.StatefulSetList
-	if err := r.List(ctx, &sts, client.InNamespace(ns)); err != nil {
-		r.Log.Error(err, "failed to get a list of StatefulSets to check status")
-		return 0, err
-	}
-
-	if len(sts.Items) < 1 {
-		return 0, fmt.Errorf("failed to find a StatefulSet, found: %d", len(sts.Items))
-	}
-
-	// In theory a user should not be running any StatefulSet in a
-	// namespace, but to be on a safe side, iterate over all until we find ours.
-	var foundSts *appsv1.StatefulSet
-	for index, s := range sts.Items {
-		if s.Name == name {
-			foundSts = &sts.Items[index]
-		}
-	}
-
-	if foundSts == nil {
-		return 0, fmt.Errorf("failed to find the right StatefulSet %s (out of %d)", name, len(sts.Items))
-	}
-	r.Log.V(1).Info("found the right StatefulSet", "foundSts", &foundSts.Name,
-		"sts.Status.CurrentReplicas", &foundSts.Status.CurrentReplicas, "sts.Status.ReadyReplicas", foundSts.Status.ReadyReplicas)
-
-	if foundSts.Status.CurrentReplicas != 1 {
-		return 10, fmt.Errorf("StatefulSet is not ready yet? (failed to find the expected number of current replicas): %d", foundSts.Status.CurrentReplicas)
-	}
-
-	if foundSts.Status.ReadyReplicas != 1 {
-		return 50, fmt.Errorf("StatefulSet is not ready yet? (failed to find the expected number of ready replicas): %d", foundSts.Status.ReadyReplicas)
-	}
-
-	var pods corev1.PodList
-	if err := r.List(ctx, &pods, client.InNamespace(ns), client.MatchingLabels{"statefulset": name}); err != nil {
-		r.Log.Error(err, "failed to get a list of Pods to check status")
-		return 60, err
-	}
-
-	if len(pods.Items) < 1 {
-		return 65, fmt.Errorf("failed to find enough pods, found: %d pods", len(pods.Items))
-	}
-
-	var foundPod *corev1.Pod
-	for index, p := range pods.Items {
-		if p.Name == name+"-0" {
-			foundPod = &pods.Items[index]
-		}
-	}
-
-	if foundPod == nil {
-		return 75, fmt.Errorf("failed to find the right Pod %s (out of %d)", name+"-0", len(pods.Items))
-	}
-	r.Log.V(1).Info("found the right Pod", "pod.Name", &foundPod.Name, "pod.Status", foundPod.Status.Phase, "#containers", len(foundPod.Status.ContainerStatuses))
-
-	if foundPod.Status.Phase != "Running" {
-		return 85, fmt.Errorf("failed to find the right Pod %s in status Running: %s", name+"-0", foundPod.Status.Phase)
-	}
-
-	for _, c := range foundPod.Status.ContainerStatuses {
-		if c.Name == databasecontroller.DatabaseContainerName && c.Ready {
-			return 100, nil
-		}
-	}
-	return 85, fmt.Errorf("failed to find a database container in %+v", foundPod.Status.ContainerStatuses)
-}
-
-func (r *InstanceReconciler) updateProgressCondition(ctx context.Context, inst v1alpha1.Instance, ns, op string) bool {
-	iReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
-
-	r.Log.Info("updateProgressCondition", "operation", op, "iReadyCond", iReadyCond)
-	progress, err := r.statusProgress(ctx, ns, fmt.Sprintf(controllers.StsName, inst.Name))
-	if err != nil && iReadyCond != nil {
-		if progress > 0 {
-			k8s.InstanceUpsertCondition(&inst.Status, iReadyCond.Type, iReadyCond.Status, iReadyCond.Reason, fmt.Sprintf("%s: %d%%", op, progress))
-		}
-		r.Log.Info("updateProgressCondition", "statusProgress", err)
-		return false
-	}
-	return true
-}
-
-// validateSpec sanity checks a DB Domain input for conflicts.
-func validateSpec(inst *v1alpha1.Instance) error {
-	// Does DBUniqueName contain DB Domain as a suffix?
-	if strings.Contains(inst.Spec.DBUniqueName, ".") {
-		domainFromName := strings.SplitN(inst.Spec.DBUniqueName, ".", 2)[1]
-		if inst.Spec.DBDomain != "" && domainFromName != inst.Spec.DBDomain {
-			return fmt.Errorf("validateSpec: domain %q provided in DBUniqueName %q does not match with provided DBDomain %q",
-				domainFromName, inst.Spec.DBUniqueName, inst.Spec.DBDomain)
-		}
-	}
-
-	if inst.Spec.CDBName != "" {
-		if _, err := sql.Identifier(inst.Spec.CDBName); err != nil {
-			return fmt.Errorf("validateSpec: cdbName is not valid: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// updateIsChangeApplied sets instance.Status.IsChangeApplied field to false if observedGeneration < generation, it sets it to true if changes are applied.
-// TODO: add logic to handle restore/recovery
-func (r *InstanceReconciler) updateIsChangeApplied(ctx context.Context, inst *v1alpha1.Instance) {
-	if inst.Status.ObservedGeneration < inst.Generation {
-		inst.Status.IsChangeApplied = v1.ConditionFalse
-		inst.Status.ObservedGeneration = inst.Generation
-		r.Log.Info("change detected", "observedGeneration", inst.Status.ObservedGeneration, "generation", inst.Generation)
-	}
-	if inst.Status.IsChangeApplied == v1.ConditionTrue {
-		return
-	}
-	parameterUpdateDone := inst.Spec.Parameters == nil || reflect.DeepEqual(inst.Status.CurrentParameters, inst.Spec.Parameters)
-	if parameterUpdateDone {
-		inst.Status.IsChangeApplied = v1.ConditionTrue
-	}
-	r.Log.Info("change applied", "observedGeneration", inst.Status.ObservedGeneration, "generation", inst.Generation)
-}
-
 func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Instance", req.NamespacedName)
@@ -243,7 +97,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	defer func() {
-		r.updateIsChangeApplied(ctx, &inst)
+		r.updateIsChangeApplied(&inst, log)
 		if err := r.Status().Update(ctx, &inst); err != nil {
 			log.Error(err, "failed to update the instance status")
 			if respErr == nil {
@@ -278,8 +132,8 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		}
 	}
 
-	iReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
-	dbiCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
+	instanceReadyCond = k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+	dbInstanceCond = k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 
 	// Load default preferences (aka "config") if provided by a customer.
 	config, err := r.loadConfig(ctx, req.NamespacedName.Namespace)
@@ -292,9 +146,8 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		images[k] = v
 	}
 
-	result, err := r.overrideDefaultImages(config, images, &inst, log)
-	if err != nil {
-		return result, err
+	if err := r.overrideDefaultImages(config, images, &inst, log); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	services := []string{"lb", "node"}
@@ -331,7 +184,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	// by restore state machine until the Spec.Restore section is removed again.
 	if inst.Spec.Restore != nil {
 		// Ask the restore state machine to reconcile
-		result, err := r.restoreStateMachine(req, instanceReadyCond, dbInstanceCond, &inst, ctx, sp)
+		result, err := r.restoreStateMachine(req, instanceReadyCond, dbInstanceCond, &inst, ctx, sp, log)
 		if err != nil {
 			log.Error(err, "restoreStateMachine failed")
 			return result, err
@@ -361,8 +214,8 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
-	if iReadyCond == nil {
-		iReadyCond = k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, "")
+	if instanceReadyCond == nil {
+		instanceReadyCond = k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, "")
 	}
 
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
@@ -382,8 +235,8 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	// RequeueAfter 30 seconds to avoid constantly reconcile errors before statefulSet is ready.
 	// Update status when the Service is ready (for the initial provisioning).
 	// Also confirm that the StatefulSet is up and running.
-	if k8s.ConditionReasonEquals(iReadyCond, k8s.CreateInProgress) {
-		elapsed := k8s.ElapsedTimeFromLastTransitionTime(iReadyCond, time.Second)
+	if k8s.ConditionReasonEquals(instanceReadyCond, k8s.CreateInProgress) {
+		elapsed := k8s.ElapsedTimeFromLastTransitionTime(instanceReadyCond, time.Second)
 		if elapsed > instanceProvisionTimeout {
 			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, "InstanceReady", fmt.Sprintf("Instance provision timed out after %v", instanceProvisionTimeout))
 			msg := fmt.Sprintf("Instance provision timed out. Elapsed Time: %v", elapsed)
@@ -392,13 +245,13 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 			return ctrl.Result{}, nil
 		}
 
-		if !r.updateProgressCondition(ctx, inst, req.NamespacedName.Namespace, controllers.CreateInProgress) {
+		if !r.updateProgressCondition(ctx, inst, req.NamespacedName.Namespace, controllers.CreateInProgress, log) {
 			log.Info("requeue after 30 seconds")
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 
 		if inst.Status.URL != "" {
-			if !k8s.ConditionReasonEquals(iReadyCond, k8s.CreateComplete) {
+			if !k8s.ConditionReasonEquals(instanceReadyCond, k8s.CreateComplete) {
 				r.Recorder.Eventf(&inst, corev1.EventTypeNormal, "InstanceReady", "Instance has been created successfully. Elapsed Time: %v", elapsed)
 			}
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
@@ -464,7 +317,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		}
 	}
 
-	log.Info("instance status", "iReadyCond", iReadyCond, "endpoint", inst.Status.Endpoint,
+	log.Info("instance status", "instanceReadyCond", instanceReadyCond, "endpoint", inst.Status.Endpoint,
 		"url", inst.Status.URL, "databases", inst.Status.DatabaseNames)
 
 	log.Info("reconciling instance: DONE")
@@ -502,11 +355,11 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		log.Info("Finished bootstrapping CDB database")
 	}
 
-	dbiCond = k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
+	dbInstanceCond = k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 	if istatus != controllers.StatusReady {
 		log.Info("database instance doesn't appear to be ready yet...")
 
-		elapsed := k8s.ElapsedTimeFromLastTransitionTime(dbiCond, time.Second)
+		elapsed := k8s.ElapsedTimeFromLastTransitionTime(dbInstanceCond, time.Second)
 		createDatabaseInstanceTimeout := CreateDatabaseInstanceTimeoutUnSeeded
 		if isImageSeeded {
 			createDatabaseInstanceTimeout = CreateDatabaseInstanceTimeoutSeeded
@@ -518,15 +371,15 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		}
 
 		log.Info(fmt.Sprintf("database instance creation timed out. Elapsed Time: %v", elapsed))
-		if !strings.Contains(dbiCond.Message, "Warning") { // so that we would create only one database instance timeout event
+		if !strings.Contains(dbInstanceCond.Message, "Warning") { // so that we would create only one database instance timeout event
 			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, k8s.DatabaseInstanceTimeout, "DatabaseInstance has been in progress for over %v, please verify if it is stuck and should be recreated.", createDatabaseInstanceTimeout)
 		}
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateInProgress, "Warning: db instance is taking a long time to start up - verify that instance has not failed")
 		return ctrl.Result{}, nil // return nil so reconcile loop would not retry
 	}
 
-	if !k8s.ConditionStatusEquals(dbiCond, v1.ConditionTrue) {
-		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.DatabaseInstanceReady, "DatabaseInstance has been created successfully. Elapsed Time: %v", k8s.ElapsedTimeFromLastTransitionTime(dbiCond, time.Second))
+	if !k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
+		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.DatabaseInstanceReady, "DatabaseInstance has been created successfully. Elapsed Time: %v", k8s.ElapsedTimeFromLastTransitionTime(dbInstanceCond, time.Second))
 	}
 
 	k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
@@ -534,153 +387,6 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	log.Info("reconciling database instance: DONE")
 
 	return ctrl.Result{}, nil
-}
-
-// isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
-func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
-
-	log.Info("isImageSeeded: new database requested", inst.GetName())
-
-	dialTimeout := 1 * time.Minute
-	// Establish a connection to a Config Agent.
-	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-	defer cancel()
-
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
-	if err != nil {
-		log.Error(err, "failed to create config agent client")
-		return false, err
-	}
-	defer closeConn()
-	serviceImageMetaData, err := caClient.FetchServiceImageMetaData(ctx, &capb.FetchServiceImageMetaDataRequest{})
-	if err != nil {
-		return false, fmt.Errorf("isImageSeeded: failed on FetchServiceImageMetaData call: %v", err)
-	}
-	if serviceImageMetaData.CdbName == "" {
-		return false, nil
-	}
-	return true, nil
-}
-
-func (r *InstanceReconciler) overrideDefaultImages(config *v1alpha1.Config, images map[string]string, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
-	if config != nil {
-		log.V(1).Info("customer config loaded", "config", config)
-
-		if config.Spec.Platform != "GCP" && config.Spec.Platform != "BareMetal" && config.Spec.Platform != "Minikube" && config.Spec.Platform != "Kind" {
-			return ctrl.Result{}, fmt.Errorf("Unsupported platform: %q", config.Spec.Platform)
-		}
-
-		// Replace the default images from the global Config, if so requested.
-		log.Info("create instance: prep", "images explicitly requested for this config", config.Spec.Images)
-		for k, image := range config.Spec.Images {
-			log.Info("key value is", "k", k, "image", image)
-			if v2, ok := images[k]; ok {
-				log.Info("create instance: prep", "replacing", k, "image of", v2, "with global", image)
-				images[k] = image
-			}
-		}
-	} else {
-		log.Info("no customer specific config found, assuming all defaults")
-	}
-
-	// Replace final images with those explicitly set for the Instance.
-	if inst.Spec.Images != nil {
-		log.Info("create instance: prep", "images explicitly requested for this instance", inst.Spec.Images)
-		for k, v1 := range inst.Spec.Images {
-			log.Info("k value is ", "key", k)
-			if v2, ok := images[k]; ok {
-				r.Log.Info("create instance: prep", "replacing", k, "image of", v2, "with instance specific", v1)
-				images[k] = v1
-			}
-		}
-	}
-
-	serviceImageDefined := false
-	if inst.Spec.Images != nil {
-		if _, ok := inst.Spec.Images["service"]; ok {
-			serviceImageDefined = true
-			log.Info("service image requested via instance", "service image:", inst.Spec.Images["service"])
-		}
-	}
-	if config != nil {
-		if _, ok := config.Spec.Images["service"]; ok {
-			serviceImageDefined = true
-			log.Info("service image requested via config", "service image:", config.Spec.Images["service"])
-		}
-	}
-
-	if inst.Spec.CDBName == "" {
-		return ctrl.Result{}, fmt.Errorf("bootstrapCDB: CDBName isn't defined in the config")
-	}
-	if !serviceImageDefined {
-		return ctrl.Result{}, fmt.Errorf("bootstrapCDB: Service image isn't defined in the config")
-	}
-	return ctrl.Result{}, nil
-}
-
-// bootstrapCDB is invoked during the instance creation phase to bootstrap a database and does the following.
-// For seeded image, it invokes init_oracle to perform seeded bootstrap tasks.
-// For unseeded image, it creates a CDB using DBCA and performs unseeded bootstrap tasks.
-func (r *InstanceReconciler) bootstrapCDB(ctx context.Context, inst v1alpha1.Instance, clusterIP string, log logr.Logger, isImageSeeded bool) error {
-	// TODO: add better error handling.
-	if !isImageSeeded && (inst.Spec.CDBName == "" || inst.Spec.DBUniqueName == "") {
-		return fmt.Errorf("bootstrapCDB: using unseeded image requires specifying both arguments: CDBName, DBUniqueName")
-	}
-
-	log.Info("bootstrapCDB: new database requested clusterIP", clusterIP)
-
-	// TODO: Remove this timeout workaround once we have the LRO thing figured out.
-	dialTimeout := 50 * time.Minute
-	// Establish a connection to a Config Agent.
-	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-	defer cancel()
-
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
-	if err != nil {
-		log.Error(err, "failed to create config agent client")
-		return err
-	}
-	defer closeConn()
-
-	if !isImageSeeded {
-		_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
-			Sid:           inst.Spec.CDBName,
-			DbUniqueName:  inst.Spec.DBUniqueName,
-			DbDomain:      controllers.GetDBDomain(&inst),
-			CharacterSet:  inst.Spec.CharacterSet,
-			MemoryPercent: int32(inst.Spec.MemoryPercent),
-			//DBCA expects the parameters in the following string array format
-			// ["key1=val1", "key2=val2","key3=val3"]
-			AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
-		})
-		if err != nil {
-			return fmt.Errorf("bootstrapCDB: failed on CreateDatabase gRPC call: %v", err)
-		}
-
-		inst.Status.CurrentParameters = inst.Spec.Parameters
-		if err := r.Status().Update(ctx, &inst); err != nil {
-			log.Error(err, "failed to update an Instance status returning error")
-			return err
-		}
-	}
-
-	bootstrapMode := capb.BootstrapDatabaseRequest_ProvisionUnseeded
-	if isImageSeeded {
-		bootstrapMode = capb.BootstrapDatabaseRequest_ProvisionSeeded
-	}
-
-	_, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
-		CdbName:      inst.Spec.CDBName,
-		DbUniqueName: inst.Spec.DBUniqueName,
-		Dbdomain:     controllers.GetDBDomain(&inst),
-		Mode:         bootstrapMode,
-	})
-
-	if err != nil {
-		return fmt.Errorf("bootstrapCDB: error while running post-creation bootstrapping steps: %v", err)
-	}
-
-	return nil
 }
 
 func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -696,92 +402,4 @@ func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&source.Kind{Type: &v1alpha1.Database{}},
 			&handler.EnqueueRequestForObject{}).
 		Complete(r)
-}
-
-func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alpha1.Instance, sp controllers.StsParams, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
-	newPVCs, err := controllers.NewPVCs(sp)
-	if err != nil {
-		r.Log.Error(err, "NewPVCs failed")
-		return ctrl.Result{}, err
-	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
-	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
-	if err != nil {
-		log.Error(err, "failed to create a StatefulSet", "sts", sts)
-		return ctrl.Result{}, err
-	}
-	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
-
-	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the StatefulSet", "sts.Status", sts.Status)
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, nil
-}
-
-func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1alpha1.Instance, config *v1alpha1.Config, images map[string]string, enabledServices []commonv1alpha1.Service, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
-	agentParam := controllers.AgentDeploymentParams{
-		Inst:           &inst,
-		Config:         config,
-		Scheme:         r.Scheme,
-		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
-		Images:         images,
-		PrivEscalation: false,
-		Log:            log,
-		Args:           controllers.GetLogLevelArgs(config),
-		Services:       enabledServices,
-	}
-	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
-	if err != nil {
-		log.Info("createAgentDeployment: error in function NewAgentDeployment")
-		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
-		return ctrl.Result{}, err
-	}
-	log.Info("createAgentDeployment: function NewAgentDeployment succeeded")
-	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
-		return ctrl.Result{}, err
-	}
-	log.Info("createAgentDeployment: function Patch succeeded")
-	if err := r.Status().Update(ctx, &inst); err != nil {
-		log.Error(err, "failed to update an Instance status agent image returning error")
-	}
-	return ctrl.Result{}, nil
-}
-
-func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.Instance, services []string, applyOpts []client.PatchOption) (*corev1.Service, *corev1.Service, error) {
-	var svcLB *corev1.Service
-	for _, s := range services {
-		svc, err := controllers.NewSvc(&inst, r.Scheme, s)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-			return nil, nil, err
-		}
-
-		if s == "lb" {
-			svcLB = svc
-		}
-	}
-
-	svc, err := controllers.NewDBDaemonSvc(&inst, r.Scheme)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-		return nil, nil, err
-	}
-
-	svc, err = controllers.NewAgentSvc(&inst, r.Scheme)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-		return nil, nil, err
-	}
-	return svcLB, svc, nil
 }

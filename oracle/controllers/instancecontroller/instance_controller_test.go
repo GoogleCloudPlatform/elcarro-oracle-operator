@@ -253,7 +253,7 @@ var _ = Describe("Instance controller", func() {
 					},
 				},
 			)
-			restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconciler, namespace, instName string) error {
+			restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconciler, namespace, instName string, log logr.Logger) error {
 				return nil
 			}
 		})
