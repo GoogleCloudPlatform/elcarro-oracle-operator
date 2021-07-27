@@ -7,6 +7,7 @@ go_library(
         "instance_controller_parameters.go",
         "instance_controller_restore.go",
         "instance_controller_standby.go",
+        "utils.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/instancecontroller",
     visibility = ["//visibility:public"],
