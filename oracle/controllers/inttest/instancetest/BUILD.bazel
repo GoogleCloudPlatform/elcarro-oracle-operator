@@ -6,7 +6,7 @@ ginkgo_test(
     name = "instancetest_test",
     timeout = "eternal",
     srcs = ["instance_test.go"],
-    nodes = 5,
+    nodes = 6,
     tags = ["integration"],
     deps = [
         "//common/api/v1alpha1",
