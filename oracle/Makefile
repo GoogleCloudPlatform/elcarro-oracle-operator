@@ -102,7 +102,7 @@ test:
 	bazel \
 		--bazelrc=controllers/inttest/.bazelrc \
 		test \
- 		--jobs=8 \
+ 		--jobs=10 \
  		--test_tag_filters="integration" \
  		... \
 		--test_output=errors \
