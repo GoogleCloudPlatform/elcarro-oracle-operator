@@ -1082,7 +1082,7 @@ func (s *Server) uploadDirectoryContentsToGCS(ctx context.Context, backupDir, gc
 		}
 		end := time.Now()
 		rate := float64(info.Size()) / (end.Sub(start).Seconds())
-		klog.Infof("Uploaded %s (%f MB/s)\n", gcsTarget.String(), rate/1024/1024)
+		klog.InfoS("dbdaemon/uploadDirectoryContentsToGCS", "uploaded", gcsTarget.String(), "throughput", fmt.Sprintf("%f MB/s", rate/1024/1024))
 
 		return nil
 	})
@@ -1788,10 +1788,13 @@ func (s *Server) downloadFile(ctx context.Context, c *storage.Client, bucket, gc
 	}
 
 	f := filepath.Join(dest, relPath)
+	start := time.Now()
 	if err := s.osUtil.createFile(f, reader); err != nil {
 		return fmt.Errorf("failed to createFile for file %s, err %s", f, err)
 	}
-	klog.InfoS("dbdaemon/downloadFile:", "downloaded", f)
+	end := time.Now()
+	rate := float64(reader.Attrs.Size) / (end.Sub(start).Seconds())
+	klog.InfoS("dbdaemon/downloadFile:", "downloaded", f, "throughput", fmt.Sprintf("(%f MB/s)", rate/1024/1024))
 	return nil
 }
 
