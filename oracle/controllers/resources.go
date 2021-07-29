@@ -139,16 +139,21 @@ func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1
 	var svcAnnotations map[string]string
 
 	lbType := corev1.ServiceTypeLoadBalancer
+	lbIP := ""
 	svcNameFull := fmt.Sprintf(SvcName, inst.Name)
+
 	if lb == "node" {
 		lbType = corev1.ServiceTypeNodePort
 		svcNameFull = svcNameFull + "-" + lb
 	} else {
 		networkOpts := inst.Spec.DBNetworkServiceOptions
-		if networkOpts != nil && networkOpts.GCP.LoadBalancerType == "Internal" {
-			svcAnnotations = map[string]string{
-				"cloud.google.com/load-balancer-type": "Internal",
+		if networkOpts != nil {
+			if networkOpts.GCP.LoadBalancerType == "Internal" {
+				svcAnnotations = map[string]string{
+					"cloud.google.com/load-balancer-type": "Internal",
+				}
 			}
+			lbIP = networkOpts.GCP.LoadBalancerIP
 		}
 	}
 
@@ -171,7 +176,8 @@ func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1
 					TargetPort: intstr.FromInt(consts.SSLListenerPort),
 				},
 			},
-			Type: lbType,
+			Type:           lbType,
+			LoadBalancerIP: lbIP,
 			// LoadBalancerSourceRanges: sourceCidrRanges,
 		},
 	}

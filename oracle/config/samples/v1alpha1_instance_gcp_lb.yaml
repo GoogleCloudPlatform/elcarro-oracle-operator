@@ -29,6 +29,13 @@ spec:
   dbNetworkServiceOptions:
     gcp:
       loadBalancerType: Internal
+# Uncomment this section to specify a static load balancer IP address
+#      # Note the IP address type, Internal or External, should match the loadBalancerType. See
+#      # https://cloud.google.com/compute/docs/ip-addresses/reserve-static-internal-ip-address
+#      # https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address
+#      # on how to reserve static IP addresses
+#      loadBalancerIP: ${STATIC_IP_ADDRESS}
+
 # Uncomment this section to trigger a restore.
 #  restore:
 #    backupType: "Snapshot" #(or "Physical")

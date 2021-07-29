@@ -163,6 +163,11 @@ type DBNetworkServiceOptionsGCP struct {
 	// +kubebuilder:validation:Enum="";Internal;External
 	// +optional
 	LoadBalancerType string `json:"loadBalancerType,omitempty"`
+
+	// LoadBalancerIP is a static IP address, see
+	// https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address
+	// +optional
+	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 }
 
 // InstanceStatus defines the observed state of Instance.
