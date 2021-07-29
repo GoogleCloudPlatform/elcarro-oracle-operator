@@ -773,11 +773,11 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 				Disks: []commonv1alpha1.DiskSpec{
 					{
 						Name: "DataDisk",
-						Size: resource.MustParse("100Gi"),
+						Size: resource.MustParse("45Gi"),
 					},
 					{
 						Name: "LogDisk",
-						Size: resource.MustParse("150Gi"),
+						Size: resource.MustParse("55Gi"),
 					},
 				},
 				DatabaseResources: corev1.ResourceRequirements{

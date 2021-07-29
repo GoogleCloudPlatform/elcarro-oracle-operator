@@ -166,11 +166,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
-							Size: resource.MustParse("100Gi"),
+							Size: resource.MustParse("45Gi"),
 						},
 						{
 							Name: "LogDisk",
-							Size: resource.MustParse("150Gi"),
+							Size: resource.MustParse("55Gi"),
 						},
 					},
 					Images:            map[string]string{},
@@ -213,11 +213,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
-							Size: resource.MustParse("100Gi"),
+							Size: resource.MustParse("45Gi"),
 						},
 						{
 							Name: "LogDisk",
-							Size: resource.MustParse("150Gi"),
+							Size: resource.MustParse("55Gi"),
 						},
 						{
 							Name: "BackupDisk",
@@ -263,11 +263,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 					Disks: []commonv1alpha1.DiskSpec{
 						{
 							Name: "DataDisk",
-							Size: resource.MustParse("100Gi"),
+							Size: resource.MustParse("45Gi"),
 						},
 						{
 							Name: "LogDisk",
-							Size: resource.MustParse("150Gi"),
+							Size: resource.MustParse("55Gi"),
 						},
 					},
 					Images:            map[string]string{},
