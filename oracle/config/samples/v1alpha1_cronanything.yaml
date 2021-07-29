@@ -7,7 +7,6 @@ metadata:
 spec:
   schedule: "*/5 * * * *"
   totalResourceLimit: 10
-  historyCountLimit: 2
   concurrencyPolicy: Allow
   template:
     apiVersion: oracle.db.anthosapis.com/v1alpha1
