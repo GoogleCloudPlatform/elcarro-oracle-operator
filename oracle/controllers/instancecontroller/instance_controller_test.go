@@ -17,6 +17,7 @@ package instancecontroller
 import (
 	"context"
 	"errors"
+	"sort"
 	"testing"
 	"time"
 
@@ -138,15 +139,28 @@ func testInstanceProvision() {
 
 		var sts appsv1.StatefulSetList
 		Expect(k8sClient.List(ctx, &sts, client.InNamespace(Namespace))).Should(Succeed())
-		Expect(len(sts.Items) == 1)
+		Expect(len(sts.Items)).To(Equal(1))
 
 		var deployment appsv1.DeploymentList
 		Expect(k8sClient.List(ctx, &deployment, client.InNamespace(Namespace))).Should(Succeed())
-		Expect(len(deployment.Items) == 1)
+		Expect(len(deployment.Items)).To(Equal(1))
 
-		var svc corev1.ServiceList
-		Expect(k8sClient.List(ctx, &svc, client.InNamespace(Namespace))).Should(Succeed())
-		Expect(len(svc.Items) == 4)
+		var services corev1.ServiceList
+		Expect(k8sClient.List(ctx, &services, client.InNamespace(Namespace))).Should(Succeed())
+		expectedNames := []string{
+			"kubernetes",
+			"test-instance-provision-svc",
+			"test-instance-provision-svc-node",
+			"test-instance-provision-dbdaemon-svc",
+			"test-instance-provision-agent-svc",
+		}
+		sort.Strings(expectedNames)
+		serviceNames := []string{}
+		for _, item := range services.Items {
+			serviceNames = append(serviceNames, item.Name)
+		}
+		sort.Strings(serviceNames)
+		Expect(serviceNames).To(Equal(expectedNames))
 
 		By("setting Instance as Ready")
 		fakeClientFactory.Caclient.SetAsyncBootstrapDatabase(true)

@@ -47,7 +47,6 @@ go_test(
         "@com_github_go_logr_logr//:logr",
         "@com_github_onsi_ginkgo//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
-        "@io_k8s_api//apps/v1:apps",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",

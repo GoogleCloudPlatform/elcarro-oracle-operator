@@ -22,7 +22,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,10 +123,6 @@ var _ = Describe("Database controller", func() {
 			}
 			testhelpers.K8sCreateAndGet(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: instanceName}, instance, createdInstance)
 
-			var sts appsv1.StatefulSetList
-			Expect(k8sClient.List(ctx, &sts, client.InNamespace(Namespace))).Should(Succeed())
-			Expect(len(sts.Items) == 1)
-
 			By("By creating a pod")
 			pod := &v1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -197,9 +193,6 @@ var _ = Describe("Database controller", func() {
 			}
 			DbObjKey := client.ObjectKey{Namespace: Namespace, Name: DatabaseName}
 			testhelpers.K8sCreateAndGet(k8sClient, ctx, DbObjKey, database, createdDatabase)
-
-			Expect(k8sClient.List(ctx, &sts, client.InNamespace(DatabaseName))).Should(Succeed())
-			Expect(len(sts.Items) == 1)
 
 			By("By checking that the updated database succeeded")
 			var updatedDatabase v1alpha1.Database
