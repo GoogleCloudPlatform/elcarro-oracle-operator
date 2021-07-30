@@ -25,6 +25,8 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+
+	lropb "google.golang.org/genproto/googleapis/longrunning"
 	grpcstatus "google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -59,7 +61,6 @@ type FakeConfigAgentClient struct {
 	updateUsersCalledCnt           int32
 	checkStatusCalledCnt           int32
 	createCDBCalledCnt             int32
-	bootstrapCDBCalledCnt          int32
 	bootstrapDatabaseCalledCnt     int32
 	bootstrapStandbyCalledCnt      int32
 	bounceDatabaseCalledCnt        int32
@@ -75,6 +76,7 @@ type FakeConfigAgentClient struct {
 
 	lock                         sync.Mutex
 	fetchServiceImageMetaDataCnt int32
+	asyncBootstrapDatabase       bool
 	asyncPhysicalBackup          bool
 	asyncPhysicalRestore         bool
 	methodToRespFunc             map[string]func(interface{}) (interface{}, error)
@@ -219,7 +221,12 @@ func (cli *FakeConfigAgentClient) CreateCDBUser(context.Context, *capb.CreateCDB
 // BootstrapDatabase wrapper.
 func (cli *FakeConfigAgentClient) BootstrapDatabase(context.Context, *capb.BootstrapDatabaseRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
 	atomic.AddInt32(&cli.bootstrapDatabaseCalledCnt, 1)
-	return nil, nil
+	return &lropb.Operation{Done: !cli.asyncBootstrapDatabase}, nil
+}
+
+// BootstrapDatabaseCalledCnt returns call count.
+func (cli *FakeConfigAgentClient) BootstrapDatabaseCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.bootstrapDatabaseCalledCnt))
 }
 
 // BootstrapStandby wrapper.
@@ -334,6 +341,12 @@ func (cli *FakeConfigAgentClient) SetAsyncPhysicalRestore(async bool) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.asyncPhysicalRestore = async
+}
+
+func (cli *FakeConfigAgentClient) SetAsyncBootstrapDatabase(async bool) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.asyncBootstrapDatabase = async
 }
 
 func (cli *FakeConfigAgentClient) SetMethodToRespFunc(m map[string]func(interface{}) (interface{}, error)) {

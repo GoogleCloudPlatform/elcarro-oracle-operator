@@ -109,11 +109,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 			createdInstance := &v1alpha1.Instance{}
 			instKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
 
-			insTimeout := instancecontroller.InstanceProvisionTimeoutSeeded
-			dbTimeout := instancecontroller.CreateDatabaseInstanceTimeoutSeeded
+			insTimeout := instancecontroller.InstanceReadyTimeout
+			dbTimeout := instancecontroller.DatabaseInstanceReadyTimeoutSeeded
 			if !isImageSeeded {
-				insTimeout = instancecontroller.InstanceProvisionTimeoutUnseeded
-				dbTimeout = instancecontroller.CreateDatabaseInstanceTimeoutUnSeeded
+				dbTimeout = instancecontroller.DatabaseInstanceReadyTimeoutUnseeded
 			}
 
 			By("By checking that Instance is created")

@@ -258,7 +258,7 @@ func NewAgentSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme) (*corev1.Servi
 // SvcURL returns the URL for the database service.
 func SvcURL(svc *corev1.Service, port int32) string {
 	// Unset if not present: state to reflect what's observed.
-	if len(svc.Status.LoadBalancer.Ingress) == 0 {
+	if svc == nil || len(svc.Status.LoadBalancer.Ingress) == 0 {
 		return ""
 	}
 

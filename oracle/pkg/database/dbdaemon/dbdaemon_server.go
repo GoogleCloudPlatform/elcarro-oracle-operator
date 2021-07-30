@@ -1254,8 +1254,8 @@ func (s *Server) BootstrapStandby(ctx context.Context, req *dbdpb.BootstrapStand
 	return &dbdpb.BootstrapStandbyResponse{}, nil
 }
 
-// CreateCDB creates a database instance
-func (s *Server) CreateCDB(ctx context.Context, req *dbdpb.CreateCDBRequest) (*dbdpb.CreateCDBResponse, error) {
+// createCDB creates a database instance
+func (s *Server) createCDB(ctx context.Context, req *dbdpb.CreateCDBRequest) (*dbdpb.CreateCDBResponse, error) {
 	klog.InfoS("CreateCDB request invoked", "req", req)
 
 	password, err := security.RandOraclePassword()
@@ -1327,8 +1327,16 @@ func (s *Server) CreateCDB(ctx context.Context, req *dbdpb.CreateCDBRequest) (*d
 	if err != nil {
 		return nil, fmt.Errorf("error while running dbca command: %v", err)
 	}
-	klog.InfoS("CDB created successfully")
+	klog.InfoS("dbdaemon/CreateCDB: CDB created successfully")
 
+	if _, err := s.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: req.GetDatabaseName(),
+	}); err != nil {
+		return nil, fmt.Errorf("dbdaemon/CreateCDB: shutdown failed: %v", err)
+	}
+
+	klog.InfoS("dbdaemon/CreateCDB successfully completed")
 	return &dbdpb.CreateCDBResponse{}, nil
 }
 
@@ -1345,7 +1353,7 @@ func (s *Server) CreateFile(ctx context.Context, req *dbdpb.CreateFileRequest) (
 func (s *Server) CreateCDBAsync(ctx context.Context, req *dbdpb.CreateCDBAsyncRequest) (*lropb.Operation, error) {
 	job, err := lro.CreateAndRunLROJobWithID(ctx, req.GetLroInput().GetOperationId(), "CreateCDB", s.lroServer,
 		func(ctx context.Context) (proto.Message, error) {
-			return s.CreateCDB(ctx, req.SyncRequest)
+			return s.createCDB(ctx, req.SyncRequest)
 		})
 
 	if err != nil {
@@ -1787,8 +1795,8 @@ func (s *Server) downloadFile(ctx context.Context, c *storage.Client, bucket, gc
 	return nil
 }
 
-// BootstrapDatabase invokes init_oracle on dbdaemon_proxy to perform bootstrap tasks for seeded image
-func (s *Server) BootstrapDatabase(ctx context.Context, req *dbdpb.BootstrapDatabaseRequest) (*dbdpb.BootstrapDatabaseResponse, error) {
+// bootstrapDatabase invokes init_oracle on dbdaemon_proxy to perform bootstrap tasks for seeded image
+func (s *Server) bootstrapDatabase(ctx context.Context, req *dbdpb.BootstrapDatabaseRequest) (*dbdpb.BootstrapDatabaseResponse, error) {
 	cmd := "free -m | awk '/Mem/ {print $2}'"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
@@ -1815,4 +1823,18 @@ func (s *Server) BootstrapDatabase(ctx context.Context, req *dbdpb.BootstrapData
 	klog.InfoS("dbdaemon/BootstrapDatabase: bootstrap database successful")
 
 	return &dbdpb.BootstrapDatabaseResponse{}, nil
+}
+
+func (s *Server) BootstrapDatabaseAsync(ctx context.Context, req *dbdpb.BootstrapDatabaseAsyncRequest) (*lropb.Operation, error) {
+	job, err := lro.CreateAndRunLROJobWithID(ctx, req.GetLroInput().GetOperationId(), "BootstrapDatabase", s.lroServer,
+		func(ctx context.Context) (proto.Message, error) {
+			return s.bootstrapDatabase(ctx, req.SyncRequest)
+		})
+
+	if err != nil {
+		klog.ErrorS(err, "dbdaemon/BootstrapDatabaseAsync failed to create an LRO job", "request", req)
+		return nil, err
+	}
+
+	return &lropb.Operation{Name: job.ID(), Done: false}, nil
 }

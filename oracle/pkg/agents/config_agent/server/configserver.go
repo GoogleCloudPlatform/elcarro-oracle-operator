@@ -233,28 +233,25 @@ func (s *ConfigServer) CreateCDB(ctx context.Context, req *pb.CreateCDBRequest) 
 	}
 	defer closeConn()
 
-	_, err = dbdClient.CreateCDB(ctx, &dbdpb.CreateCDBRequest{
-		OracleHome:       req.GetOracleHome(),
-		DatabaseName:     req.GetSid(),
-		Version:          req.GetVersion(),
-		DbUniqueName:     req.GetDbUniqueName(),
-		CharacterSet:     req.GetCharacterSet(),
-		MemoryPercent:    req.GetMemoryPercent(),
-		AdditionalParams: req.GetAdditionalParams(),
-		DbDomain:         req.GetDbDomain(),
+	lro, err := dbdClient.CreateCDBAsync(ctx, &dbdpb.CreateCDBAsyncRequest{
+		SyncRequest: &dbdpb.CreateCDBRequest{
+			OracleHome:       req.GetOracleHome(),
+			DatabaseName:     req.GetSid(),
+			Version:          req.GetVersion(),
+			DbUniqueName:     req.GetDbUniqueName(),
+			CharacterSet:     req.GetCharacterSet(),
+			MemoryPercent:    req.GetMemoryPercent(),
+			AdditionalParams: req.GetAdditionalParams(),
+			DbDomain:         req.GetDbDomain(),
+		},
+		LroInput: &dbdpb.LROInput{OperationId: req.GetLroInput().GetOperationId()},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("configagent/CreateCDB: failed to create CDB: %v", err)
 	}
 
-	if _, err := dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
-		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
-		DatabaseName: req.GetSid(),
-	}); err != nil {
-		return nil, fmt.Errorf("configagent/CreateCDB: shutdown failed: %v", err)
-	}
 	klog.InfoS("configagent/CreateCDB successfully completed")
-	return &lropb.Operation{Done: true}, nil
+	return lro, nil
 }
 
 // CreateListener invokes dbdaemon.CreateListener.
@@ -723,13 +720,17 @@ func (s *ConfigServer) BootstrapDatabase(ctx context.Context, req *pb.BootstrapD
 			return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to bootstrap database : %v", err)
 		}
 	case pb.BootstrapDatabaseRequest_ProvisionSeeded:
-		if _, err = dbdClient.BootstrapDatabase(ctx, &dbdpb.BootstrapDatabaseRequest{
-			CdbName:  req.GetCdbName(),
-			DbDomain: req.GetDbdomain(),
-		}); err != nil {
+		lro, err := dbdClient.BootstrapDatabaseAsync(ctx, &dbdpb.BootstrapDatabaseAsyncRequest{
+			SyncRequest: &dbdpb.BootstrapDatabaseRequest{
+				CdbName:  req.GetCdbName(),
+				DbDomain: req.GetDbdomain(),
+			},
+			LroInput: &dbdpb.LROInput{OperationId: req.GetLroInput().GetOperationId()},
+		})
+		if err != nil {
 			return nil, fmt.Errorf("configagent/BootstrapDatabase: error while call dbdaemon/BootstrapDatabase: %v", err)
 		}
-		return &lropb.Operation{Done: true}, nil
+		return lro, nil
 	default:
 	}
 

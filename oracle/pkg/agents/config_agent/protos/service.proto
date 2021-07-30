@@ -76,6 +76,7 @@ message CreateCDBRequest {
   repeated string additional_params = 6;
   string version = 7;
   string db_domain = 8;
+  LROInput lro_input = 9;
 }
 
 message CreateListenerRequest {
@@ -284,6 +285,7 @@ message BootstrapDatabaseRequest {
   string db_unique_name = 4;
   string dbdomain = 5;
   BootstrapMode mode = 6;
+  LROInput lro_input = 7;
 }
 
 message BootstrapDatabaseResponse {}
