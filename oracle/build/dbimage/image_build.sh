@@ -40,13 +40,13 @@ sanity_check_params() {
     if [ -z "${CDB_NAME}" ]; then
       CDB_NAME="GCLOUD"
     fi
-    db_name_len=`expr length "${CDB_NAME}"`
+    db_name_len="${#CDB_NAME}"
     if [[ "${db_name_len}" -le 0 || "${db_name_len}" -gt 8 ]]; then
       echo "CDB_NAME should be less than or equal to 8 characters"
       usage
     fi
   else
-    db_name_len=`expr length "${CDB_NAME}"`
+    db_name_len="${#CDB_NAME}"
     if [[ "${db_name_len}" -gt 0 ]]; then
       echo "CDB_NAME is set but CREATE_CDB is not"
       usage
