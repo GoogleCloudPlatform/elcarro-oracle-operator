@@ -14,63 +14,50 @@
 # limitations under the License.
 
 # Name:
-# 	redeploy.sh
+#	redeploy.sh
 # Usage:
 #	redeploy.sh <fully qualified cluster name> [<project ID>]
 #
 #	Example: redeploy.sh gke_${USER}-playground-operator_us-central1-a_cluster4 ${USER}-playground-operator
 #
-#	If the project is not provided as a (2nd) parameter, a standard SWE
-#	project pattern is assumed.
+#	If the project in the (2nd) parameter is not passed or empty, PROW_PROJECT is
+#	used.
 #
-#	If a namespace is not provided as a (3rd) parameter, ns defaults to db.
-#	(can also be set via DEV_NS env variable).
+#	If a namespace in the (3rd) parameter is not passed or empty, DEV_NS is
+#	used. If DEV_NS is not set then "db" is the default namespace.
 #
 #	If noinstall is provided as a (4th) parameter, only the cleanup part runs.
 #	No CRD install, no Operator build/push, no deploy.
 #	This option is useful for deploying from an official build by running:
 #	kubectl apply -f operator.yaml
 #
+#	If an instance name in the (5th) parameter is not passed or empty, DEV_INSTNAME
+#	is used. If DEV_INSTNAME is empty "mydb" is the default instance name.
+#
 # Function:
-#  This script is meant to be used interactively during the dev cycle to
-#	 reset and redeploy Operator K8s resources, including rebuilding of the images
-#	 pushed to GCR.
+#	This script is meant to be used interactively during the dev cycle to
+#	reset and redeploy Operator K8s resources, including rebuilding of the images
+#	pushed to GCR.
 
-[[ "$#" -lt 1 ]] && { echo "Usage: $(basename $0) <FQN of a user cluster> [<project ID> [<kubernetes namespace> [ <install|noinstall> [<instance name>]]]]"; exit 1; }
+usage="Usage: $(basename $0) <FQN of a user cluster> [<project ID> [<kubernetes namespace> [ <install|noinstall> [<instance name>]]]]"
 
-CLUSTER="${1}"
-
-if [[ ! -z "${2}" ]] ;then
-        PROJECTID="${2}"
-else
-        PROJECTID="${USER}-playground-operator"
-fi
-
-if [[ ! -z "${3}" ]] ;then
-        NS="${3}"
-else
-        # use DEV_NS env var or 'db' as default
-        NS=${DEV_NS:-db}
-fi
+CLUSTER="${1:-$PROW_CLUSTER}"
+PROJECTID="${2:-$PROW_PROJECT}"
+NS=${3:-${DEV_NS:-db}}
 
 NOINSTALL=false
-if [[ ! -z "${4}" && "${4}" == "noinstall" ]] ;then
+if [[ "${4}" == "noinstall" ]] ;then
 	NOINSTALL=true
 fi
 
-if [[ ! -z "${5}" ]] ;then
-        INSTNAME="${5}"
-else
-        # use DEV_INSTNAME env var or 'mydb' as default
-        INSTNAME=${DEV_INSTNAME:-mydb}
-fi
+INSTNAME=${5:-${DEV_INSTNAME:-mydb}}
 
-kubectl config use-context ${CLUSTER}
+kubectl config use-context ${CLUSTER:?"$usage"}
 kubectl config current-context
-echo "Deployment project: ${PROJECTID}"
-echo "Deployment namespace: ${NS}"
+echo "Deployment project: ${PROJECTID:?"$usage"}"
+echo "Deployment namespace: ${NS:?"$usage"}"
 echo "No install? ${NOINSTALL}"
-echo "Instance name: ${INSTNAME}"
+echo "Instance name: ${INSTNAME:?"$usage"}"
 echo "*** verify cluster context and the project before proceeding ***"
 echo "Press any key to continue..."
 read -n 1 input
@@ -109,9 +96,9 @@ if [[ ${NOINSTALL} == true ]] ;then
 fi
 
 # Setup image targets for make.
-export PROW_IMAGE_REPO=gcr.io/${PROJECTID}
-export PROW_PROJECT=${PROJECTID}
-export PROW_IMAGE_TAG=latest
+export PROW_IMAGE_REPO=${PROW_IMAGE_REPO:-gcr.io/${PROJECTID}}
+export PROW_PROJECT=${PROW_PROJECT:-${PROJECTID}}
+export PROW_IMAGE_TAG=${PROW_IMAGE_TAG:-latest}
 date; make deploy
 
 kubectl get instances -n $NS
