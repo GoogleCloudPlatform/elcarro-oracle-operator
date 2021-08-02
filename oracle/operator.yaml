@@ -765,7 +765,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: CronAnything is the Schema for the cronanythings API.
+        description: CronAnything is the Schema for the CronAnything API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -1029,6 +1029,8 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""
@@ -2502,7 +2504,6 @@ rules:
   resources:
   - cronanythings
   verbs:
-  - '*'
   - create
   - delete
   - get
@@ -2510,6 +2511,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - cronanythings/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - oracle.db.anthosapis.com
   resources:

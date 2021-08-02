@@ -265,13 +265,13 @@ template:
 	testCases := []struct {
 		name            string
 		backupSchedule  *v1alpha1.BackupSchedule
-		oldCronSpec     *v1alpha1.CronAnythingSpec
+		oldCronSpec     *commonv1alpha1.CronAnythingSpec
 		wantCronSpecStr string
 	}{
 		{
 			name:           "schedule changed",
 			backupSchedule: &schedule,
-			oldCronSpec: &v1alpha1.CronAnythingSpec{
+			oldCronSpec: &commonv1alpha1.CronAnythingSpec{
 				Schedule:                "*/10 * * * *",
 				Template:                runtime.RawExtension{Raw: backup},
 				ResourceBaseName:        pointer.StringPtr("test-backup-schedule-cron"),
@@ -282,7 +282,7 @@ template:
 		{
 			name:           "backup spec changed",
 			backupSchedule: &schedule,
-			oldCronSpec: &v1alpha1.CronAnythingSpec{
+			oldCronSpec: &commonv1alpha1.CronAnythingSpec{
 				Schedule:                testSchedule,
 				Template:                runtime.RawExtension{Raw: changedBackup},
 				ResourceBaseName:        pointer.StringPtr("test-backup-schedule-cron"),
@@ -293,7 +293,7 @@ template:
 		{
 			name:           "StartingDeadlineSeconds changed",
 			backupSchedule: &schedule,
-			oldCronSpec: &v1alpha1.CronAnythingSpec{
+			oldCronSpec: &commonv1alpha1.CronAnythingSpec{
 				Schedule:                testSchedule,
 				Template:                runtime.RawExtension{Raw: backup},
 				ResourceBaseName:        pointer.StringPtr("test-backup-schedule-cron"),
@@ -305,7 +305,7 @@ template:
 		{
 			name:           "unchanged",
 			backupSchedule: &schedule,
-			oldCronSpec: &v1alpha1.CronAnythingSpec{
+			oldCronSpec: &commonv1alpha1.CronAnythingSpec{
 				Schedule:                testSchedule,
 				Template:                runtime.RawExtension{Raw: backup},
 				ResourceBaseName:        pointer.StringPtr("test-backup-schedule-cron"),
@@ -319,7 +319,9 @@ template:
 		t.Run(tc.name, func(t *testing.T) {
 			cronAnythingCtrl.get = func(name, namespace string) (*v1alpha1.CronAnything, error) {
 				return &v1alpha1.CronAnything{
-					Spec: *tc.oldCronSpec,
+					Spec: v1alpha1.CronAnythingSpec{
+						CronAnythingSpec: *tc.oldCronSpec,
+					},
 				}, nil
 			}
 			var gotCronSpecStr string
@@ -380,7 +382,9 @@ func TestReconcileWithBackupPrune(t *testing.T) {
 	cronAnythingCtrl.get = func(name, namespace string) (*v1alpha1.CronAnything, error) {
 		return &v1alpha1.CronAnything{
 			Spec: v1alpha1.CronAnythingSpec{
-				Template: runtime.RawExtension{Raw: backupBytes},
+				CronAnythingSpec: commonv1alpha1.CronAnythingSpec{
+					Template: runtime.RawExtension{Raw: backupBytes},
+				},
 			},
 		}, nil
 	}

@@ -155,23 +155,25 @@ func (r *BackupScheduleReconciler) createCron(backupSchedule *v1alpha1.BackupSch
 			Namespace: backupSchedule.Namespace,
 		},
 		Spec: v1alpha1.CronAnythingSpec{
-			Schedule:               backupSchedule.Spec.Schedule,
-			TriggerDeadlineSeconds: &triggerDeadlineSeconds,
-			ConcurrencyPolicy:      v1alpha1.ForbidConcurrent,
-			FinishableStrategy: &v1alpha1.FinishableStrategy{
-				Type: v1alpha1.FinishableStrategyStringField,
-				StringField: &v1alpha1.StringFieldStrategy{
-					FieldPath: fmt.Sprintf("{.status.conditions[?(@.type==\"%s\")].reason}", k8s.Ready),
-					FinishedValues: []string{
-						k8s.BackupReady,
-						k8s.BackupFailed,
+			CronAnythingSpec: commonv1alpha1.CronAnythingSpec{
+				Schedule:               backupSchedule.Spec.Schedule,
+				TriggerDeadlineSeconds: &triggerDeadlineSeconds,
+				ConcurrencyPolicy:      commonv1alpha1.ForbidConcurrent,
+				FinishableStrategy: &commonv1alpha1.FinishableStrategy{
+					Type: commonv1alpha1.FinishableStrategyStringField,
+					StringField: &commonv1alpha1.StringFieldStrategy{
+						FieldPath: fmt.Sprintf("{.status.conditions[?(@.type==\"%s\")].reason}", k8s.Ready),
+						FinishedValues: []string{
+							k8s.BackupReady,
+							k8s.BackupFailed,
+						},
 					},
 				},
-			},
-			ResourceBaseName:        &name,
-			ResourceTimestampFormat: &defaultTimeFormat,
-			Template: runtime.RawExtension{
-				Raw: backupBytes,
+				ResourceBaseName:        &name,
+				ResourceTimestampFormat: &defaultTimeFormat,
+				Template: runtime.RawExtension{
+					Raw: backupBytes,
+				},
 			},
 		},
 	}

@@ -222,7 +222,6 @@ rules:
   resources:
   - cronanythings
   verbs:
-  - '*'
   - create
   - delete
   - get
@@ -230,6 +229,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - cronanythings/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - oracle.db.anthosapis.com
   resources:

@@ -62,6 +62,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = v1alpha1.AddToScheme(scheme)
+
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -168,14 +169,18 @@ func main() {
 	}
 
 	cronAnythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(
-		mgr, ctrl.Log.WithName("controllers").WithName("CronAnything"))
+		mgr,
+		ctrl.Log.WithName("controllers").WithName("CronAnything"),
+		&cronanythingcontroller.RealCronAnythingControl{
+			Client: mgr.GetClient(),
+		})
 	if err != nil {
-		setupLog.Error(err, "unable to build controller", "controller", "CronAnything")
+		setupLog.Error(err, "unable to init reconciler", "reconciler", "CronAnything")
 		os.Exit(1)
 	}
 
-	if err := cronAnythingReconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to Add controller", "controller", "CronAnything")
+	if err = cronAnythingReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CronAnything")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
