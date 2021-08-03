@@ -145,10 +145,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 				)
 
 				// Wait until the instance is "Ready"
-				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.RestoreComplete, 10*time.Minute)
+				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.RestoreComplete, 20*time.Minute)
 
 				// Check databases are "Ready"
-				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 30*time.Second)
+				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
 
 				testhelpers.VerifySimpleData(k8sEnv)
 			})

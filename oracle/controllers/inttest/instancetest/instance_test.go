@@ -114,6 +114,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			if !isImageSeeded {
 				dbTimeout = instancecontroller.DatabaseInstanceReadyTimeoutUnseeded
 			}
+			dbTimeout += 5 * time.Minute // Add some buffer time given that this test runs in a different process space than the instance
 
 			By("By checking that Instance is created")
 			// Wait until the instance is "Ready" (requires 5+ minutes to download image)
