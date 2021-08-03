@@ -18,8 +18,8 @@ spec:
   # Level: 0=Full Backup, 1=Incremental, 2=Cumulative
   # level: 0
   # filesperset: 10
-  # Backup Section Size in MB (don't specify the unit, just the integer).
-  sectionSize: 500
+  # Backup Section Size in MB.
+  sectionSize: "500M"
   # Backup threshold is expressed in minutes (don't specify the unit, just the integer).
   timeLimitMinutes: 30
   # For RMAN backup to gcs bucket, localPath will be ignored.

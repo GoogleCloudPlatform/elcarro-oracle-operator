@@ -44,7 +44,7 @@ creation:
 * checkLogical: a boolean flag to turn on RMAN "check logical" option. Default is false.
 * dop: used to set degree of parallelism. Default is 1.
 * level: used to set incremental level (0=Full Backup, 1=Incremental, 2=Cumulative). Default is 0.
-* sectionSize: an integer used to set section size in MB.
+* sectionSize: a reource.Quantity used to set section size in various units (K M G). See also [resource.Quantity](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity)
 * timeLimitMinutes: an integer used to set the time threshold for creating an RMAN backup in minutes. Default is 60.
 * localPath: used to specify local backup directory. Default is '/u03/app/oracle/rman'.
 * gcsPath: used to specify a GCS bucket to transfer backup to. User need to ensure proper write access to the bucket from the Oracle Operator. "localPath" will be ignored if this is set.
@@ -72,8 +72,8 @@ spec:
   # Level: 0=Full Backup, 1=Incremental, 2=Cumulative
   # level: 0
   filesperset: 10
-  # Backup Section Size in MB (don't specify the unit, just the integer).
-  sectionSize: 100
+  # Backup Section Size in MB.
+  sectionSize: "100M"
   # Backup threshold is expressed in minutes (don't specify the unit, just the integer).
   timeLimitMinutes: 30
   localPath: "/u03/app/oracle/rman"

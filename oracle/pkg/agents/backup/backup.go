@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
@@ -75,7 +76,7 @@ type Params struct {
 	Compressed   bool
 	Level        int32
 	Filesperset  int32
-	SectionSize  int32
+	SectionSize  resource.Quantity
 	LocalPath    string
 	GCSPath      string
 	OperationID  string
@@ -143,10 +144,7 @@ func PhysicalBackup(ctx context.Context, params *Params) (*lropb.Operation, erro
 	}
 	klog.InfoS("oracle/PhysicalBackup", "filesperset", filesperset)
 
-	sectionSize := ""
-	if params.SectionSize != 0 {
-		sectionSize = fmt.Sprintf("section size %dM", params.SectionSize)
-	}
+	sectionSize := sectionSize(params.SectionSize)
 	klog.InfoS("oracle/PhysicalBackup", "sectionSize", sectionSize)
 
 	// Change the location of RMAN control file snapshot from
@@ -169,4 +167,24 @@ func PhysicalBackup(ctx context.Context, params *Params) (*lropb.Operation, erro
 		return nil, fmt.Errorf("oracle/PhysicalBackup: failed to create database backup request: %v", err)
 	}
 	return operation, nil
+}
+
+func sectionSize(sectionSize resource.Quantity) string {
+	if sectionSize.IsZero() {
+		return ""
+	}
+	sectionSizeInt64, ok := sectionSize.AsInt64()
+	if !ok {
+		return ""
+	}
+	if scaledValue := sectionSizeInt64 / 1_000_000_000; scaledValue > 0 {
+		return fmt.Sprintf("section size %dG", scaledValue)
+	}
+	if scaledValue := sectionSizeInt64 / 1_000_000; scaledValue > 0 {
+		return fmt.Sprintf("section size %dM", scaledValue)
+	}
+	if scaledValue := sectionSizeInt64 / 1_000; scaledValue > 0 {
+		return fmt.Sprintf("section size %dK", scaledValue)
+	}
+	return fmt.Sprintf("section size %d", sectionSizeInt64)
 }

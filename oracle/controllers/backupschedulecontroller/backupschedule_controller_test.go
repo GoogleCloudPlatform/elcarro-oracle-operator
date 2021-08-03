@@ -104,6 +104,7 @@ spec:
     kind: Backup
     spec:
       instance: mydb
+      sectionSize: "0"
       type: Snapshot
   triggerDeadlineSeconds: 30
 status: {}`),
@@ -152,6 +153,7 @@ spec:
     spec:
       gcsPath: gs://bucket/rman
       instance: mydb1
+      sectionSize: "0"
       subType: Instance
       type: Physical
   triggerDeadlineSeconds: 60
@@ -195,9 +197,7 @@ status: {}`),
 			if err != nil {
 				t.Fatalf("reconciler.Reconcile want nil, got %v", err)
 			}
-			if gotCronStr != tc.wantCronStr {
-				t.Errorf("reconciler.Reconcile create CronAnything got spec \n%s\n want \n%s\n", gotCronStr, tc.wantCronStr)
-			}
+			diffSpecs(t, gotCronStr, tc.wantCronStr)
 		})
 	}
 }
@@ -247,6 +247,7 @@ template:
   spec:
     gcsPath: gs://bucket/rman
     instance: mydb1
+    sectionSize: "0"
     subType: Instance
     type: Physical`)
 
@@ -340,9 +341,7 @@ template:
 			if err != nil {
 				t.Fatalf("reconciler.Reconcile want nil, got %v", err)
 			}
-			if gotCronSpecStr != tc.wantCronSpecStr {
-				t.Errorf("reconciler.Reconcile create CronAnything got spec \n%s\n want \n%s\n", gotCronSpecStr, tc.wantCronSpecStr)
-			}
+			diffSpecs(t, gotCronSpecStr, tc.wantCronSpecStr)
 		})
 	}
 }
@@ -576,4 +575,10 @@ func (f *fakeBackupControl) List(cronAnythingName string) ([]*v1alpha1.Backup, e
 }
 func (f *fakeBackupControl) Delete(backup *v1alpha1.Backup) error {
 	return f.delete(backup)
+}
+
+func diffSpecs(t *testing.T, got, want string) {
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("\n===== GOT SPEC =====\n%s\n===== WANT SPEC =====\n%s\n\n====== Diff ======\n%s\n", got, want, diff)
+	}
 }

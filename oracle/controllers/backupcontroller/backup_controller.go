@@ -212,7 +212,7 @@ func (b *physicalBackup) create(ctx context.Context) error {
 		Dop:           dop,
 		Level:         b.backup.Spec.Level,
 		Filesperset:   b.backup.Spec.Filesperset,
-		SectionSize:   b.backup.Spec.SectionSize,
+		SectionSize:   b.backup.SectionSize(),
 		LocalPath:     b.backup.Spec.LocalPath,
 		GcsPath:       b.backup.Spec.GcsPath,
 		LroInput:      &capb.LROInput{OperationId: lroOperationID(b.backup)},

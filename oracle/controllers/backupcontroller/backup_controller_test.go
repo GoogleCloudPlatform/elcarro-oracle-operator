@@ -334,6 +334,28 @@ var _ = Describe("Backup controller", func() {
 			Expect(inst.Status.BackupID).Should(Equal(""))
 		})
 	})
+
+	Context("New backup should allow section size", func() {
+		It("defaults an empty input to  0", func() {
+			backup := &v1alpha1.Backup{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: Namespace,
+					Name:      BackupName,
+				},
+				Spec: v1alpha1.BackupSpec{
+					BackupSpec: commonv1alpha1.BackupSpec{
+						Instance: instance.Name,
+						Type:     commonv1alpha1.BackupTypePhysical,
+					},
+					// SectionSize omitted
+				},
+			}
+
+			expected := int64(0)
+			actual, _ := backup.Spec.SectionSize.AsInt64()
+			Expect(actual).To(Equal((expected)))
+		})
+	})
 })
 
 func getConditionReason(ctx context.Context, objKey client.ObjectKey, condType string) (string, error) {
