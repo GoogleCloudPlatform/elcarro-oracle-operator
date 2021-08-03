@@ -306,6 +306,55 @@ var _ = Describe("Instance and Database provisioning", func() {
 			BackupTest(testCase)
 		})
 	})
+
+	Context("New backup with section size", func() {
+		sectionSize, _ := resource.ParseQuantity("100M")
+		testCase := backupTestCase{
+			name:         "rman backup with section size",
+			instanceName: "mydb",
+			backupName:   "secsiz",
+			instanceSpec: v1alpha1.InstanceSpec{
+				CDBName: "GCLOUD",
+				InstanceSpec: commonv1alpha1.InstanceSpec{
+					Disks: []commonv1alpha1.DiskSpec{
+						{
+							Name: "DataDisk",
+							Size: resource.MustParse("45Gi"),
+						},
+						{
+							Name: "LogDisk",
+							Size: resource.MustParse("55Gi"),
+						},
+					},
+					Images:            map[string]string{},
+					DatabaseResources: dbResource,
+				},
+			},
+			backupSpec: v1alpha1.BackupSpec{
+				BackupSpec: commonv1alpha1.BackupSpec{
+					Instance: "mydb",
+					Type:     commonv1alpha1.BackupTypePhysical,
+				},
+				SectionSize: sectionSize,
+			},
+		}
+
+		Context("Oracle 12.2 EE", func() {
+			testCase.instanceSpec.Version = "12.2"
+			testCase.instanceSpec.Images = map[string]string{
+				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
+			}
+			BackupTest(testCase)
+		})
+
+		Context("Oracle 18c XE", func() {
+			testCase.instanceSpec.Version = "18c"
+			testCase.instanceSpec.Images = map[string]string{
+				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
+			}
+			BackupTest(testCase)
+		})
+	})
 })
 
 func TestPhysicalBackup(t *testing.T) {

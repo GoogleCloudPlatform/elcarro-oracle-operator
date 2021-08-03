@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "backup",
@@ -12,6 +12,7 @@ go_library(
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_klog_v2//:klog",
     ],
 )
@@ -28,4 +29,14 @@ filegroup(
     srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "backup_test",
+    srcs = ["backup_test.go"],
+    embed = [":backup"],
+    deps = [
+        "@com_github_google_go_cmp//cmp",
+        "@io_k8s_apimachinery//pkg/api/resource",
+    ],
 )

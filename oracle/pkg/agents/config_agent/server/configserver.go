@@ -28,6 +28,7 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup"
@@ -208,6 +209,7 @@ func (s *ConfigServer) PhysicalBackup(ctx context.Context, req *pb.PhysicalBacku
 	defer closeConn()
 	klog.InfoS("configagent/PhysicalBackup", "client", client)
 
+	sectionSize := resource.NewQuantity(int64(req.GetSectionSize()), resource.DecimalSI)
 	return backup.PhysicalBackup(ctx, &backup.Params{
 		Client:       client,
 		Granularity:  granularity,
@@ -217,7 +219,7 @@ func (s *ConfigServer) PhysicalBackup(ctx context.Context, req *pb.PhysicalBacku
 		DOP:          req.GetDop(),
 		Level:        req.GetLevel(),
 		Filesperset:  req.GetFilesperset(),
-		SectionSize:  req.GetSectionSize(),
+		SectionSize:  *sectionSize,
 		LocalPath:    req.GetLocalPath(),
 		GCSPath:      req.GetGcsPath(),
 		OperationID:  req.GetLroInput().GetOperationId(),

@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -20,6 +20,7 @@ go_library(
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1",
     deps = [
         "//common/api/v1alpha1",
+        "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/runtime/schema",
@@ -39,4 +40,11 @@ filegroup(
     srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "v1alpha1_test",
+    srcs = ["backup_types_test.go"],
+    embed = [":v1alpha1"],
+    deps = ["@io_k8s_apimachinery//pkg/api/resource"],
 )

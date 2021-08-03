@@ -145,10 +145,13 @@ spec:
                 - VerifyExists
                 type: string
               sectionSize:
+                anyOf:
+                - type: integer
+                - type: string
                 description: For a Physical backup, optionally specify a section size
-                  in MB. Don't include the unit (MB), just the integer.
-                format: int32
-                type: integer
+                  in various units (K M G).
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
               subType:
                 description: 'Backup sub-type, which is only relevant for a Physical
                   backup type (e.g. RMAN). If omitted, the default of Instance(Level)
