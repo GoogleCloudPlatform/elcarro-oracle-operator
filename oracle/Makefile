@@ -103,6 +103,7 @@ test:
 		--bazelrc=controllers/inttest/.bazelrc \
 		test \
  		--jobs=10 \
+ 		--local_cpu_resources=10 \
  		--test_tag_filters="integration" \
  		... \
 		--test_output=errors \
