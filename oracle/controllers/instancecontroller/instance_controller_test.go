@@ -195,7 +195,7 @@ func testInstanceProvision() {
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
 		Eventually(fakeClientFactory.Caclient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
-		Expect(fakeClientFactory.Caclient.BootstrapDatabaseCalledCnt()).Should(Equal(1))
+		Expect(fakeClientFactory.Caclient.BootstrapDatabaseCalledCnt()).Should(BeNumerically(">=", 1))
 
 		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
 	})
