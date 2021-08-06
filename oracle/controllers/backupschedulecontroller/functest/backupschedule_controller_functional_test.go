@@ -73,7 +73,9 @@ func TestBackupsScheduleController(t *testing.T) {
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "BackupSchedule controller", func() []testhelpers.Reconciler {
 		backupReconciler := &fakeBackupReconiler{k8sClient}
 		backupScheduleReconciler := backupschedulecontroller.NewBackupScheduleReconciler(k8sManager)
-		cronanythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(k8sManager, ctrl.Log.WithName("controllers").WithName("CronAnything"))
+		cronanythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(k8sManager, ctrl.Log.WithName("controllers").WithName("CronAnything"), &cronanythingcontroller.RealCronAnythingControl{
+			Client: k8sManager.GetClient(),
+		})
 		if err != nil {
 			t.Fatalf("failed to create cronanythingcontroller for backup schedule test")
 		}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cronanythingcontroller
+package controllers
 
 import (
 	"context"
@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	cronanything "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	cronanything "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 )
 
 const (
@@ -52,6 +52,27 @@ const (
 var (
 	baseTime = time.Date(2018, time.April, 20, 4, 20, 30, 0, time.UTC)
 )
+
+type fakeCronAnything struct {
+	runtime.Object
+	metav1.TypeMeta
+	metav1.ObjectMeta
+
+	Spec   cronanything.CronAnythingSpec   `json:"spec,omitempty"`
+	Status cronanything.CronAnythingStatus `json:"status,omitempty"`
+}
+
+func (in *fakeCronAnything) CronAnythingSpec() *cronanything.CronAnythingSpec {
+	return &in.Spec
+}
+
+func (in *fakeCronAnything) CronAnythingStatus() *cronanything.CronAnythingStatus {
+	return &in.Status
+}
+
+func (in *fakeCronAnything) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
 
 func createReconciler() (*ReconcileCronAnything, *fakeCronAnythingControl, *fakeResourceControl) {
 	fakeRecorder := &record.FakeRecorder{}
@@ -72,8 +93,8 @@ func createReconciler() (*ReconcileCronAnything, *fakeCronAnythingControl, *fake
 	}, fakeCronAnythingControl, fakeResourceControl
 }
 
-func newCronAnything(apiVersion, kind, name, namespace string) *cronanything.CronAnything {
-	return &cronanything.CronAnything{
+func newFakeCronAnything(apiVersion, kind, name, namespace string) *fakeCronAnything {
+	return &fakeCronAnything{
 		ObjectMeta: metav1.ObjectMeta{
 			CreationTimestamp: metav1.Time{
 				Time: baseTime.Add(-60 * time.Second),
@@ -91,7 +112,7 @@ func newCronAnything(apiVersion, kind, name, namespace string) *cronanything.Cro
 	}
 }
 
-func newUnstructuredResource(ca *cronanything.CronAnything, name string) *unstructured.Unstructured {
+func newUnstructuredResource(ca cronanything.CronAnything, name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
@@ -104,7 +125,7 @@ func newUnstructuredResource(ca *cronanything.CronAnything, name string) *unstru
 					map[string]interface{}{
 						"apiVersion": controllerKind.GroupVersion().String(),
 						"kind":       controllerKind.Kind,
-						"uid":        string(ca.ObjectMeta.UID),
+						"uid":        string(ca.GetUID()),
 						"controller": true,
 					},
 				},
@@ -141,7 +162,7 @@ func TestCreateNewResourceOnTrigger(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-			ca := newCronAnything(apiVersion, kind, name, namespace)
+			ca := newFakeCronAnything(apiVersion, kind, name, namespace)
 			ca.Spec.CascadeDelete = tc.cascadeDelete
 
 			fakeCronAnythingControl.getCronAnything = ca
@@ -191,7 +212,7 @@ func TestCreateNewResourceOnTrigger(t *testing.T) {
 func TestAlreadyDeletedCronAnythingResource(t *testing.T) {
 	reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-	ca := newCronAnything(apiVersion, kind, name, namespace)
+	ca := newFakeCronAnything(apiVersion, kind, name, namespace)
 	ca.DeletionTimestamp = &metav1.Time{
 		Time: baseTime,
 	}
@@ -222,7 +243,7 @@ func TestAlreadyDeletedCronAnythingResource(t *testing.T) {
 func TestSuspended(t *testing.T) {
 	reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-	ca := newCronAnything(apiVersion, kind, name, namespace)
+	ca := newFakeCronAnything(apiVersion, kind, name, namespace)
 	T := true
 	ca.Spec.Suspend = &T
 	ca.Status.LastScheduleTime = &metav1.Time{
@@ -281,7 +302,7 @@ func TestScheduleTrigger(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-			ca := newCronAnything(apiVersion, kind, namespace, name)
+			ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 			ca.Status.LastScheduleTime = &metav1.Time{
 				Time: tc.lastScheduleTime,
 			}
@@ -310,7 +331,7 @@ func TestScheduleTrigger(t *testing.T) {
 func TestTriggerDeadline(t *testing.T) {
 	reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-	ca := newCronAnything(apiVersion, kind, namespace, name)
+	ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 	ca.Status.LastScheduleTime = &metav1.Time{
 		Time: baseTime.Add(-60 * time.Second),
 	}
@@ -341,17 +362,17 @@ func TestIsFinished(t *testing.T) {
 	timestampFieldPath := "{.status.myCustomField}"
 	stringFieldPath := "{.status.myCustomPhase}"
 	testCases := map[string]struct {
-		ca       *cronanything.CronAnything
+		ca       *fakeCronAnything
 		resource *unstructured.Unstructured
 		result   bool
 	}{
 		"no strategy defined means not finished": {
-			&cronanything.CronAnything{},
+			&fakeCronAnything{},
 			&unstructured.Unstructured{},
 			false,
 		},
 		"timestamp strategy, custom correct timestamp": {
-			&cronanything.CronAnything{
+			&fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyTimestampField,
@@ -371,7 +392,7 @@ func TestIsFinished(t *testing.T) {
 			true,
 		},
 		"timestamp strategy, custom incorrect timestamp": {
-			&cronanything.CronAnything{
+			&fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyTimestampField,
@@ -391,7 +412,7 @@ func TestIsFinished(t *testing.T) {
 			false,
 		},
 		"timeestamp strategy, custom field does not exist": {
-			&cronanything.CronAnything{
+			&fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyTimestampField,
@@ -407,7 +428,7 @@ func TestIsFinished(t *testing.T) {
 			false,
 		},
 		"timestamp strategy, custom advanced jsonpath expression": {
-			ca: &cronanything.CronAnything{
+			ca: &fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyTimestampField,
@@ -449,7 +470,7 @@ func TestIsFinished(t *testing.T) {
 			result: true,
 		},
 		"string strategy, not finished": {
-			&cronanything.CronAnything{
+			&fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyStringField,
@@ -470,7 +491,7 @@ func TestIsFinished(t *testing.T) {
 			false,
 		},
 		"string strategy, finished": {
-			&cronanything.CronAnything{
+			&fakeCronAnything{
 				Spec: cronanything.CronAnythingSpec{
 					FinishableStrategy: &cronanything.FinishableStrategy{
 						Type: cronanything.FinishableStrategyStringField,
@@ -579,7 +600,7 @@ func TestConcurrencyPolicy(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-			ca := newCronAnything(apiVersion, kind, namespace, name)
+			ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 			ca.Spec.ConcurrencyPolicy = tc.concurrencyPolicy
 			ca.Spec.FinishableStrategy = &cronanything.FinishableStrategy{
 				Type: cronanything.FinishableStrategyTimestampField,
@@ -625,7 +646,7 @@ func TestConcurrencyPolicy(t *testing.T) {
 func TestReplaceConcurrentIgnoreResourcesMarkedForDeletion(t *testing.T) {
 	reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-	ca := newCronAnything(apiVersion, kind, namespace, name)
+	ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 	ca.Spec.ConcurrencyPolicy = cronanything.ReplaceConcurrent
 	fakeCronAnythingControl.getCronAnything = ca
 
@@ -778,7 +799,7 @@ func TestCleanupHistory(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-			ca := newCronAnything(apiVersion, kind, namespace, name)
+			ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 			ca.Spec.FinishableStrategy = &cronanything.FinishableStrategy{
 				Type: cronanything.FinishableStrategyTimestampField,
 				TimestampField: &cronanything.TimestampFieldStrategy{
@@ -896,7 +917,7 @@ func TestTotalResourceLimit(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 
-			ca := newCronAnything(apiVersion, kind, namespace, name)
+			ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 			ca.Spec.TotalResourceLimit = &tc.totalResourceLimit
 			ca.Spec.FinishableStrategy = &cronanything.FinishableStrategy{
 				Type: cronanything.FinishableStrategyTimestampField,
@@ -958,7 +979,7 @@ func TestCreateResourceAndUpdateCronAnything(t *testing.T) {
 	}
 	resourceTemplateBytes, _ := json.Marshal(resourceTemplate)
 
-	ca := &cronanything.CronAnything{
+	ca := &fakeCronAnything{
 		ObjectMeta: metav1.ObjectMeta{
 			CreationTimestamp: metav1.Time{
 				Time: baseTime.Add(-60 * time.Second),
@@ -993,7 +1014,7 @@ func TestCreateResourceAndUpdateCronAnything(t *testing.T) {
 		t.Error("Expected template and created resource to be equal, but they weren't")
 	}
 
-	lastScheduleTime := fakeCronAnythingControl.updateCronAnything.Status.LastScheduleTime.Time
+	lastScheduleTime := fakeCronAnythingControl.updateCronAnything.CronAnythingStatus().LastScheduleTime.Time
 	if expectedTriggerTime != lastScheduleTime {
 		t.Errorf("Expected %s, but got %s", expectedTriggerTime.Format(time.RFC3339), lastScheduleTime.Format(time.RFC3339))
 	}
@@ -1003,7 +1024,7 @@ func TestGetResourceName(t *testing.T) {
 	timestamp := toTimestamp(t, "2012-11-01T22:08:41+00:00")
 
 	testCases := map[string]struct {
-		cronAnything *cronanything.CronAnything
+		cronAnything cronanything.CronAnything
 		scheduleTime time.Time
 		expectedName string
 	}{
@@ -1209,7 +1230,7 @@ func TestTriggerHistory(t *testing.T) {
 			reconciler, fakeCronAnythingControl, fakeResourceControl := createReconciler()
 			reconciler.currentTime = func() time.Time { return tc.CurrentTime }
 
-			ca := newCronAnything(apiVersion, kind, namespace, name)
+			ca := newFakeCronAnything(apiVersion, kind, namespace, name)
 			ca.CreationTimestamp = metav1.NewTime(tc.CurrentTime.Add(-time.Hour))
 			ca.Spec.Schedule = defaultCronExpr
 			ca.Spec.TriggerDeadlineSeconds = tc.TriggerDeadline
@@ -1234,7 +1255,7 @@ func TestTriggerHistory(t *testing.T) {
 				t.Errorf("Expected reconcile to fail, but it didn't")
 			}
 
-			status := fakeCronAnythingControl.updateCronAnything.Status
+			status := fakeCronAnythingControl.updateCronAnything.CronAnythingStatus()
 			if !isTriggerHistoriesEqual(status.TriggerHistory, tc.ExpectedTriggerHistory) {
 				t.Errorf("Expected %v in trigger history, but found %v", tc.ExpectedTriggerHistory, status.TriggerHistory)
 			}
@@ -1310,7 +1331,7 @@ func isTriggerHistoriesEqual(actualHistory []cronanything.TriggerHistoryRecord, 
 	return true
 }
 
-func createUnstructuredSlice(ca *cronanything.CronAnything, count int) []*unstructured.Unstructured {
+func createUnstructuredSlice(ca *fakeCronAnything, count int) []*unstructured.Unstructured {
 	var unstructuredSlice []*unstructured.Unstructured
 	for i := 0; i < count; i++ {
 		unstructuredSlice = append(unstructuredSlice, newUnstructuredResource(ca, fmt.Sprintf("resource-%d", i)))
@@ -1318,8 +1339,8 @@ func createUnstructuredSlice(ca *cronanything.CronAnything, count int) []*unstru
 	return unstructuredSlice
 }
 
-func newCronAnythingForResourceName(name string, resourceBaseName, resourceTimestampFormat *string) *cronanything.CronAnything {
-	ca := newCronAnything("oracle.db.anthosapis.com/v1alpha1", "TestKind", name, "default")
+func newCronAnythingForResourceName(name string, resourceBaseName, resourceTimestampFormat *string) cronanything.CronAnything {
+	ca := newFakeCronAnything("db.anthosapis.com/v1alpha1", "TestKind", name, "default")
 	ca.Spec.ResourceBaseName = resourceBaseName
 	ca.Spec.ResourceTimestampFormat = resourceTimestampFormat
 	return ca
@@ -1339,19 +1360,19 @@ func toTimestamp(t *testing.T, timestampString string) time.Time {
 
 type fakeCronAnythingControl struct {
 	getKey          client.ObjectKey
-	getCronAnything *cronanything.CronAnything
+	getCronAnything cronanything.CronAnything
 	getError        error
 
-	updateCronAnything *cronanything.CronAnything
+	updateCronAnything cronanything.CronAnything
 	updateError        error
 }
 
-func (r *fakeCronAnythingControl) Get(key client.ObjectKey) (*cronanything.CronAnything, error) {
+func (r *fakeCronAnythingControl) Get(key client.ObjectKey) (cronanything.CronAnything, error) {
 	r.getKey = key
 	return r.getCronAnything, r.getError
 }
 
-func (r *fakeCronAnythingControl) Update(ca *cronanything.CronAnything) error {
+func (r *fakeCronAnythingControl) Update(ca cronanything.CronAnything) error {
 	r.updateCronAnything = ca
 	return r.updateError
 }

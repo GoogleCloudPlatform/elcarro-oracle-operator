@@ -19,6 +19,7 @@ go_library(
     srcs = [
         "backup.go",
         "credential.go",
+        "cronanything.go",
         "database.go",
         "disk.go",
         "instance.go",

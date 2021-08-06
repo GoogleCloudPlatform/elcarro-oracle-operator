@@ -1,0 +1,67 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "controllers",
+    srcs = [
+        "cronanything_controller.go",
+        "operations.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/controllers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common/api/v1alpha1",
+        "@com_github_go_logr_logr//:logr",
+        "@com_github_robfig_cron//:cron",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/api/meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/labels",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_client_go//discovery",
+        "@io_k8s_client_go//dynamic",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_client_go//util/jsonpath",
+        "@io_k8s_client_go//util/retry",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/manager",
+        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+    ],
+)
+
+go_test(
+    name = "controllers_test",
+    srcs = ["cronanything_controller_test.go"],
+    embed = [":controllers"],
+    deps = [
+        "//common/api/v1alpha1",
+        "@com_github_go_logr_logr//:logr",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

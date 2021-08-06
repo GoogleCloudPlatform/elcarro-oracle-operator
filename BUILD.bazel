@@ -33,6 +33,7 @@ filegroup(
     srcs = [
         ":package-srcs",
         "//common/api/v1alpha1:all-srcs",
+        "//common/controllers:all-srcs",
         "//common/pkg/maintenance:all-srcs",
         "//common/pkg/utils:all-srcs",
         "//hack:all-srcs",

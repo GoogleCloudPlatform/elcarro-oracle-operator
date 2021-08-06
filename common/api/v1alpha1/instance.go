@@ -127,6 +127,7 @@ type InstanceSpec struct {
 	Mode InstanceMode `json:"mode,omitempty"`
 }
 
+//+kubebuilder:object:generate=true
 // PatchingSpec contains the patching related details.
 type PatchingSpec struct {
 	// Patch version

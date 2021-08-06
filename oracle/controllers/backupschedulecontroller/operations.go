@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 )
 
@@ -51,17 +52,16 @@ func (r *realCronAnythingControl) Create(cron *v1alpha1.CronAnything) error {
 }
 
 func (r *realCronAnythingControl) Get(name, namespace string) (*v1alpha1.CronAnything, error) {
-	key := types.NamespacedName{
+	ca := &v1alpha1.CronAnything{}
+	err := r.client.Get(context.TODO(), client.ObjectKey{
 		Name:      name,
 		Namespace: namespace,
-	}
-	var cron v1alpha1.CronAnything
-	err := r.client.Get(context.TODO(), key, &cron)
-	return &cron, err
+	}, ca)
+	return ca, err
 }
 
-func (r *realCronAnythingControl) Update(cron *v1alpha1.CronAnything) error {
-	return r.client.Update(context.TODO(), cron)
+func (r *realCronAnythingControl) Update(ca *v1alpha1.CronAnything) error {
+	return r.client.Update(context.TODO(), ca)
 }
 
 type realBackupControl struct {
@@ -70,7 +70,7 @@ type realBackupControl struct {
 
 func (r *realBackupControl) List(cronAnythingName string) ([]*v1alpha1.Backup, error) {
 	listOptions := &client.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{v1alpha1.CronAnythingCreatedByLabel: cronAnythingName}),
+		LabelSelector: labels.SelectorFromSet(labels.Set{commonv1alpha1.CronAnythingCreatedByLabel: cronAnythingName}),
 	}
 	var backupList v1alpha1.BackupList
 	err := r.client.List(context.TODO(), &backupList, listOptions)
