@@ -85,10 +85,10 @@ http_archive(
     name = "com_github_godror_godror",
     patch_args = ["-p1"],
     patches = ["@//:hack/0001-Patch-to-add-bazel-support.patch"],
-    sha256 = "ac45b8ea0d8bdb828b4862011ee1b7dc8384231a6ee887bcebbb97ffdb339109",
-    strip_prefix = "godror-0.20.1",
+    sha256 = "742b7c8e3d4b79847d08ccc4174f3156de52874168f51eba490e906f2b557151",
+    strip_prefix = "godror-0.25.3",
     urls = [
-        "https://github.com/godror/godror/archive/v0.20.1.tar.gz",
+        "https://github.com/godror/godror/archive/v0.25.3.tar.gz",
     ],
     # version = "v0.21.1"
 )

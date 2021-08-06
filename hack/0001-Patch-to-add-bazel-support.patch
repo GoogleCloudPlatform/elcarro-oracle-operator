@@ -1,21 +1,25 @@
-From ad7dd3c9756a024051fd7464a5f4a807791eb8e8 Mon Sep 17 00:00:00 2001
+From 6d633d301aadbeba7a5899ba67fa3c321d32f638 Mon Sep 17 00:00:00 2001
 From: Kurt Kartaltepe <kkartaltepe@google.com>
-Date: Thu, 24 Sep 2020 11:36:11 -0700
-Subject: [PATCH] Patch to add bazel support
+Date: Thu, 5 Aug 2021 17:49:56 -0700
+Subject: [PATCH] Add bazel build rules
 
 ---
- .gitignore      |   1 +
- BUILD.bazel     | 157 ++++++++++++++++++++++++++++++++++++++++++++++++
- WORKSPACE       |  32 ++++++++++
- deps.bzl        |  27 +++++++++
- drv.go          |   4 +-
- dsn/BUILD.bazel |  26 ++++++++
- sid/BUILD.bazel |  15 +++++
- 7 files changed, 260 insertions(+), 2 deletions(-)
- create mode 100644 BUILD.bazel
+ .gitignore        |   1 +
+ BUILD             | 125 +++++++++++++++++++++++++++++
+ WORKSPACE         |  32 ++++++++
+ check/BUILD.bazel |  14 ++++
+ deps.bzl          | 195 ++++++++++++++++++++++++++++++++++++++++++++++
+ drv.go            |   6 +-
+ dsn/BUILD.bazel   |  22 ++++++
+ num/BUILD.bazel   |  14 ++++
+ sid/BUILD.bazel   |  14 ++++
+ 9 files changed, 419 insertions(+), 4 deletions(-)
+ create mode 100644 BUILD
  create mode 100644 WORKSPACE
+ create mode 100644 check/BUILD.bazel
  create mode 100644 deps.bzl
  create mode 100644 dsn/BUILD.bazel
+ create mode 100644 num/BUILD.bazel
  create mode 100644 sid/BUILD.bazel
 
 diff --git a/.gitignore b/.gitignore
@@ -27,13 +31,15 @@ index 43efe71..ac0505d 100644
  env.sh
  ?
 +bazel-*
-diff --git a/BUILD.bazel b/BUILD.bazel
+diff --git a/BUILD b/BUILD
 new file mode 100644
-index 0000000..bc33f73
+index 0000000..f9ed21d
 --- /dev/null
-+++ b/BUILD.bazel
-@@ -0,0 +1,157 @@
++++ b/BUILD
+@@ -0,0 +1,125 @@
 +load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++# TODO(kkartaltepe): describe this package.
 +load("@bazel_gazelle//:def.bzl", "gazelle")
 +
 +# gazelle:prefix github.com/godror/godror
@@ -46,76 +52,37 @@ index 0000000..bc33f73
 +        "conn_go15.go",
 +        "data.go",
 +        "drv.go",
-+        "drv_posix.go",
++        "drv_linux.go",
 +        "lob.go",
++        "num_go14.go",
++        "num_go15.go",
++        "number.go",
 +        "obj.go",
 +        "orahlp.go",
 +        "queue.go",
-+        "require.go",
 +        "rows.go",
 +        "stmt.go",
-+        "stmt_go11.go",
-+        "stmt_go13.go",
 +        "subscr.c",
 +        "subscr.go",
++        "tznames_generated.go",
 +        "version.go",
 +    ],
-+    cdeps = [
-+        ":odpi",
-+    ],
++    cdeps = [":odpi"],
 +    cgo = True,
 +    clinkopts = select({
-+        "@io_bazel_rules_go//go/platform:aix": [
-+            "-ldl -lpthread",
-+        ],
 +        "@io_bazel_rules_go//go/platform:android": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:darwin": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:dragonfly": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:freebsd": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:illumos": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:ios": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:js": [
 +            "-ldl -lpthread",
 +        ],
 +        "@io_bazel_rules_go//go/platform:linux": [
 +            "-ldl -lpthread",
 +        ],
-+        "@io_bazel_rules_go//go/platform:nacl": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:netbsd": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:openbsd": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:plan9": [
-+            "-ldl -lpthread",
-+        ],
-+        "@io_bazel_rules_go//go/platform:solaris": [
-+            "-ldl -lpthread",
-+        ],
 +        "//conditions:default": [],
 +    }),
-+    copts = ["-Iodpi/include -Iodpi/src -Iodpi/embed"],
 +    importpath = "github.com/godror/godror",
 +    visibility = ["//visibility:public"],
 +    deps = [
 +        "//dsn",
-+        "@com_github_go_logfmt_logfmt//:go_default_library",
-+        "@org_golang_x_xerrors//:go_default_library",
++        "@com_github_go_logfmt_logfmt//:logfmt",
 +    ],
 +)
 +
@@ -134,7 +101,7 @@ index 0000000..bc33f73
 +        "odpi/src/dpiGlobal.c",
 +        "odpi/src/dpiHandleList.c",
 +        "odpi/src/dpiHandlePool.c",
-+        "odpi/src/dpiImpl.h",
++        "odpi/src/dpiJson.c",
 +        "odpi/src/dpiLob.c",
 +        "odpi/src/dpiMsgProps.c",
 +        "odpi/src/dpiObject.c",
@@ -173,11 +140,15 @@ index 0000000..bc33f73
 +        "data_test.go",
 +        "drv_test.go",
 +        "example_shutdown_test.go",
++        "number_test.go",
 +        "orahlp_test.go",
 +        "queue_test.go",
++        "z_119_test.go",
++        "z_bench_113_test.go",
 +        "z_bench_test.go",
 +        "z_conncut_test.go",
 +        "z_heterogeneous_test.go",
++        "z_issue133_test.go",
 +        "z_lob_test.go",
 +        "z_plsql_types_test.go",
 +        "z_qrcn_test.go",
@@ -185,14 +156,15 @@ index 0000000..bc33f73
 +    ],
 +    embed = [":godror"],
 +    deps = [
-+        "@com_github_go_logfmt_logfmt//:go_default_library",
-+        "@com_github_google_go_cmp//cmp:go_default_library",
-+        "@org_golang_x_sync//errgroup:go_default_library",
++        "//dsn",
++        "@com_github_go_logfmt_logfmt//:logfmt",
++        "@com_github_google_go_cmp//cmp",
++        "@org_golang_x_sync//errgroup",
 +    ],
 +)
 diff --git a/WORKSPACE b/WORKSPACE
 new file mode 100644
-index 0000000..3bba372
+index 0000000..00c32d7
 --- /dev/null
 +++ b/WORKSPACE
 @@ -0,0 +1,32 @@
@@ -200,19 +172,19 @@ index 0000000..3bba372
 +
 +http_archive(
 +    name = "io_bazel_rules_go",
-+    sha256 = "b725e6497741d7fc2d55fcc29a276627d10e43fa5d0bb692692890ae30d98d00",
++    sha256 = "8e968b5fcea1d2d64071872b12737bbb5514524ee5f0a4f54f5920266c261acb",
 +    urls = [
-+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.24.3/rules_go-v0.24.3.tar.gz",
-+        "https://github.com/bazelbuild/rules_go/releases/download/v0.24.3/rules_go-v0.24.3.tar.gz",
++        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.28.0/rules_go-v0.28.0.zip",
++        "https://github.com/bazelbuild/rules_go/releases/download/v0.28.0/rules_go-v0.28.0.zip",
 +    ],
 +)
 +
 +http_archive(
 +    name = "bazel_gazelle",
-+    sha256 = "72d339ff874a382f819aaea80669be049069f502d6c726a07759fdca99653c48",
++    sha256 = "62ca106be173579c0a167deb23358fdfe71ffa1e4cfdddf5582af26520f1c66f",
 +    urls = [
-+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.1/bazel-gazelle-v0.22.1.tar.gz",
-+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.22.1/bazel-gazelle-v0.22.1.tar.gz",
++        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
++        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.23.0/bazel-gazelle-v0.23.0.tar.gz",
 +    ],
 +)
 +
@@ -225,18 +197,98 @@ index 0000000..3bba372
 +
 +go_rules_dependencies()
 +
-+go_register_toolchains()
++go_register_toolchains(version = "1.16.5")
 +
 +gazelle_dependencies()
+diff --git a/check/BUILD.bazel b/check/BUILD.bazel
+new file mode 100644
+index 0000000..6b8f4f7
+--- /dev/null
++++ b/check/BUILD.bazel
+@@ -0,0 +1,14 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
++
++go_library(
++    name = "check_lib",
++    srcs = ["check.go"],
++    importpath = "github.com/godror/godror/check",
++    visibility = ["//visibility:private"],
++)
++
++go_binary(
++    name = "check",
++    embed = [":check_lib"],
++    visibility = ["//visibility:public"],
++)
 diff --git a/deps.bzl b/deps.bzl
 new file mode 100644
-index 0000000..0f4f5ee
+index 0000000..6325043
 --- /dev/null
 +++ b/deps.bzl
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,195 @@
 +load("@bazel_gazelle//:deps.bzl", "go_repository")
 +
 +def go_dependencies():
++    go_repository(
++        name = "co_honnef_go_tools",
++        importpath = "honnef.co/go/tools",
++        sum = "h1:/hemPrYIhOhy8zYrNj+069zDB68us2sMGsfkFJO0iZs=",
++        version = "v0.0.0-20190523083050-ea95bdfd59fc",
++    )
++    go_repository(
++        name = "com_github_bazelbuild_buildtools",
++        importpath = "github.com/bazelbuild/buildtools",
++        sum = "h1:W8bgm9kGhfUGCiY2kyYd5sYuYkieFzHQwsRb0EOZVmY=",
++        version = "v0.0.0-20210804161516-27a6414354c1",
++    )
++    go_repository(
++        name = "com_github_burntsushi_toml",
++        importpath = "github.com/BurntSushi/toml",
++        sum = "h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=",
++        version = "v0.3.1",
++    )
++    go_repository(
++        name = "com_github_census_instrumentation_opencensus_proto",
++        importpath = "github.com/census-instrumentation/opencensus-proto",
++        sum = "h1:glEXhBS5PSLLv4IXzLA5yPRVX4bilULVyxxbrfOtDAk=",
++        version = "v0.2.1",
++    )
++    go_repository(
++        name = "com_github_chzyer_logex",
++        importpath = "github.com/chzyer/logex",
++        sum = "h1:Swpa1K6QvQznwJRcfTfQJmTE72DqScAa40E+fbHEXEE=",
++        version = "v1.1.10",
++    )
++    go_repository(
++        name = "com_github_chzyer_readline",
++        importpath = "github.com/chzyer/readline",
++        sum = "h1:fY5BOSpyZCqRo5OhCuC+XN+r/bBCmeuuJtjz+bCNIf8=",
++        version = "v0.0.0-20180603132655-2972be24d48e",
++    )
++    go_repository(
++        name = "com_github_chzyer_test",
++        importpath = "github.com/chzyer/test",
++        sum = "h1:q763qf9huN11kDQavWsoZXJNW3xEE4JJyHa5Q25/sd8=",
++        version = "v0.0.0-20180213035817-a1ea475d72b1",
++    )
++    go_repository(
++        name = "com_github_client9_misspell",
++        importpath = "github.com/client9/misspell",
++        sum = "h1:ta993UF76GwbvJcIo3Y68y/M3WxlpEHPWIGDkJYwzJI=",
++        version = "v0.3.4",
++    )
++    go_repository(
++        name = "com_github_envoyproxy_go_control_plane",
++        importpath = "github.com/envoyproxy/go-control-plane",
++        sum = "h1:4cmBvAEBNJaGARUEs3/suWRyfyBfhf7I60WBZq+bv2w=",
++        version = "v0.9.1-0.20191026205805-5f8ba28d4473",
++    )
++    go_repository(
++        name = "com_github_envoyproxy_protoc_gen_validate",
++        importpath = "github.com/envoyproxy/protoc-gen-validate",
++        sum = "h1:EQciDnbrYxy13PgWoY8AqoxGiPrpgBZ1R8UNe3ddc+A=",
++        version = "v0.1.0",
++    )
 +    go_repository(
 +        name = "com_github_go_logfmt_logfmt",
 +        importpath = "github.com/go-logfmt/logfmt",
@@ -244,10 +296,100 @@ index 0000000..0f4f5ee
 +        version = "v0.5.0",
 +    )
 +    go_repository(
++        name = "com_github_golang_glog",
++        importpath = "github.com/golang/glog",
++        sum = "h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=",
++        version = "v0.0.0-20160126235308-23def4e6c14b",
++    )
++    go_repository(
++        name = "com_github_golang_mock",
++        importpath = "github.com/golang/mock",
++        sum = "h1:G5FRp8JnTd7RQH5kemVNlMeyXQAztQ3mOWV95KxsXH8=",
++        version = "v1.1.1",
++    )
++    go_repository(
++        name = "com_github_golang_protobuf",
++        importpath = "github.com/golang/protobuf",
++        sum = "h1:JjCZWpVbqXDqFVmTfYWEVTMIYrL/NPdPSCHPJ0T/raM=",
++        version = "v1.4.3",
++    )
++    go_repository(
 +        name = "com_github_google_go_cmp",
 +        importpath = "github.com/google/go-cmp",
-+        sum = "h1:xsAVV57WRhGj6kEIi8ReJzQlHHqcBYCElAvkovg3B/4=",
-+        version = "v0.4.0",
++        sum = "h1:JFrFEBb2xKufg6XkJsJr+WbKb4FQlURi5RUcBveYu9k=",
++        version = "v0.5.1",
++    )
++    go_repository(
++        name = "com_github_prometheus_client_model",
++        importpath = "github.com/prometheus/client_model",
++        sum = "h1:gQz4mCbXsO+nc9n1hCxHcGA3Zx3Eo+UHZoInFGUIXNM=",
++        version = "v0.0.0-20190812154241-14fe0d1b01d4",
++    )
++    go_repository(
++        name = "com_google_cloud_go",
++        importpath = "cloud.google.com/go",
++        sum = "h1:e0WKqKTd5BnrG8aKH3J3h+QvEIQtSUcf2n5UZ5ZgLtQ=",
++        version = "v0.26.0",
++    )
++    go_repository(
++        name = "net_starlark_go",
++        importpath = "go.starlark.net",
++        sum = "h1:xwwDQW5We85NaTk2APgoN9202w/l0DVGp+GZMfsrh7s=",
++        version = "v0.0.0-20210223155950-e043a3d3c984",
++    )
++    go_repository(
++        name = "org_golang_google_appengine",
++        importpath = "google.golang.org/appengine",
++        sum = "h1:/wp5JvzpHIxhs/dumFmF7BXTf3Z+dd4uXta4kVyO508=",
++        version = "v1.4.0",
++    )
++    go_repository(
++        name = "org_golang_google_genproto",
++        importpath = "google.golang.org/genproto",
++        sum = "h1:+kGHl1aib/qcwaRi1CbqBZ1rk19r85MNUf8HaBghugY=",
++        version = "v0.0.0-20200526211855-cb27e3aa2013",
++    )
++    go_repository(
++        name = "org_golang_google_grpc",
++        importpath = "google.golang.org/grpc",
++        sum = "h1:rRYRFMVgRv6E0D70Skyfsr28tDXIuuPZyWGMPdMcnXg=",
++        version = "v1.27.0",
++    )
++    go_repository(
++        name = "org_golang_google_protobuf",
++        importpath = "google.golang.org/protobuf",
++        sum = "h1:Ejskq+SyPohKW+1uil0JJMtmHCgJPJ/qWTxr8qp+R4c=",
++        version = "v1.25.0",
++    )
++    go_repository(
++        name = "org_golang_x_crypto",
++        importpath = "golang.org/x/crypto",
++        sum = "h1:VklqNMn3ovrHsnt90PveolxSbWFaJdECFbxSq0Mqo2M=",
++        version = "v0.0.0-20190308221718-c2843e01d9a2",
++    )
++    go_repository(
++        name = "org_golang_x_exp",
++        importpath = "golang.org/x/exp",
++        sum = "h1:c2HOrn5iMezYjSlGPncknSEr/8x5LELb/ilJbXi9DEA=",
++        version = "v0.0.0-20190121172915-509febef88a4",
++    )
++    go_repository(
++        name = "org_golang_x_lint",
++        importpath = "golang.org/x/lint",
++        sum = "h1:XQyxROzUlZH+WIQwySDgnISgOivlhjIEwaQaJEJrrN0=",
++        version = "v0.0.0-20190313153728-d0100b6bd8b3",
++    )
++    go_repository(
++        name = "org_golang_x_net",
++        importpath = "golang.org/x/net",
++        sum = "h1:oWX7TPOiFAMXLq8o0ikBYfCJVlRHBcsciT5bXOrH628=",
++        version = "v0.0.0-20190311183353-d8887717615a",
++    )
++    go_repository(
++        name = "org_golang_x_oauth2",
++        importpath = "golang.org/x/oauth2",
++        sum = "h1:vEDujvNQGv4jgYKudGeI/+DAX4Jffq6hpD55MmoEvKs=",
++        version = "v0.0.0-20180821212333-d2e6202438be",
 +    )
 +    go_repository(
 +        name = "org_golang_x_sync",
@@ -256,33 +398,52 @@ index 0000000..0f4f5ee
 +        version = "v0.0.0-20190911185100-cd5d95a43a6e",
 +    )
 +    go_repository(
++        name = "org_golang_x_sys",
++        importpath = "golang.org/x/sys",
++        sum = "h1:+Nyd8tzPX9R7BWHguqsrbFdRx3WQ/1ib8I44HXV5yTA=",
++        version = "v0.0.0-20200930185726-fdedc70b468f",
++    )
++    go_repository(
++        name = "org_golang_x_text",
++        importpath = "golang.org/x/text",
++        sum = "h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=",
++        version = "v0.3.0",
++    )
++    go_repository(
++        name = "org_golang_x_tools",
++        importpath = "golang.org/x/tools",
++        sum = "h1:5Beo0mZN8dRzgrMMkDp0jc8YXQKx9DiJ2k1dkvGsn5A=",
++        version = "v0.0.0-20190524140312-2c0ae7006135",
++    )
++    go_repository(
 +        name = "org_golang_x_xerrors",
 +        importpath = "golang.org/x/xerrors",
-+        sum = "h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=",
-+        version = "v0.0.0-20191204190536-9bdfabe68543",
++        sum = "h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=",
++        version = "v0.0.0-20200804184101-5ec99f83aff1",
 +    )
 diff --git a/drv.go b/drv.go
-index 8b03df0..6e674d0 100644
+index c25a0e5..e79dfe3 100644
 --- a/drv.go
 +++ b/drv.go
-@@ -46,9 +46,9 @@
+@@ -63,10 +63,8 @@
  package godror
 
  /*
 -#cgo CFLAGS: -I./odpi/include -I./odpi/src -I./odpi/embed
-+#include <stdlib.h>
-
+-
 -#include "dpi.c"
+-
++#include <stdlib.h>
 +#include "dpiImpl.h"
  */
  import "C"
 
 diff --git a/dsn/BUILD.bazel b/dsn/BUILD.bazel
 new file mode 100644
-index 0000000..3b114ea
+index 0000000..3312281
 --- /dev/null
 +++ b/dsn/BUILD.bazel
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,22 @@
 +load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 +
 +go_library(
@@ -293,10 +454,7 @@ index 0000000..3b114ea
 +    ],
 +    importpath = "github.com/godror/godror/dsn",
 +    visibility = ["//visibility:public"],
-+    deps = [
-+        "@com_github_go_logfmt_logfmt//:go_default_library",
-+        "@org_golang_x_xerrors//:go_default_library",
-+    ],
++    deps = ["@com_github_go_logfmt_logfmt//:logfmt"],
 +)
 +
 +go_test(
@@ -304,17 +462,36 @@ index 0000000..3b114ea
 +    srcs = ["dsn_test.go"],
 +    embed = [":dsn"],
 +    deps = [
-+        "@com_github_google_go_cmp//cmp:go_default_library",
-+        "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
-+        "@org_golang_x_xerrors//:go_default_library",
++        "@com_github_google_go_cmp//cmp",
++        "@com_github_google_go_cmp//cmp/cmpopts",
 +    ],
++)
+diff --git a/num/BUILD.bazel b/num/BUILD.bazel
+new file mode 100644
+index 0000000..d28d802
+--- /dev/null
++++ b/num/BUILD.bazel
+@@ -0,0 +1,14 @@
++load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
++
++go_library(
++    name = "num",
++    srcs = ["ocinum.go"],
++    importpath = "github.com/godror/godror/num",
++    visibility = ["//visibility:public"],
++)
++
++go_test(
++    name = "num_test",
++    srcs = ["ocinum_test.go"],
++    embed = [":num"],
 +)
 diff --git a/sid/BUILD.bazel b/sid/BUILD.bazel
 new file mode 100644
-index 0000000..ad16633
+index 0000000..3e53f8a
 --- /dev/null
 +++ b/sid/BUILD.bazel
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,14 @@
 +load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 +
 +go_library(
@@ -322,13 +499,12 @@ index 0000000..ad16633
 +    srcs = ["sid.go"],
 +    importpath = "github.com/godror/godror/sid",
 +    visibility = ["//visibility:public"],
-+    deps = ["@org_golang_x_xerrors//:go_default_library"],
 +)
 +
 +go_test(
 +    name = "sid_test",
 +    srcs = ["sid_test.go"],
-+    embed = [":sid"],
++    deps = [":sid"],
 +)
 --
-2.28.0.681.g6f77f65b4e-goog
+2.32.0.605.g8dce9f2422-goog
