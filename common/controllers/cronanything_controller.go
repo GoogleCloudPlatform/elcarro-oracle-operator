@@ -57,6 +57,7 @@ type resourceResolver interface {
 type cronAnythingControl interface {
 	Get(key client.ObjectKey) (cronanything.CronAnything, error)
 	Update(ca cronanything.CronAnything) error
+	Create(ns string, name string, cas cronanything.CronAnythingSpec, owner cronanything.BackupSchedule) error
 }
 
 // resourceControl provides methods for creating, deleting and listing any resource.

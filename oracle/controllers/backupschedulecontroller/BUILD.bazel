@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "backupschedulecontroller",
@@ -10,43 +10,17 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//common/api/v1alpha1",
+        "//common/controllers",
         "//oracle/api/v1alpha1",
-        "//oracle/pkg/k8s",
-        "@com_github_go_logr_logr//:logr",
-        "@io_k8s_apimachinery//pkg/api/errors",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "//oracle/controllers/cronanythingcontroller",
         "@io_k8s_apimachinery//pkg/labels",
-        "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_apimachinery//pkg/types",
-        "@io_k8s_client_go//util/retry",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
-        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
         "@io_k8s_sigs_controller_runtime//pkg/handler",
         "@io_k8s_sigs_controller_runtime//pkg/manager",
-        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
         "@io_k8s_sigs_controller_runtime//pkg/source",
-    ],
-)
-
-go_test(
-    name = "backupschedulecontroller_test",
-    srcs = ["backupschedule_controller_test.go"],
-    embed = [":backupschedulecontroller"],
-    deps = [
-        "//common/api/v1alpha1",
-        "//oracle/api/v1alpha1",
-        "@com_github_ghodss_yaml//:yaml",
-        "@com_github_google_go_cmp//cmp",
-        "@io_k8s_apimachinery//pkg/api/errors",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
-        "@io_k8s_apimachinery//pkg/runtime",
-        "@io_k8s_apimachinery//pkg/runtime/schema",
-        "@io_k8s_apimachinery//pkg/types",
-        "@io_k8s_sigs_controller_runtime//:controller-runtime",
-        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
-        "@io_k8s_utils//pointer",
     ],
 )
 

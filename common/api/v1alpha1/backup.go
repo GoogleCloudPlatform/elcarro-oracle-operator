@@ -16,6 +16,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 //+kubebuilder:object:generate=true
@@ -73,4 +74,11 @@ type BackupStatus struct {
 	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+}
+
+type Backup interface {
+	runtime.Object
+	metav1.Object
+	BackupSpec() *BackupSpec
+	BackupStatus() *BackupStatus
 }

@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "controllers",
     srcs = [
+        "backupschedule_controller.go",
         "cronanything_controller.go",
         "operations.go",
     ],
@@ -27,6 +28,7 @@ go_library(
         "@io_k8s_client_go//tools/record",
         "@io_k8s_client_go//util/jsonpath",
         "@io_k8s_client_go//util/retry",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/manager",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
@@ -35,11 +37,17 @@ go_library(
 
 go_test(
     name = "controllers_test",
-    srcs = ["cronanything_controller_test.go"],
+    srcs = [
+        "backupschedule_controller_test.go",
+        "cronanything_controller_test.go",
+    ],
     embed = [":controllers"],
     deps = [
         "//common/api/v1alpha1",
+        "@com_github_ghodss_yaml//:yaml",
         "@com_github_go_logr_logr//:logr",
+        "@com_github_google_go_cmp//cmp",
+        "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
         "@io_k8s_apimachinery//pkg/runtime",
@@ -49,6 +57,7 @@ go_test(
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+        "@io_k8s_utils//pointer",
     ],
 )
 
