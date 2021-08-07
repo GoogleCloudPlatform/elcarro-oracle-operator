@@ -21,6 +21,19 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 )
 
+// This is the contract. This Backup is Anthos DB Operator compliant.
+var _ commonv1alpha1.Backup = &Backup{}
+
+// BackpSpec defines the common specifications for a Backup.
+func (i *Backup) BackupSpec() *commonv1alpha1.BackupSpec {
+	return &i.Spec.BackupSpec
+}
+
+// BackupScheduleStatus defines the common status for a BackupSchedule.
+func (i *Backup) BackupStatus() *commonv1alpha1.BackupStatus {
+	return &i.Status.BackupStatus
+}
+
 // BackupSpec defines the desired state of Backup.
 type BackupSpec struct {
 	// Backup specs that are common across all database engines.

@@ -333,7 +333,6 @@ spec:
           metadata:
             type: object
           spec:
-            description: BackupScheduleSpec defines the desired state of BackupSchedule.
             properties:
               backupRetentionPolicy:
                 description: BackupRetentionPolicy is the policy used to trigger automatic

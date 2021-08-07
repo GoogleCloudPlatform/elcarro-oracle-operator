@@ -13,8 +13,10 @@ go_library(
         "//common/controllers",
         "//oracle/api/v1alpha1",
         "@com_github_go_logr_logr//:logr",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
     ],
 )
 

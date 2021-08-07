@@ -1377,6 +1377,10 @@ func (r *fakeCronAnythingControl) Update(ca cronanything.CronAnything) error {
 	return r.updateError
 }
 
+func (r *fakeCronAnythingControl) Create(ns string, name string, cas cronanything.CronAnythingSpec, owner cronanything.BackupSchedule) error {
+	return nil
+}
+
 type fakeResourceControl struct {
 	createResource  schema.GroupVersionResource
 	createNamespace string

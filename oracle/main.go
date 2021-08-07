@@ -163,7 +163,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = backupschedulecontroller.NewBackupScheduleReconciler(mgr).SetupWithManager(mgr); err != nil {
+	if err = backupschedulecontroller.NewBackupScheduleReconciler(
+		mgr,
+		&backupschedulecontroller.RealBackupScheduleControl{
+			Client: mgr.GetClient(),
+		},
+		&cronanythingcontroller.RealCronAnythingControl{
+			Client: mgr.GetClient(),
+		},
+		&backupschedulecontroller.RealBackupControl{
+			Client: mgr.GetClient(),
+		}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BackupSchedule")
 		os.Exit(1)
 	}

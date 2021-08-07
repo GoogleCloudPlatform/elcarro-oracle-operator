@@ -16,6 +16,7 @@ package backupschedulecontroller
 
 import (
 	"context"
+	"encoding/json"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,59 +26,57 @@ import (
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 )
 
-type realBackupScheduleControl struct {
-	client client.Client
+type RealBackupScheduleControl struct {
+	Client client.Client
 }
 
-func (r *realBackupScheduleControl) Get(name, namespace string) (*v1alpha1.BackupSchedule, error) {
+func (r *RealBackupScheduleControl) Get(name, namespace string) (commonv1alpha1.BackupSchedule, error) {
 	key := types.NamespacedName{
 		Name:      name,
 		Namespace: namespace,
 	}
 	var backupSchedule v1alpha1.BackupSchedule
-	err := r.client.Get(context.TODO(), key, &backupSchedule)
+	err := r.Client.Get(context.TODO(), key, &backupSchedule)
 	return &backupSchedule, err
 }
 
-func (r *realBackupScheduleControl) UpdateStatus(schedule *v1alpha1.BackupSchedule) error {
-	return r.client.Status().Update(context.TODO(), schedule)
+func (r *RealBackupScheduleControl) UpdateStatus(schedule commonv1alpha1.BackupSchedule) error {
+	return r.Client.Status().Update(context.TODO(), schedule.(*v1alpha1.BackupSchedule))
 }
 
-type realCronAnythingControl struct {
-	client client.Client
+func (r *RealBackupScheduleControl) GetBackupBytes(schedule commonv1alpha1.BackupSchedule) ([]byte, error) {
+	specBytes, err := json.Marshal(schedule.(*v1alpha1.BackupSchedule).Spec.BackupSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	var specMap map[string]interface{}
+	err = json.Unmarshal(specBytes, &specMap)
+	if err != nil {
+		return nil, err
+	}
+
+	backupMap := make(map[string]interface{})
+	backupMap["apiVersion"] = backupKind.GroupVersion().String()
+	backupMap["kind"] = backupKind.Kind
+	backupMap["spec"] = specMap
+	return json.Marshal(backupMap)
 }
 
-func (r *realCronAnythingControl) Create(cron *v1alpha1.CronAnything) error {
-	return r.client.Create(context.TODO(), cron)
+type RealBackupControl struct {
+	Client client.Client
 }
 
-func (r *realCronAnythingControl) Get(name, namespace string) (*v1alpha1.CronAnything, error) {
-	ca := &v1alpha1.CronAnything{}
-	err := r.client.Get(context.TODO(), client.ObjectKey{
-		Name:      name,
-		Namespace: namespace,
-	}, ca)
-	return ca, err
-}
-
-func (r *realCronAnythingControl) Update(ca *v1alpha1.CronAnything) error {
-	return r.client.Update(context.TODO(), ca)
-}
-
-type realBackupControl struct {
-	client client.Client
-}
-
-func (r *realBackupControl) List(cronAnythingName string) ([]*v1alpha1.Backup, error) {
+func (r *RealBackupControl) List(cronAnythingName string) ([]commonv1alpha1.Backup, error) {
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{commonv1alpha1.CronAnythingCreatedByLabel: cronAnythingName}),
 	}
 	var backupList v1alpha1.BackupList
-	err := r.client.List(context.TODO(), &backupList, listOptions)
+	err := r.Client.List(context.TODO(), &backupList, listOptions)
 	if err != nil {
 		return nil, err
 	}
-	var backups []*v1alpha1.Backup
+	var backups []commonv1alpha1.Backup
 	for _, b := range backupList.Items {
 		if b.DeletionTimestamp != nil {
 			continue
@@ -87,6 +86,6 @@ func (r *realBackupControl) List(cronAnythingName string) ([]*v1alpha1.Backup, e
 	return backups, nil
 }
 
-func (r *realBackupControl) Delete(backup *v1alpha1.Backup) error {
-	return r.client.Delete(context.TODO(), backup)
+func (r *RealBackupControl) Delete(backup commonv1alpha1.Backup) error {
+	return r.Client.Delete(context.TODO(), backup.(*v1alpha1.Backup))
 }
