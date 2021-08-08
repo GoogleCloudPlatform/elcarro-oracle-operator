@@ -97,7 +97,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 				By("By letting instance DB initialize")
-				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 10*time.Minute)
+				testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
 
 				testhelpers.CreateSimplePDB(k8sEnv, tc.instanceName)
 				testhelpers.InsertSimpleData(k8sEnv)
