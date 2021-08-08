@@ -34,7 +34,7 @@ func GetLROOperation(caClientFactory ConfigAgentClientFactory, ctx context.Conte
 }
 
 // DeleteLROOperation deletes LRO operation for the specified namespace instance and operation id.
-func DeleteLROOperation(caClientFactory ConfigAgentClientFactory, ctx context.Context, r client.Reader, namespace, instName, id string) error {
+func DeleteLROOperation(caClientFactory ConfigAgentClientFactory, ctx context.Context, r client.Reader, namespace, id, instName string) error {
 	caClient, closeConn, err := caClientFactory.New(ctx, r, namespace, instName)
 	if err != nil {
 		return err
