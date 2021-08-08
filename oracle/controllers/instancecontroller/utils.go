@@ -145,11 +145,11 @@ func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.I
 	for _, s := range services {
 		svc, err := controllers.NewSvc(&inst, r.Scheme, s)
 		if err != nil {
-			return nil, nil, nil
+			return nil, nil, err
 		}
 
 		if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-			return nil, nil, nil
+			return nil, nil, err
 		}
 
 		if s == "lb" {
