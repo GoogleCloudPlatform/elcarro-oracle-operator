@@ -209,21 +209,35 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 		// Reconcile again
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.PostRestoreBootstrapInProgress:
-		caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
-		if err != nil {
-			log.Error(err, "failed to create config agent client")
-			return ctrl.Result{}, err
-		}
-		defer closeConn()
+		switch inst.Spec.Restore.BackupType {
+		case "Snapshot":
+			oracleRunning, err := r.isOracleUpAndRunning(ctx, inst, req.Namespace, log)
+			if err != nil {
+				log.Error(err, "failed to check the database instance status")
+				return ctrl.Result{}, err
+			}
 
-		if _, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
-			CdbName:      inst.Spec.CDBName,
-			DbUniqueName: inst.Spec.DBUniqueName,
-			Dbdomain:     controllers.GetDBDomain(inst),
-			Mode:         capb.BootstrapDatabaseRequest_Restore,
-		}); err != nil {
-			r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err), log)
-			return ctrl.Result{}, nil
+			if !oracleRunning {
+				log.Info("post restore bootstrap still in progress, waiting")
+				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			}
+		case "Physical":
+			caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
+			if err != nil {
+				log.Error(err, "failed to create config agent client")
+				return ctrl.Result{}, err
+			}
+			defer closeConn()
+
+			if _, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
+				CdbName:      inst.Spec.CDBName,
+				DbUniqueName: inst.Spec.DBUniqueName,
+				Dbdomain:     controllers.GetDBDomain(inst),
+				Mode:         capb.BootstrapDatabaseRequest_Restore,
+			}); err != nil {
+				r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err), log)
+				return ctrl.Result{}, nil
+			}
 		}
 
 		description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),

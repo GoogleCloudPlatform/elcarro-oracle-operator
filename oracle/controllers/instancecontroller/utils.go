@@ -31,6 +31,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -339,4 +340,21 @@ func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string
 		}
 	}
 	return 85, fmt.Errorf("failed to find a database container in %+v", foundPod.Status.ContainerStatuses)
+}
+
+func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1alpha1.Instance, namespace string, log logr.Logger) (bool, error) {
+	agentSvc := &corev1.Service{}
+	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(controllers.AgentSvcName, inst.Name), Namespace: namespace}, agentSvc); err != nil {
+		return false, err
+	}
+	status, err := CheckStatusInstanceFunc(ctx, inst.Name, inst.Spec.CDBName, agentSvc.Spec.ClusterIP, controllers.GetDBDomain(inst), log)
+	if err != nil {
+		log.Info("dbdaemon startup still in progress, waiting")
+		return false, nil
+	}
+	if status != controllers.StatusReady {
+		log.Info("Oracle startup still in progress, waiting")
+		return false, nil
+	}
+	return true, nil
 }
