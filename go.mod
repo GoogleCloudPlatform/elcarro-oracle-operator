@@ -15,7 +15,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.4.0
-	github.com/godror/godror v0.20.1
+	github.com/godror/godror v0.25.3
 	github.com/golang/mock v1.5.0
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.5
