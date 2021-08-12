@@ -19,9 +19,19 @@
 # ARG BASE_IMAGE=oraclelinux:7-slim
 
 FROM docker.io/oraclelinux:7-slim as base
+
 ARG DB_VERSION
 ARG ORACLE_HOME
 ARG ORACLE_BASE
+ARG CREATE_CDB
+ARG CDB_NAME
+ENV STAGE_DIR=/tmp/stage/
+COPY oracle-preinstall.sh $STAGE_DIR
+RUN /bin/bash -c $STAGE_DIR/oracle-preinstall.sh
+
+FROM base as installer
+
+ARG DB_VERSION
 ARG CREATE_CDB
 ARG CDB_NAME
 ARG CHARACTER_SET
@@ -29,28 +39,41 @@ ARG MEM_PCT
 ARG EDITION
 ARG PATCH_VERSION
 ARG INSTALL_SCRIPT
-ENV STAGE_DIR=/tmp/stage/
 
-RUN mkdir $STAGE_DIR && chmod ug+w $STAGE_DIR
 ADD ./* $STAGE_DIR
 RUN /bin/bash -c \
-    'if [ "$DB_VERSION" = "18c" ] && [ "$EDITION" = "xe" ]; then \
+    'if [ "${DB_VERSION}" = "18c" ] && [ "${EDITION}" = "xe" ]; then \
       export INSTALL_SCRIPT=install-oracle-18c-xe.sh; \
       chmod +x $STAGE_DIR$INSTALL_SCRIPT; \
-      $STAGE_DIR/$INSTALL_SCRIPT $CDB_NAME $CHARACTER_SET && \
+      $STAGE_DIR/$INSTALL_SCRIPT "${CDB_NAME}" "${CHARACTER_SET}" && \
       rm -rf $INSTALL_SCRIPT && \
       rm -rf $STAGE_DIR; \
     else \
       export INSTALL_SCRIPT=install-oracle.sh; \
       chmod +x $STAGE_DIR$INSTALL_SCRIPT; \
-      $STAGE_DIR/$INSTALL_SCRIPT $DB_VERSION $EDITION $CREATE_CDB $CDB_NAME $CHARACTER_SET $MEM_PCT $PATCH_VERSION && \
+      $STAGE_DIR/$INSTALL_SCRIPT "${DB_VERSION}" "${EDITION}" "${CREATE_CDB}" "${CDB_NAME}" "${CHARACTER_SET}" "${MEM_PCT}" "${PATCH_VERSION}" && \
       rm -rf $INSTALL_SCRIPT && \
       rm -rf $STAGE_DIR; \
     fi'
 
+FROM base as database_image
+
+ARG ORACLE_HOME
+ARG ORACLE_BASE
+ARG CDB_NAME
+
 ENV ORACLE_HOME=$ORACLE_HOME
 ENV ORACLE_BASE=$ORACLE_BASE
+ENV ORACLE_SID=$CDB_NAME
 ENV LD_LIBRARY_PATH=$ORACLE_HOME/lib:/usr/lib
+
+USER oracle
+COPY --chown=oracle:dba --from=installer $ORACLE_BASE $ORACLE_BASE
+COPY --chown=oracle:dba --from=installer /etc/oratab /etc/oratab
+COPY --chown=oracle:dba --from=installer /etc/oraInst.loc /etc/oraInst.loc
+
+USER root
+RUN $ORACLE_HOME/root.sh && rm $STAGE_DIR/oracle-preinstall.sh
 
 VOLUME ["/u02", "/u03"]
 # TODO: make the port number configurable

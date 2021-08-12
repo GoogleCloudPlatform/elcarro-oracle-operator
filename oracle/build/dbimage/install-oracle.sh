@@ -21,8 +21,8 @@ set -u
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 readonly DB_VERSION="$1"
 readonly EDITION="$2"
-readonly CREATE_CDB=${3:-true}
-readonly CDB_NAME=${4:-GCLOUD}
+readonly CREATE_CDB="$3"
+readonly CDB_NAME="$4"
 readonly CHARACTER_SET=${5:-AL32UTF8}
 readonly MEM_PCT=${6:-25}
 PATCH_VERSION="$7"
@@ -64,13 +64,11 @@ setup_installers() {
     local -g INSTALL_CONFIG="ora12-config.sh"
     # shellcheck source=ora12-config.sh
     source "${STAGE_DIR}"/"${INSTALL_CONFIG}"
-    local -g PREINSTALL_RPM="oracle-database-server-12cR2-preinstall.x86_64"
     local -g CHECKSUM_FILE="checksum.sha256.12"
   elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
     local -g INSTALL_CONFIG="ora19-config.sh"
     # shellcheck source=ora19-config.sh
     source "${STAGE_DIR}"/"${INSTALL_CONFIG}"
-    local -g PREINSTALL_RPM="oracle-database-preinstall-19c.x86_64"
     local -g CHECKSUM_FILE="checksum.sha256.19"
   else
     echo "DB version ${DB_VERSION} not supported"
@@ -132,23 +130,6 @@ _fallback_opatch_file() {
   done
 }
 
-setup_package() {
-  yum install -y shadow-utils openssl sudo
-  yum install -y nmap-ncat.x86_64
-  yum install -y strace.x86_64
-  yum install -y net-tools.x86_64
-  yum install -y lsof.x86_64
-  yum install -y "${PREINSTALL_RPM}"
-  # Microdnf on RHEL 8
-  # microdnf install -y "${PREINSTALL_RPM}"
-  # microdnf install -y shadow-utils openssl sudo
-  echo "#%PAM-1.0
-auth       include      system-auth
-account    include      system-auth
-password   include      system-auth
-" >/etc/pam.d/sudo
-}
-
 setup_ocm() {
   if [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
     echo "oracle.install.responseFileVersion=/oracle/install/rspfmt_dbinstall_response_schema_v19.0.0" >"${STAGE_DIR}/${OCM_FILE}"
@@ -176,10 +157,6 @@ setup_ocm() {
 
 setup_directories() {
   mkdir -p "${STAGE_DIR}/patches"
-  mkdir -p "/home/${USER}"
-  mkdir -p "${OHOME}"
-  chown "${USER}:${GROUP}" "${OHOME}"
-  chown -R "${USER}:${GROUP}" "/home/${USER}"
   chown "${USER}:${GROUP}" "${STAGE_DIR}/patches"
 }
 
@@ -211,7 +188,7 @@ install_oracle() {
 }
 
 install_oracle19() {
-  printf "inventory_loc=/u01/app/oraInventory\ninst_group=dba\n" \
+  printf "inventory_loc=/u01/app/oracle/oraInventory\ninst_group=dba\n" \
     >>/etc/oraInst.loc
   chown "${USER}:${GROUP}" /etc/oraInst.loc
   cd "${OHOME}"
@@ -240,7 +217,7 @@ install_oracle19() {
 }
 
 install_oracle12() {
-  printf "inventory_loc=/u01/app/oraInventory\ninst_group=dba\n" \
+  printf "inventory_loc=/u01/app/oracle/oraInventory\ninst_group=dba\n" \
     >>/etc/oraInst.loc
   chown "${USER}:${GROUP}" /etc/oraInst.loc
   sudo -u oracle "${STAGE_DIR}/database/runInstaller" \
@@ -298,21 +275,7 @@ create_cdb() {
 }
 
 set_environment() {
-  echo "export ORACLE_HOME=${OHOME}" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export ORACLE_BASE=/u01/app/oracle" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export ORACLE_SID=${CDB_NAME}" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export PATH=${OHOME}/bin:${OHOME}/OPatch:/usr/local/bin:/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export LD_LIBRARY_PATH=${OHOME}/lib" >>"/home/oracle/${CDB_NAME}.env"
   source "/home/oracle/${CDB_NAME}.env"
-  chown "${USER}:${GROUP}" "/home/oracle/${CDB_NAME}.env"
-}
-
-create_metadata_file() {
-  echo "ORACLE_HOME=${OHOME}" >>"/home/oracle/.metadata"
-  if [[ "${CREATE_CDB}" == true ]]; then
-    echo "ORACLE_SID=${CDB_NAME}" >>"/home/oracle/.metadata"
-  fi
-  echo "VERSION=${DB_VERSION}" >>"/home/oracle/.metadata"
 }
 
 cleanup_post_success() {
@@ -367,7 +330,6 @@ main() {
   setup_patching
   setup_installers
   checksum_files
-  setup_package
   setup_directories
   setup_ocm
   if [[ "${CREATE_CDB}" == true ]]; then
@@ -385,7 +347,6 @@ main() {
   fi
   chown "${USER}:${GROUP}" /etc/oratab
   cleanup_post_success
-  create_metadata_file
   echo "Oracle installation success"
 }
 main

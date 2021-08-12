@@ -26,44 +26,8 @@ readonly GROUP="dba"
 readonly OHOME="/opt/oracle/product/18c/dbhomeXE"
 readonly DB_VERSION="18c"
 
-setup_directories() {
-  mkdir -p "/home/${USER}"
-}
-
-install_debug_utilities() {
-  yum install -y shadow-utils openssl sudo
-  yum install -y nmap-ncat.x86_64
-  yum install -y strace.x86_64
-  yum install -y net-tools.x86_64
-  yum install -y lsof.x86_64
-}
-
-write_pam_files() {
-  echo "#%PAM-1.0
-auth       include      system-auth
-account    include      system-auth
-password   include      system-auth
-" >/etc/pam.d/sudo
-
-    echo "#%PAM-1.0
-auth		sufficient	pam_rootok.so
-auth		substack	system-auth
-auth		include		postlogin
-account		sufficient	pam_succeed_if.so uid = 0 use_uid quiet
-account		include		system-auth
-password	include		system-auth
-session		include		postlogin
-session		optional	pam_xauth.so
-" >/etc/pam.d/su
-}
-
 set_environment() {
   export ORACLE_DOCKER_INSTALL=true
-  echo "export ORACLE_HOME=${OHOME}" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export ORACLE_BASE=/opt/oracle" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export ORACLE_SID=${CDB_NAME}" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export PATH=${OHOME}/bin:${OHOME}/OPatch:/usr/local/bin:/usr/local/sbin:/sbin:/bin:/usr/sbin:/usr/bin:/root/bin" >>"/home/oracle/${CDB_NAME}.env"
-  echo "export LD_LIBRARY_PATH=${OHOME}/lib" >>"/home/oracle/${CDB_NAME}.env"
   source "/home/oracle/${CDB_NAME}.env"
 }
 
@@ -105,17 +69,8 @@ run_sql() {
   echo "${1}" | sudo -E -u oracle "${ORACLE_HOME}/bin/sqlplus" -S / as sysdba
 }
 
-create_metadata_file() {
-  echo "ORACLE_HOME=${OHOME}" >>"/home/oracle/.metadata"
-  echo "ORACLE_SID=${CDB_NAME}" >>"/home/oracle/.metadata"
-  echo "VERSION=${DB_VERSION}" >>"/home/oracle/.metadata"
-}
-
 main() {
   echo "Running Oracle 18c XE install script..."
-  install_debug_utilities
-  write_pam_files
-  setup_directories
   set_environment
   install_oracle
   write_oracle_config
@@ -123,7 +78,6 @@ main() {
   set_file_ownership
   delete_xe_pdb
   shutdown_oracle
-  create_metadata_file
   echo "Oracle 18c XE installation succeeded!"
 }
 
