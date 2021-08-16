@@ -22,12 +22,12 @@ import (
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
@@ -62,20 +62,6 @@ var (
 	CmName = "%s-cm"
 	// DatabasePodAppLabel is the 'app' label assigned to db pod.
 	DatabasePodAppLabel = "db-op"
-	defaultDiskSpecs    = map[string]commonv1alpha1.DiskSpec{
-		"DataDisk": {
-			Name: "DataDisk",
-			Size: resource.MustParse("100Gi"),
-		},
-		"LogDisk": {
-			Name: "LogDisk",
-			Size: resource.MustParse("150Gi"),
-		},
-		"BackupDisk": {
-			Name: "BackupDisk",
-			Size: resource.MustParse("100Gi"),
-		},
-	}
 
 	defaultDiskMountLocations = map[string]string{
 		"DataDisk":   "u02",
@@ -131,7 +117,7 @@ type ConfigAgentClientFactory interface {
 
 // GetPVCNameAndMount returns PVC names and their corresponding mount.
 func GetPVCNameAndMount(instName, diskName string) (string, string) {
-	spec := defaultDiskSpecs[diskName]
+	spec := utils.DefaultDiskSpecs[diskName]
 	mountLocation := defaultDiskMountLocations[spec.Name]
 	pvcName := fmt.Sprintf(PvcMountName, instName, mountLocation)
 	return pvcName, mountLocation

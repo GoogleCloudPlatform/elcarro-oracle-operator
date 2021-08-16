@@ -13,6 +13,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//common/api/v1alpha1",
+        "//common/pkg/utils",
         "//oracle/api/v1alpha1",
         "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/agents/consts",

@@ -80,13 +80,15 @@ func (b *snapshotBackup) create(ctx context.Context) error {
 		return err
 	}
 
+	var configSpec *commonv1alpha1.ConfigSpec
 	if config != nil {
+		configSpec = &config.Spec.ConfigSpec
 		b.log.Info("customer config loaded", "config", config)
 	} else {
 		b.log.Info("no customer specific config found, assuming all defaults")
 	}
 
-	vsc, err := controllers.ConfigAttribute("VolumeSnapshotClass", b.backup.Spec.VolumeSnapshotClass, config)
+	vsc, err := utils.FindVolumeSnapshotClassName(b.backup.Spec.VolumeSnapshotClass, configSpec, utils.PlatformGCP)
 	if err != nil || vsc == "" {
 		return fmt.Errorf("failed to identify a volumeSnapshotClassName for instance: %q", b.backup.Spec.Instance)
 	}

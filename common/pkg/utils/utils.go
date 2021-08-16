@@ -19,14 +19,153 @@ import (
 	"context"
 	"fmt"
 
-	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 )
+
+const (
+	PlatformGCP                            = "GCP"
+	PlatformBareMetal                      = "BareMetal"
+	PlatformMinikube                       = "Minikube"
+	PlatformKind                           = "Kind"
+	defaultStorageClassNameGCP             = "csi-gce-pd"
+	defaultVolumeSnapshotClassNameGCP      = "csi-gce-pd-snapshot-class"
+	defaultStorageClassNameBM              = "csi-trident"
+	defaultVolumeSnapshotClassNameBM       = "csi-trident-snapshot-class"
+	defaultStorageClassNameMinikube        = "csi-hostpath-sc"
+	defaultVolumeSnapshotClassNameMinikube = "csi-hostpath-snapclass"
+)
+
+var (
+	defaultDiskSize = resource.MustParse("100Gi")
+
+	DefaultDiskSpecs = map[string]commonv1alpha1.DiskSpec{
+		"DataDisk": {
+			Name: "DataDisk",
+			Size: resource.MustParse("100Gi"),
+		},
+		"LogDisk": {
+			Name: "LogDisk",
+			Size: resource.MustParse("150Gi"),
+		},
+		"BackupDisk": {
+			Name: "BackupDisk",
+			Size: resource.MustParse("100Gi"),
+		},
+	}
+)
+
+type platformConfig struct {
+	storageClassName        string
+	volumeSnapshotClassName string
+}
+
+func getPlatformConfig(p string) (*platformConfig, error) {
+	switch p {
+	case PlatformGCP:
+		return &platformConfig{
+			storageClassName:        defaultStorageClassNameGCP,
+			volumeSnapshotClassName: defaultVolumeSnapshotClassNameGCP,
+		}, nil
+	case PlatformBareMetal:
+		return &platformConfig{
+			storageClassName:        defaultStorageClassNameBM,
+			volumeSnapshotClassName: defaultVolumeSnapshotClassNameBM,
+		}, nil
+	case PlatformMinikube, PlatformKind:
+		return &platformConfig{
+			storageClassName:        defaultStorageClassNameMinikube,
+			volumeSnapshotClassName: defaultVolumeSnapshotClassNameMinikube,
+		}, nil
+	default:
+		return nil, fmt.Errorf("the current release doesn't support deployment platform %q", p)
+	}
+}
+
+func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec) resource.Quantity {
+	spec, exists := DefaultDiskSpecs[diskSpec.Name]
+	if !exists {
+		return defaultDiskSize
+	}
+
+	if !diskSpec.Size.IsZero() {
+		return diskSpec.Size
+	}
+
+	if configSpec != nil {
+		for _, d := range configSpec.Disks {
+			if d.Name == diskSpec.Name {
+				if !d.Size.IsZero() {
+					return d.Size
+				}
+				break
+			}
+		}
+	}
+
+	return spec.Size
+}
+
+func FindStorageClassName(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string) (string, error) {
+	if diskSpec.StorageClass != "" {
+		return diskSpec.StorageClass, nil
+	}
+
+	if configSpec != nil {
+		for _, d := range configSpec.Disks {
+			if d.Name == diskSpec.Name {
+				if d.StorageClass != "" {
+					return d.StorageClass, nil
+				}
+				break
+			}
+		}
+
+		if configSpec.StorageClass != "" {
+			return configSpec.StorageClass, nil
+		}
+	}
+
+	platform := setPlatform(defaultPlatform, configSpec)
+
+	pc, err := getPlatformConfig(platform)
+	if err != nil {
+		return "", err
+	}
+	return pc.storageClassName, nil
+}
+
+func setPlatform(defaultPlatform string, configSpec *commonv1alpha1.ConfigSpec) string {
+	platform := defaultPlatform
+	if configSpec != nil && configSpec.Platform != "" {
+		platform = configSpec.Platform
+	}
+	return platform
+}
+
+func FindVolumeSnapshotClassName(volumneSnapshotClass string, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string) (string, error) {
+	if volumneSnapshotClass != "" {
+		return volumneSnapshotClass, nil
+	}
+
+	if configSpec != nil && configSpec.VolumeSnapshotClass != "" {
+		return configSpec.VolumeSnapshotClass, nil
+	}
+
+	platform := setPlatform(defaultPlatform, configSpec)
+	pc, err := getPlatformConfig(platform)
+	if err != nil {
+		return "", err
+	}
+	return pc.volumeSnapshotClassName, nil
+}
 
 // DiskSpaceTotal is a helper function to calculate the total amount
 // of allocated space across all disks requested for an instance.
