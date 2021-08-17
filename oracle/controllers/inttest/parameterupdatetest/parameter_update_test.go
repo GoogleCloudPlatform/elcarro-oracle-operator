@@ -144,15 +144,13 @@ var _ = Describe("ParameterUpdate", func() {
 					instanceToUpdate.Spec.Parameters = map[string]string{
 						"parallel_threads_per_cpu": randVal, // dynamic parameter
 						"disk_asynch_io":           "true",  // static parameter
-						"memory_max_target":        "1",     // bad static parameter value.
+						"memory_max_target":        "1",     // bad static parameter value whose update failure can only be detected during startup
 					}
 				})
 
-			// Verify the controller is getting into ParameterUpdateInProgress state
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateInProgress, 10*time.Second)
-
 			// Verify the instance transitions to ParameterUpdateRollback state due to database unable to restart.
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateRollback, 5*time.Minute)
+
 			// Wait until the instance settles into "Ready" again
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
@@ -163,9 +161,54 @@ var _ = Describe("ParameterUpdate", func() {
 		})
 	}
 
+	TestParameterUpdateForSilentFailureAndRollback := func(version string, edition string) {
+		It("Test parameter update failure and rollback", func() {
+			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
+
+			// Wait until DatabaseInstanceReady = True
+			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
+
+			// Create PDB
+			testhelpers.CreateSimplePDB(k8sEnv, instanceName)
+			By("DB is ready, initiating parameter update")
+
+			createdInstance := &v1alpha1.Instance{}
+			parallelThreadCountPreUpdate := fetchParameterValue(pod, "parallel_threads_per_cpu")
+
+			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				instKey,
+				createdInstance,
+				func(obj *client.Object) {
+					instanceToUpdate := (*obj).(*v1alpha1.Instance)
+					// Add the required parameters spec to the spec file
+					oneHourBefore := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+					twoHours := metav1.Duration{Duration: 2 * time.Hour}
+					instanceToUpdate.Spec.MaintenanceWindow = &commonv1alpha1.MaintenanceWindowSpec{TimeRanges: []commonv1alpha1.TimeRange{{Start: &oneHourBefore, Duration: &twoHours}}}
+					// Generate a random value for the parameter whose max is 100
+					randVal := strconv.Itoa(rand.New(rand.NewSource(time.Now().UnixNano() / 1000)).Intn(100))
+					log.Info("The generated random value is ", "rand val", randVal)
+
+					instanceToUpdate.Spec.Parameters = map[string]string{
+						// Oracle implicitly sets it to the lowest possible safe value of 1
+						"cpu_count": "0", // bad dynamic parameter update
+					}
+				})
+
+			// Verify the instance transitions to ParameterUpdateRollback state due to database unable to restart.
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateRollback, 5*time.Minute)
+			// Wait until the instance settles into "Ready" again
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
+
+			// Verify rollback by checking current parameter value is equivalent to pre-update value.
+			Expect(fetchParameterValue(pod, "parallel_threads_per_cpu")).To(Equal(parallelThreadCountPreUpdate))
+		})
+	}
+
 	Context("Oracle 12.2 EE", func() {
 		TestParameterUpdateForCorrectParameters("12.2", "EE")
 		TestParameterUpdateFailureAndRollback("12.2", "EE")
+		TestParameterUpdateForSilentFailureAndRollback("12.2", "EE")
 	})
 
 	Context("Oracle 19.3 EE", func() {
