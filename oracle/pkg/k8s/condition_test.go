@@ -150,7 +150,7 @@ func TestInstanceUpsertCondition(t *testing.T) {
 				Type:               "OldCond",
 				Status:             v1.ConditionFalse,
 				Reason:             "NewReason",
-				LastTransitionTime: oldTime,
+				LastTransitionTime: newTime,
 			},
 			ExistingConds: []v1.Condition{
 				{
@@ -259,7 +259,7 @@ func TestUpsert(t *testing.T) {
 				Type:               "OldCond",
 				Status:             v1.ConditionFalse,
 				Reason:             "NewReason",
-				LastTransitionTime: oldTime,
+				LastTransitionTime: newTime,
 			},
 			ExistingConds: []v1.Condition{
 				{

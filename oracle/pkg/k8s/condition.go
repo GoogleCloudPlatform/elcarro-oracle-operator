@@ -114,11 +114,11 @@ func InstanceUpsertCondition(iStatus *v1alpha1.InstanceStatus, name string, stat
 func Upsert(conditions []v1.Condition, name string, status v1.ConditionStatus, reason, message string) []v1.Condition {
 
 	if cond := FindCondition(conditions, name); cond != nil {
-		if !ConditionStatusEquals(cond, status) { // LastTransitionTime refers to the time Status changes
+		if !ConditionStatusEquals(cond, status) || !ConditionReasonEquals(cond, reason) { // LastTransitionTime refers to the time Status changes
 			cond.Status = status
+			cond.Reason = reason
 			cond.LastTransitionTime = v1Now()
 		}
-		cond.Reason = reason
 		cond.Message = message
 		return conditions
 	}
