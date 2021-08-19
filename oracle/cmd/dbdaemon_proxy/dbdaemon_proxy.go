@@ -24,6 +24,7 @@ import (
 	"os/user"
 	"syscall"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 
@@ -98,6 +99,32 @@ func agentInit() error {
 	return nil
 }
 
+// createImageTypeFile sets create.
+// Note that once a database is provisioned, in the event of a container restart, the DB image will effectively be considered seeded
+func createImageTypeFile() error {
+	_, cdbNameFromImage, _, err := provision.FetchMetaDataFromImage()
+	if err != nil {
+		return fmt.Errorf("could not fetch metadata from service image: %v", err)
+	}
+
+	var fileName string
+	if cdbNameFromImage == "" {
+		fileName = consts.UnseededImageFile
+		klog.Info("dbdaemonproxy/createImageTypeFile: detected an unseeded image")
+	} else {
+		fileName = consts.SeededImageFile
+		klog.Info("dbdaemonproxy/createImageTypeFile: detected a seeded image")
+	}
+
+	f, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("could not create %s file: %v", fileName, err)
+	}
+	defer f.Close()
+
+	return nil
+}
+
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -113,6 +140,11 @@ func main() {
 	}
 
 	if err := agentInit(); err != nil {
+		os.Exit(exitErrorCode)
+	}
+
+	if err := createImageTypeFile(); err != nil {
+		klog.ErrorS(err, "dbdaemonproxy/main: failed to set image type")
 		os.Exit(exitErrorCode)
 	}
 

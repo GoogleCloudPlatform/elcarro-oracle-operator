@@ -105,6 +105,12 @@ var (
 	// this is placed on the PD storage so that on recreate, the bootstrap doesnt re-run.
 	ProvisioningDoneFile = "/u02/app/oracle/provisioning_successful"
 
+	// SeededImageFile indicates that a CDB exists in the image or one of the volumes mounted to it
+	SeededImageFile = "/tmp/seeded_image"
+
+	// UnseededImageFile indicates that a CDB does not exist in the image, nor in any volume mounted to it
+	UnseededImageFile = "/tmp/unseeded_image"
+
 	// SECURE is the name of the secure tns listener
 	SECURE = "SECURE"
 	// ListenerNames is the list of listeners
