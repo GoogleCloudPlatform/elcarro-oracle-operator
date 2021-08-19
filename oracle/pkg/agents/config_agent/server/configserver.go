@@ -1009,7 +1009,7 @@ func (s *ConfigServer) FetchServiceImageMetaData(ctx context.Context, req *pb.Fe
 	if err != nil {
 		return &pb.FetchServiceImageMetaDataResponse{}, nil
 	}
-	return &pb.FetchServiceImageMetaDataResponse{Version: metaData.Version, CdbName: metaData.CdbName, OracleHome: metaData.OracleHome}, nil
+	return &pb.FetchServiceImageMetaDataResponse{Version: metaData.Version, CdbName: metaData.CdbName, OracleHome: metaData.OracleHome, SeededImage: metaData.SeededImage}, nil
 }
 
 // AccessSecretVersionFunc accesses the payload for the given secret version if one

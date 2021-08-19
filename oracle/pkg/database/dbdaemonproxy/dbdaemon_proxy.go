@@ -428,6 +428,28 @@ func (s *Server) SetEnv(ctx context.Context, req *dbdpb.SetEnvRequest) (*dbdpb.S
 	return &dbdpb.SetEnvResponse{}, nil
 }
 
+// ProxyFetchServiceImageMetaData returns metadata from the container running the oracledb container
+func (s *Server) ProxyFetchServiceImageMetaData(ctx context.Context, req *dbdpb.ProxyFetchServiceImageMetaDataRequest) (*dbdpb.ProxyFetchServiceImageMetaDataResponse, error) {
+	oracleHome, cdbName, version, err := provision.FetchMetaDataFromImage()
+
+	if err != nil {
+		klog.Error("proxy/FetchServiceImageMetaData: FAILED")
+		return nil, fmt.Errorf("could not fetch image metadata: %v", err)
+	}
+
+	var seededImage bool
+	if _, err := os.Stat(consts.SeededImageFile); err == nil {
+		seededImage = true
+	} else if _, err := os.Stat(consts.UnseededImageFile); err == nil {
+		seededImage = false
+	} else {
+		klog.Error("proxy/FetchServiceImageMetaData: FAILED")
+		return nil, fmt.Errorf("could not determine if image is seeded or not: %v", err)
+	}
+
+	return &dbdpb.ProxyFetchServiceImageMetaDataResponse{Version: version, CdbName: cdbName, OracleHome: oracleHome, SeededImage: seededImage}, nil
+}
+
 //Sets Oracle specific environment variables and creates the .env file
 func initializeEnvironment(s *Server, home string, dbName string) error {
 	s.databaseHome = home

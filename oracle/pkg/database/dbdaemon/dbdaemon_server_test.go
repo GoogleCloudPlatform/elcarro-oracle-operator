@@ -450,6 +450,10 @@ func (m *mockDatabaseDaemonProxyClient) ProxyRunInitOracle(ctx context.Context, 
 	panic("implement me")
 }
 
+func (m *mockDatabaseDaemonProxyClient) ProxyFetchServiceImageMetaData(ctx context.Context, in *dbdpb.ProxyFetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*dbdpb.ProxyFetchServiceImageMetaDataResponse, error) {
+	return &dbdpb.ProxyFetchServiceImageMetaDataResponse{Version: "12.2", OracleHome: "/u01/app/oracle/product/12.2/db", CdbName: "MYDB"}, nil
+}
+
 // Mock osUtil
 type mockOsUtil struct {
 	commands []string
