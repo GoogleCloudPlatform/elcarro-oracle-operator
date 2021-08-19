@@ -353,4 +353,5 @@ message FetchServiceImageMetaDataResponse {
   string version = 1;
   string cdb_name = 2;
   string oracle_home = 3;
+  bool seeded_image = 4;
 }

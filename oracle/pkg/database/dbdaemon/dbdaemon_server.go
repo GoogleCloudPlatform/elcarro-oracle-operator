@@ -1766,13 +1766,13 @@ func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.Downlo
 	return &dbdpb.DownloadDirectoryFromGCSResponse{}, nil
 }
 
-// FetchServiceImageMetaData fetches the image metadata from the image.
+// FetchServiceImageMetaData fetches the image metadata via the dbdaemon proxy.
 func (s *Server) FetchServiceImageMetaData(ctx context.Context, req *dbdpb.FetchServiceImageMetaDataRequest) (*dbdpb.FetchServiceImageMetaDataResponse, error) {
-	oracleHome, cdbName, version, err := provision.FetchMetaDataFromImage()
+	proxyResponse, err := s.dbdClient.ProxyFetchServiceImageMetaData(ctx, &dbdpb.ProxyFetchServiceImageMetaDataRequest{})
 	if err != nil {
-		return &dbdpb.FetchServiceImageMetaDataResponse{}, nil
+		return &dbdpb.FetchServiceImageMetaDataResponse{}, err
 	}
-	return &dbdpb.FetchServiceImageMetaDataResponse{Version: version, CdbName: cdbName, OracleHome: oracleHome}, nil
+	return &dbdpb.FetchServiceImageMetaDataResponse{Version: proxyResponse.Version, CdbName: proxyResponse.CdbName, OracleHome: proxyResponse.OracleHome, SeededImage: proxyResponse.SeededImage}, nil
 }
 
 func (s *Server) downloadFile(ctx context.Context, c *storage.Client, bucket, gcsPath, baseDir, dest string) error {
