@@ -33,23 +33,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 )
 
 const (
-	platformGCP                            = "GCP"
-	platformBareMetal                      = "BareMetal"
-	platformMinikube                       = "Minikube"
-	platformKind                           = "Kind"
-	defaultStorageClassNameGCP             = "csi-gce-pd"
-	defaultVolumeSnapshotClassNameGCP      = "csi-gce-pd-snapshot-class"
-	defaultStorageClassNameBM              = "csi-trident"
-	defaultVolumeSnapshotClassNameBM       = "csi-trident-snapshot-class"
-	defaultStorageClassNameMinikube        = "csi-hostpath-sc"
-	defaultVolumeSnapshotClassNameMinikube = "csi-hostpath-snapclass"
-
 	configAgentName = "config-agent"
 	// OperatorName is the default operator name.
 	OperatorName                = "operator"
@@ -75,61 +65,6 @@ var (
 		},
 	}
 )
-
-type platformConfig struct {
-	storageClassName        string
-	volumeSnapshotClassName string
-}
-
-func getPlatformConfig(p string) (*platformConfig, error) {
-	switch p {
-	case platformGCP:
-		return &platformConfig{
-			storageClassName:        defaultStorageClassNameGCP,
-			volumeSnapshotClassName: defaultVolumeSnapshotClassNameGCP,
-		}, nil
-	case platformBareMetal:
-		return &platformConfig{
-			storageClassName:        defaultStorageClassNameBM,
-			volumeSnapshotClassName: defaultVolumeSnapshotClassNameBM,
-		}, nil
-	case platformMinikube, platformKind:
-		return &platformConfig{
-			storageClassName:        defaultStorageClassNameMinikube,
-			volumeSnapshotClassName: defaultVolumeSnapshotClassNameMinikube,
-		}, nil
-	default:
-		return nil, fmt.Errorf("the current release doesn't support deployment platform %q", p)
-	}
-}
-
-func (pc *platformConfig) finalStorageClassName(config *v1alpha1.Config) string {
-	storageClassName := pc.storageClassName
-
-	// Override if explicitly requested by the Custom/Global Config.
-	// If it's not requested in the Global Config, return "",
-	// which at this point would constitute an error.
-	// (no platform specific default and no override).
-	if config != nil {
-		storageClassName = config.Spec.StorageClass
-	}
-
-	return storageClassName
-}
-
-func (pc *platformConfig) finalVolumeSnapshotClassName(config *v1alpha1.Config) string {
-	volumeSnapshotClassName := pc.volumeSnapshotClassName
-
-	// Override if explicitly requested by the Custom/Global Config.
-	// If it's not requested in the Global Config, return "",
-	// which at this point would constitute an error.
-	// (no platform specific default and no override).
-	if config != nil {
-		volumeSnapshotClassName = config.Spec.VolumeSnapshotClass
-	}
-
-	return volumeSnapshotClassName
-}
 
 // NewSvc returns the service for the database.
 func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1.Service, error) {
@@ -368,7 +303,7 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 
 	// Kind cluster can only use local images
 	imagePullPolicy := corev1.PullAlways
-	if agentDeployment.Config != nil && agentDeployment.Config.Spec.Platform == platformKind {
+	if agentDeployment.Config != nil && agentDeployment.Config.Spec.Platform == utils.PlatformKind {
 		imagePullPolicy = corev1.PullIfNotPresent
 	}
 
@@ -462,45 +397,21 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 	return deployment, nil
 }
 
-func findDiskSize(diskName string, sp StsParams) resource.Quantity {
-	spec, exists := defaultDiskSpecs[diskName]
-	if !exists {
-		sp.Log.Info("no default volume bind with diskName %q, returns default disk size %q", diskName, defaultDiskSize)
-		return defaultDiskSize
-	}
-
-	if sp.Disks != nil {
-		for _, d := range sp.Disks {
-			if d.Name == diskName && !d.Size.IsZero() {
-				sp.Log.Info("returns size with an instance-level requested size", "diskName", diskName, "mount", defaultDiskMountLocations[spec.Name], "requestedDiskSize", d.Size)
-				return d.Size
-			}
-		}
-	}
-
-	if sp.Config != nil {
-		for _, d := range sp.Config.Spec.Disks {
-			if d.Name == diskName && !d.Size.IsZero() {
-				sp.Log.Info("returns size with the customer provided (global preference) numbers", "mount", defaultDiskMountLocations[spec.Name], "diskName", diskName, "diskSizes", d.Size)
-				return d.Size
-			}
-		}
-	}
-	sp.Log.Info("returns size with default numbers", "diskName", diskName, "mount", defaultDiskMountLocations[spec.Name], "diskSizes", spec.Size)
-	return spec.Size
-}
-
 // NewPVCs returns PVCs.
 func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 	var pvcs []corev1.PersistentVolumeClaim
 
 	for _, diskSpec := range sp.Disks {
-		rl := corev1.ResourceList{corev1.ResourceStorage: findDiskSize(diskSpec.Name, sp)}
+		var configSpec *commonv1alpha1.ConfigSpec
+		if sp.Config != nil {
+			configSpec = &sp.Config.Spec.ConfigSpec
+		}
+		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec)}
 		pvcName, mount := GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
 		var pvc corev1.PersistentVolumeClaim
 
 		// Determine storage class (from disk spec or config)
-		storageClass, err := ConfigAttribute("StorageClass", diskSpec.StorageClass, sp.Config)
+		storageClass, err := utils.FindStorageClassName(&diskSpec, configSpec, utils.PlatformGCP)
 		if err != nil || storageClass == "" {
 			return nil, fmt.Errorf("failed to identify a storageClassName for disk %q", diskSpec.Name)
 		}
@@ -576,7 +487,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 
 	// Kind cluster can only use local images
 	imagePullPolicy := corev1.PullAlways
-	if sp.Config != nil && sp.Config.Spec.Platform == platformKind {
+	if sp.Config != nil && sp.Config.Spec.Platform == utils.PlatformKind {
 		imagePullPolicy = corev1.PullIfNotPresent
 	}
 
@@ -711,7 +622,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 
 	// for minikube/kind, the default csi-hostpath-driver mounts persistent volumes writable by root only, so explicitly
 	// change owner and permissions of mounted pvs with an init container.
-	if sp.Config != nil && (sp.Config.Spec.Platform == platformMinikube || sp.Config.Spec.Platform == platformKind) {
+	if sp.Config != nil && (sp.Config.Spec.Platform == utils.PlatformMinikube || sp.Config.Spec.Platform == utils.PlatformKind) {
 		initContainers = addHostpathInitContainer(sp, initContainers, *uid, *gid)
 	}
 
@@ -819,37 +730,6 @@ func GetDBDomain(inst *v1alpha1.Instance) string {
 	}
 
 	return inst.Spec.DBDomain
-}
-
-// ConfigAttribute attempts to detect what value to use for a requested
-// attribute. If an explicit value is requested via the Spec,
-// it's immediately returned "as is". If not, a customer global Config
-// is checked and returned if set. Failing all that a platform default
-// value is used for a requested attribute.
-func ConfigAttribute(name, explicitRequest string, config *v1alpha1.Config) (string, error) {
-	if explicitRequest != "" {
-		return explicitRequest, nil
-	}
-
-	// Assume the default platform as GCP. This can be overridden via a Config.
-	platform := platformGCP
-	if config != nil && config.Spec.Platform != "" {
-		platform = config.Spec.Platform
-	}
-
-	gc, err := getPlatformConfig(platform)
-	if err != nil {
-		return "", err
-	}
-
-	switch name {
-	case "StorageClass":
-		return gc.finalStorageClassName(config), nil
-	case "VolumeSnapshotClass":
-		return gc.finalVolumeSnapshotClassName(config), nil
-	default:
-		return "", fmt.Errorf("unknown attribute requested (presently supported: StorageClass, VolumeSnapshotClass): %q", name)
-	}
 }
 
 func addHostpathInitContainer(sp StsParams, containers []corev1.Container, uid, gid int64) []corev1.Container {
