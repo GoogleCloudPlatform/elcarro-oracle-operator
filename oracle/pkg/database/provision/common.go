@@ -427,7 +427,10 @@ func fetchMetaDataFromEnvironmentVars() (oracleHome, cdbName, version string, er
 		//the existence of the ORACLE_SID env variable isn't enough to conclude that a CDB of that name exists
 		//The existence of an oradata directory containing ORACLE_SID confirms the existence of a CDB of that name
 		if _, err = os.Stat(os.Getenv("ORACLE_BASE") + "/oradata/" + os.Getenv("ORACLE_SID")); os.IsNotExist(err) {
-			cdbName = ""
+			//After a database is provisioned, the oradata directory will be located on the DataMount
+			if _, err = os.Stat(fmt.Sprintf(consts.DataDir, consts.DataMount, os.Getenv("ORACLE_SID"))); os.IsNotExist(err) {
+				cdbName = ""
+			}
 		}
 	}
 	return os.Getenv("ORACLE_HOME"), cdbName, getOracleVersionUsingOracleHome(os.Getenv("ORACLE_HOME")), nil
