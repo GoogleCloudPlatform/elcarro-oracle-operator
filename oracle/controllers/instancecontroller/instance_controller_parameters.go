@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -133,6 +134,7 @@ func fetchCurrentParameterState(ctx context.Context, caClient capb.ConfigAgentCl
 func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.Instance, caClient capb.ConfigAgentClient, log logr.Logger) (bool, error) {
 	log.Info("Parameters are ", "parameters:", inst.Spec.Parameters)
 	requireDatabaseRestart := false
+	var keys []string
 
 	for k, v := range inst.Spec.Parameters {
 		response, err := caClient.SetParameter(ctx, &capb.SetParameterRequest{
@@ -143,9 +145,31 @@ func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.In
 			log.Error(err, "setParameters: error while running SetParameter query")
 			return requireDatabaseRestart, err
 		}
+		keys = append(keys, k)
 		requireDatabaseRestart = requireDatabaseRestart || response.Static
 		log.Info("setParameters: requireDatabaseRestart", "requireDatabaseRestart", requireDatabaseRestart)
 	}
+
+	response, err := caClient.GetParameterTypeValue(ctx, &capb.GetParameterTypeValueRequest{
+		Keys: keys,
+	})
+	if err != nil {
+		log.Error(err, "setParameters: error while running GetParameterTypeValue query")
+		return false, err
+	}
+
+	paramValues := response.GetValues()
+	for i := 0; i < len(keys); i++ {
+		if inst.Spec.Parameters[keys[i]] != paramValues[i] &&
+			// For certain parameter types Oracle converts them to uppercase before storing
+			// For eg boolean (true/false) units(char/byte)
+			strings.ToUpper(inst.Spec.Parameters[keys[i]]) != paramValues[i] {
+			msg := fmt.Sprintf("setParameters: parameter update for %s with value %s was rejected by database and instead set to %s", keys[i], inst.Spec.Parameters[keys[i]], paramValues[i])
+			log.Error(err, msg)
+			return false, errors.New(msg)
+		}
+	}
+
 	log.Info("setParameters: SQL commands executed successfully")
 	return requireDatabaseRestart, nil
 }
