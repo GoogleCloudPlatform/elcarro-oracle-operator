@@ -1,4 +1,4 @@
-# El Carro Operator installation guide
+# El Carro Operator installation guide - Oracle 18c XE
 
 El Carro is a new tool that allows users to keep full control of their database
 environment (root on a machine, sysdba in Oracle), while helping users automate
@@ -12,7 +12,8 @@ This quickstart aims to help get your licensed Oracle database up and running on
 Kubernetes. This guide is only intended for Oracle 18c XE which is free to use.
 If you prefer to use an Enterprise Edition of Oracle with El Carro and have a
 valid Oracle license, check out the
-[main quickstart guide](quickstart.md) instead.
+[quickstart guide for Oracle 12c EE](quickstart-12c-ee.md) or the
+[quickstart guide for Oracle 19c EE](quickstart-19c-ee.md).
 
 ## Before you begin
 
@@ -211,8 +212,11 @@ be added in future releases.
     gcr.io/local-build/oracle-database-images/oracle-18c-xe-seeded-$DBNAME         latest    c766d980c9a0   2 hours ago   11.8GB
     ```
 
-3.  Retag your locally built image if necessary and push it to a registry that
-    your Kubernetes cluster can pull images from.
+3.  Re-tag your locally built image if necessary using the
+    [docker tag command](https://docs.docker.com/engine/reference/commandline/tag/)
+    and push it to a registry that your Kubernetes cluster can pull images from
+    using the
+    [docker push command](https://docs.docker.com/engine/reference/commandline/push/).
 
 ## Provisioning a Kubernetes cluster on GKE to run El Carro
 

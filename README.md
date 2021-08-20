@@ -1,4 +1,4 @@
-<h1 align="center">El Carro: The Oracle Operator for Kubernetes </h1>
+# El Carro: The Oracle Operator for Kubernetes
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/GoogleCloudPlatform/elcarro-oracle-operator)](https://goreportcard.com/report/github.com/GoogleCloudPlatform/elcarro-oracle-operator)
 
@@ -28,9 +28,9 @@ information. Additional database services will be added in future releases.
 ### License Notice
 
 You can use El Carro to automatically provision and manage Oracle Database
-Express Edition (XE) or Oracle Database Enterprise Edition (EE). In each case,
-it is your responsibility to ensure that you have appropriate licenses to use
-any such Oracle software with El Carro.
+Express Edition (XE) or Oracle Database Enterprise Edition (12c and 19c). In
+each case, it is your responsibility to ensure that you have appropriate
+licenses to use any such Oracle software with El Carro.
 
 Please also note that each El Carro “database” will create a pluggable database,
 which may require licensing of the Oracle Multitenant option.
@@ -44,17 +44,19 @@ We recommend starting with the quickstart first, but as you become more familiar
 with El Carro, consider trying more advanced features by following the user
 guides linked below.
 
-If you have a valid license for Oracle 12c EE and would like to get your Oracle
-database up and running on Kubernetes, you can follow this
-[quickstart guide](docs/content/quickstart.md).
+If you have a valid license for Oracle 12c EE or 19c EE and would like to get
+your Oracle database up and running on Kubernetes, you can follow the
+[quickstart guide for Oracle 12c](docs/content/quickstart-12c-ee.md) or the
+[quickstart guide for Oracle 19c](docs/content/quickstart-19c-ee.md).
 
-As an alternative to Oracle 12c EE, you can use
+As an alternative to Oracle 12c EE or 19c EE, you can use
 [Oracle 18c XE](https://www.oracle.com/database/technologies/appdev/xe.html)
 which is free to use by following the
 [quickstart guide for Oracle 18c XE](docs/content/quickstart-18c-xe.md) instead.
 
 If you prefer to run El Carro locally on your personal computer, you can follow
-the [user guide for Oracle on minikube](docs/content/minikube.md) or the [user guide for Oracle on kind](docs/content/kind.md).
+the [user guide for Oracle on minikube](docs/content/minikube.md) or the
+[user guide for Oracle on kind](docs/content/kind.md).
 
 ### Preparation
 
