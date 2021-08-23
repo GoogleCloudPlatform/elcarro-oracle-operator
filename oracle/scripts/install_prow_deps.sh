@@ -57,7 +57,7 @@ HOST_OS=$(go env GOOS)
 HOST_ARCH=$(go env GOARCH)
 
 # Get kubebuilder (includes kubectl, kube-apiserver, etcd)
-curl -sSL https://go.kubebuilder.io/dl/${KUBEBUILDER_VER}/${HOST_OS}/${HOST_ARCH} \
+curl -sSL https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_${HOST_OS}_${HOST_ARCH}.tar.gz \
   -o kubebuilder.tar.gz
 mkdir kubebuilder
 tar xvf kubebuilder.tar.gz --strip-components=1 -C kubebuilder
