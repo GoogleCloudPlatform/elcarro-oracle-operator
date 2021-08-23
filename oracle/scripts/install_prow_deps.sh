@@ -18,6 +18,7 @@
 # the k8s kubekins package which includes go/bazel/gcloud sdk/k8s and built on
 # a debian container.
 
+set -x #echo on
 set -e
 
 # Setup bazel caching
