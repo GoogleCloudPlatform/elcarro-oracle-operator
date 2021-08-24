@@ -406,12 +406,12 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 		if sp.Config != nil {
 			configSpec = &sp.Config.Spec.ConfigSpec
 		}
-		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec)}
+		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec, defaultDiskSpecs, defaultDiskSize)}
 		pvcName, mount := GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
 		var pvc corev1.PersistentVolumeClaim
 
 		// Determine storage class (from disk spec or config)
-		storageClass, err := utils.FindStorageClassName(&diskSpec, configSpec, utils.PlatformGCP)
+		storageClass, err := utils.FindStorageClassName(&diskSpec, configSpec, utils.PlatformGCP, utils.EngineOracle)
 		if err != nil || storageClass == "" {
 			return nil, fmt.Errorf("failed to identify a storageClassName for disk %q", diskSpec.Name)
 		}

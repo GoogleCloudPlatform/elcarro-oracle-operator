@@ -35,6 +35,8 @@ const (
 	PlatformBareMetal                      = "BareMetal"
 	PlatformMinikube                       = "Minikube"
 	PlatformKind                           = "Kind"
+	EnginePostgres                         = "Postgres"
+	EngineOracle                           = "Oracle"
 	defaultStorageClassNameGCP             = "csi-gce-pd"
 	defaultVolumeSnapshotClassNameGCP      = "csi-gce-pd-snapshot-class"
 	defaultStorageClassNameBM              = "csi-trident"
@@ -43,31 +45,17 @@ const (
 	defaultVolumeSnapshotClassNameMinikube = "csi-hostpath-snapclass"
 )
 
-var (
-	defaultDiskSize = resource.MustParse("100Gi")
-
-	DefaultDiskSpecs = map[string]commonv1alpha1.DiskSpec{
-		"DataDisk": {
-			Name: "DataDisk",
-			Size: resource.MustParse("100Gi"),
-		},
-		"LogDisk": {
-			Name: "LogDisk",
-			Size: resource.MustParse("150Gi"),
-		},
-		"BackupDisk": {
-			Name: "BackupDisk",
-			Size: resource.MustParse("100Gi"),
-		},
-	}
-)
-
 type platformConfig struct {
 	storageClassName        string
 	volumeSnapshotClassName string
 }
 
-func getPlatformConfig(p string) (*platformConfig, error) {
+func getPlatformConfig(p string, e string) (*platformConfig, error) {
+	// for Postgres, it allows to have no platform specified
+	if p == "" && e == EnginePostgres {
+		return &platformConfig{}, nil
+	}
+
 	switch p {
 	case PlatformGCP:
 		return &platformConfig{
@@ -89,8 +77,8 @@ func getPlatformConfig(p string) (*platformConfig, error) {
 	}
 }
 
-func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec) resource.Quantity {
-	spec, exists := DefaultDiskSpecs[diskSpec.Name]
+func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultDiskSpecs map[string]commonv1alpha1.DiskSpec, defaultDiskSize resource.Quantity) resource.Quantity {
+	spec, exists := defaultDiskSpecs[diskSpec.Name]
 	if !exists {
 		return defaultDiskSize
 	}
@@ -113,7 +101,7 @@ func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.
 	return spec.Size
 }
 
-func FindStorageClassName(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string) (string, error) {
+func FindStorageClassName(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string, engineType string) (string, error) {
 	if diskSpec.StorageClass != "" {
 		return diskSpec.StorageClass, nil
 	}
@@ -134,8 +122,7 @@ func FindStorageClassName(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv
 	}
 
 	platform := setPlatform(defaultPlatform, configSpec)
-
-	pc, err := getPlatformConfig(platform)
+	pc, err := getPlatformConfig(platform, engineType)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +137,7 @@ func setPlatform(defaultPlatform string, configSpec *commonv1alpha1.ConfigSpec) 
 	return platform
 }
 
-func FindVolumeSnapshotClassName(volumneSnapshotClass string, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string) (string, error) {
+func FindVolumeSnapshotClassName(volumneSnapshotClass string, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string, engineType string) (string, error) {
 	if volumneSnapshotClass != "" {
 		return volumneSnapshotClass, nil
 	}
@@ -160,7 +147,7 @@ func FindVolumeSnapshotClassName(volumneSnapshotClass string, configSpec *common
 	}
 
 	platform := setPlatform(defaultPlatform, configSpec)
-	pc, err := getPlatformConfig(platform)
+	pc, err := getPlatformConfig(platform, engineType)
 	if err != nil {
 		return "", err
 	}
