@@ -22,7 +22,6 @@ if [[ "${OPT}" != "immediate" && "${OPT}" != "abort" && "${OPT}" != "force" ]]; 
   exit 1
 fi
 
-ORACLE_SID=`grep ORACLE_SID= ~/.metadata | cut -d "=" -f2`
 source /home/oracle/${ORACLE_SID}.env
 if [[ "${OPT}" == "force" ]]; then
   echo "Killing all ${ORACLE_SID} processes..."
