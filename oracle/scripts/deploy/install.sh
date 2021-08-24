@@ -18,26 +18,31 @@ set -o nounset
 set -o errexit
 
 CLUSTER_NAME=gkecluster
+DB_VERSION=''
 CDB_NAME=GCLOUD
 ZONE=us-central1-a
 readonly OPERATOR_DIR="${HOME}/oracleop"
+readonly ORACLE_12="12.2"
+readonly ORACLE_19="19.3"
 
 function usage() {
   echo "------USAGE------
   This tool installs the El Carro Operator and provisions the following resources:
   * a Kubernetes cluster on GKE to host the operator and database containers
-  * an Oracle 12c EE database image using the provided binaries
+  * an Oracle 12c or 19c EE database image using the provided binaries
   * an Oracle database (PDB) instance in the cluster
 
   install.sh --gcs_oracle_binaries_path GCS_PATH --service_account SERVICE_ACCOUNT_[NAME|EMAIL] [--cdb_name DB_NAME] [MORE_OPTIONS]
 
   REQUIRED FLAGS
      -g, --gcs_oracle_binaries_path
-        GCS path containing Oracle 12.2 installation files.
+        GCS path containing Oracle 12.2 or 19.3 installation files.
      -a, service_account
         GCP service account that should be used to create a cluster and by the El Carro Operator.
 
   OPTIONAL FLAGS
+     -v, --db_version
+        Version of the Oracle database (12.2 or 19.3).
      -c, --cdb_name
         Name of the container database (CDB), the default value is 'GCLOUD'.
         This name should only contain uppercase letters and numbers.
@@ -51,7 +56,7 @@ function usage() {
 
 function parse_options() {
   opts=$(getopt -o g:a:c:k:z: \
-  --longoptions gcs_oracle_binaries_path:,service_account:,cdb_name:,cluster_name:,gke_zone: -n "$(basename "$0")" -- "$@")
+  --longoptions gcs_oracle_binaries_path:,service_account:,db_version:,cdb_name:,cluster_name:,gke_zone: -n "$(basename "$0")" -- "$@")
   eval set -- "$opts"
   while true; do
     case "$1" in
@@ -63,6 +68,11 @@ function parse_options() {
     -a | --service_account)
       shift
       GKE_SA=$1
+      shift
+      ;;
+    -v | --db_version)
+      shift
+      DB_VERSION=$1
       shift
       ;;
     -c | --cdb_name)
@@ -109,9 +119,19 @@ function init_env() {
     exit 1
   fi
 
+  if [ -z "${DB_VERSION}" ]; then
+    DB_VERSION="${ORACLE_12}"
+  fi
+
+  if [[ "${DB_VERSION}" != "${ORACLE_12}" && "${DB_VERSION}" != "${ORACLE_19}" ]]; then
+    echo "${DB_VERSION} is not supported, the supported versions are ${ORACLE_12} and ${ORACLE_19}"
+    usage
+  fi
+
+
   echo "current project: ${PROJECT}"
 
-  readonly DB_IMAGE="gcr.io/$(echo "${PROJECT}" | tr : /)/oracle-database-images/oracle-12.2-ee-seeded-$(echo "$CDB_NAME" | tr '[:upper:]' '[:lower:]')"
+  readonly DB_IMAGE="gcr.io/$(echo "${PROJECT}" | tr : /)/oracle-database-images/oracle-"${DB_VERSION}"-ee-seeded-$(echo "$CDB_NAME" | tr '[:upper:]' '[:lower:]')"
   readonly RELEASE_DIR="$(dirname "$0/")/.."
 }
 
@@ -187,7 +207,7 @@ function build_image() {
     gsutil iam ch serviceAccount:$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")@cloudbuild.gserviceaccount.com:roles/storage.objectViewer "${GCS_BUCKET}"
 
     pushd "${RELEASE_DIR}/dbimage" > /dev/null
-    bash image_build.sh  --install_path="${GCS_PATH}" --db_version=12.2  --mem_pct=45 --create_cdb=true --cdb_name="${CDB_NAME}" --no_dry_run
+    bash image_build.sh  --install_path="${GCS_PATH}" --db_version="${DB_VERSION}"  --mem_pct=45 --create_cdb=true --cdb_name="${CDB_NAME}" --no_dry_run
     popd > /dev/null
   else
     echo "Oracle container image ${DB_IMAGE}:latest already exists"
@@ -208,8 +228,15 @@ function create_demo_resources() {
   local -r CRD_INSTANCE_PATH="${CRD_DIR}/instance.yaml"
   local -r CRD_PDB_PATH="${CRD_DIR}/database_pdb1.yaml"
 
-  cat "${RELEASE_DIR}/samples/v1alpha1_instance_express.yaml" | \
-  sed "s|gcr.io/\${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-seeded-\${DB}|${DB_IMAGE}|g" | \
+  local INSTANCE_MANIFEST_FILE=""
+  if [[ "${DB_VERSION}" == "${ORACLE_12}" ]]; then
+    INSTANCE_MANIFEST_FILE="v1alpha1_instance_express.yaml"
+  elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
+    INSTANCE_MANIFEST_FILE="v1alpha1_instance_19c_EE_express.yaml"
+  fi
+
+  cat "${RELEASE_DIR}/samples/${INSTANCE_MANIFEST_FILE}" | \
+  sed "s|gcr.io/\${PROJECT_ID}/oracle-database-images/oracle-"${DB_VERSION}"-ee-seeded-\${DB}|${DB_IMAGE}|g" | \
   sed "s/\${DB}/${CDB_NAME}/g" > "${CRD_INSTANCE_PATH}"
 
   cp "${RELEASE_DIR}/samples/v1alpha1_database_pdb1_express.yaml" "${CRD_PDB_PATH}"

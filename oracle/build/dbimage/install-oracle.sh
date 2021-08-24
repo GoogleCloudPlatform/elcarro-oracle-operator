@@ -37,9 +37,9 @@ readonly ORACLE_19="19.3"
 setup_patching() {
   if [[ "${PATCH_VERSION}" == "-1" ]]; then
     if [[ "${DB_VERSION}" == "${ORACLE_12}" ]]; then
-      PATCH_VERSION="31312468"
+      PATCH_VERSION="31741641"
     elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
-      PATCH_VERSION="31281355"
+      PATCH_VERSION="32545013"
     fi
   fi
   local patch_suffix
