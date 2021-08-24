@@ -15,7 +15,6 @@
 package provision
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -52,10 +51,6 @@ var (
 	fileSQLNet = "sqlnet.ora"
 	// SQLNetSrc is the filepath for the control file template in the container.
 	SQLNetSrc = filepath.Join(consts.ScriptDir, fileSQLNet)
-
-	// MetaDataFile is the filepath of the Database image metadata(Oracle Home,
-	// CDB name, Version) file in the image.
-	MetaDataFile = "/home/oracle/.metadata"
 )
 
 // ListenerInput is the struct, which will be applied to the listener template.
@@ -414,14 +409,6 @@ func GrantUserCmd(user, permissions string) string {
 // FetchMetaDataFromImage returns Oracle Home, CDB name, Version by parsing
 // database image metadata file if it exists. Otherwise, environment variables are used.
 func FetchMetaDataFromImage() (oracleHome, cdbName, version string, err error) {
-	if _, err = os.Stat(MetaDataFile); os.IsNotExist(err) {
-		//some images such as OCR images may not contain a .metadata file
-		return fetchMetaDataFromEnvironmentVars()
-	}
-	return fetchMetaDataFromMetadataFile()
-}
-
-func fetchMetaDataFromEnvironmentVars() (oracleHome, cdbName, version string, err error) {
 	if os.Getenv("ORACLE_SID") != "" {
 		cdbName = os.Getenv("ORACLE_SID")
 		//the existence of the ORACLE_SID env variable isn't enough to conclude that a CDB of that name exists
@@ -434,34 +421,6 @@ func fetchMetaDataFromEnvironmentVars() (oracleHome, cdbName, version string, er
 		}
 	}
 	return os.Getenv("ORACLE_HOME"), cdbName, getOracleVersionUsingOracleHome(os.Getenv("ORACLE_HOME")), nil
-}
-
-func fetchMetaDataFromMetadataFile() (oracleHome, cdbName, version string, err error) {
-	f, err := os.Open(MetaDataFile)
-	if err != nil {
-		return "", "", "", err
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			klog.Warningf("failed to close %v: %v", f, err)
-		}
-	}()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		kv := strings.Split(line, "=")
-
-		switch kv[0] {
-		case "ORACLE_HOME":
-			oracleHome = kv[1]
-		case "ORACLE_SID":
-			cdbName = kv[1]
-		case "VERSION":
-			version = kv[1]
-		}
-	}
-	return oracleHome, cdbName, version, nil
 }
 
 // getVersionUsingOracleHome infers the version of the ORACLE Database installation from the specified ORACLE_HOME path
