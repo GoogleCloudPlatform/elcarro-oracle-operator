@@ -14,6 +14,24 @@ func TestFindDiskSize(t *testing.T) {
 		diskSpec   *commonv1alpha1.DiskSpec
 		configSpec *commonv1alpha1.ConfigSpec
 	}
+
+	defaultDiskSpecs := map[string]commonv1alpha1.DiskSpec{
+		"DataDisk": {
+			Name: "DataDisk",
+			Size: resource.MustParse("100Gi"),
+		},
+		"LogDisk": {
+			Name: "LogDisk",
+			Size: resource.MustParse("150Gi"),
+		},
+		"BackupDisk": {
+			Name: "BackupDisk",
+			Size: resource.MustParse("100Gi"),
+		},
+	}
+
+	defaultDiskSize := resource.MustParse("100Gi")
+
 	tests := []struct {
 		name string
 		args args
@@ -61,12 +79,12 @@ func TestFindDiskSize(t *testing.T) {
 					},
 				}},
 			},
-			want: DefaultDiskSpecs["DataDisk"].Size,
+			want: defaultDiskSpecs["DataDisk"].Size,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FindDiskSize(tt.args.diskSpec, tt.args.configSpec); !reflect.DeepEqual(got, tt.want) {
+			if got := FindDiskSize(tt.args.diskSpec, tt.args.configSpec, defaultDiskSpecs, defaultDiskSize); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FindDiskSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -78,6 +96,7 @@ func TestFindStorageClassName(t *testing.T) {
 		diskSpec        *commonv1alpha1.DiskSpec
 		configSpec      *commonv1alpha1.ConfigSpec
 		defaultPlatform string
+		engineType      string
 	}
 	tests := []struct {
 		name    string
@@ -91,6 +110,7 @@ func TestFindStorageClassName(t *testing.T) {
 				diskSpec:        &commonv1alpha1.DiskSpec{StorageClass: "instance-level-storage-class"},
 				configSpec:      nil,
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    "instance-level-storage-class",
 			wantErr: false,
@@ -106,6 +126,7 @@ func TestFindStorageClassName(t *testing.T) {
 					},
 				}},
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    "config-level-storage-class-in-disk-spec",
 			wantErr: false,
@@ -116,6 +137,7 @@ func TestFindStorageClassName(t *testing.T) {
 				diskSpec:        &commonv1alpha1.DiskSpec{Name: "DataDisk"},
 				configSpec:      &commonv1alpha1.ConfigSpec{StorageClass: "config-level-storage-class"},
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    "config-level-storage-class",
 			wantErr: false,
@@ -126,8 +148,20 @@ func TestFindStorageClassName(t *testing.T) {
 				diskSpec:        &commonv1alpha1.DiskSpec{Name: "DataDisk"},
 				configSpec:      nil,
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    defaultStorageClassNameGCP,
+			wantErr: false,
+		},
+		{
+			name: "empty storage class name for postgres without platform specified",
+			args: args{
+				diskSpec:        &commonv1alpha1.DiskSpec{Name: "DataDisk"},
+				configSpec:      nil,
+				defaultPlatform: "",
+				engineType:      EnginePostgres,
+			},
+			want:    "",
 			wantErr: false,
 		},
 		{
@@ -143,7 +177,7 @@ func TestFindStorageClassName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FindStorageClassName(tt.args.diskSpec, tt.args.configSpec, tt.args.defaultPlatform)
+			got, err := FindStorageClassName(tt.args.diskSpec, tt.args.configSpec, tt.args.defaultPlatform, tt.args.engineType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FindStorageClassName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -160,6 +194,7 @@ func TestFindVolumeSnapshotClassName(t *testing.T) {
 		vcs             string
 		configSpec      *commonv1alpha1.ConfigSpec
 		defaultPlatform string
+		engineType      string
 	}
 	tests := []struct {
 		name    string
@@ -175,6 +210,7 @@ func TestFindVolumeSnapshotClassName(t *testing.T) {
 					VolumeSnapshotClass: "config-level-volume-snapshot-class",
 				},
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    "instance-level-volume-snapshot-class",
 			wantErr: false,
@@ -187,6 +223,7 @@ func TestFindVolumeSnapshotClassName(t *testing.T) {
 					VolumeSnapshotClass: "config-level-volume-snapshot-class",
 				},
 				defaultPlatform: PlatformGCP,
+				engineType:      EngineOracle,
 			},
 			want:    "config-level-volume-snapshot-class",
 			wantErr: false,
@@ -195,6 +232,12 @@ func TestFindVolumeSnapshotClassName(t *testing.T) {
 			name:    "volume snapshot class name set by default platform config",
 			args:    args{defaultPlatform: PlatformGCP},
 			want:    defaultVolumeSnapshotClassNameGCP,
+			wantErr: false,
+		},
+		{
+			name:    "empty volume snapshot class for postgres without platform specified",
+			args:    args{defaultPlatform: "", engineType: EnginePostgres},
+			want:    "",
 			wantErr: false,
 		},
 		{
@@ -208,7 +251,7 @@ func TestFindVolumeSnapshotClassName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FindVolumeSnapshotClassName(tt.args.vcs, tt.args.configSpec, tt.args.defaultPlatform)
+			got, err := FindVolumeSnapshotClassName(tt.args.vcs, tt.args.configSpec, tt.args.defaultPlatform, tt.args.engineType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FindVolumeSnapshotClassName() error = %v, wantErr %v", err, tt.wantErr)
 				return

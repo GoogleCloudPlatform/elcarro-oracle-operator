@@ -88,7 +88,7 @@ func (b *snapshotBackup) create(ctx context.Context) error {
 		b.log.Info("no customer specific config found, assuming all defaults")
 	}
 
-	vsc, err := utils.FindVolumeSnapshotClassName(b.backup.Spec.VolumeSnapshotClass, configSpec, utils.PlatformGCP)
+	vsc, err := utils.FindVolumeSnapshotClassName(b.backup.Spec.VolumeSnapshotClass, configSpec, utils.PlatformGCP, utils.EngineOracle)
 	if err != nil || vsc == "" {
 		return fmt.Errorf("failed to identify a volumeSnapshotClassName for instance: %q", b.backup.Spec.Instance)
 	}
