@@ -46,6 +46,7 @@ cd build/dbimage
 --cdb_name=$DBNAME \
 --mem_pct=45 \
 --no_dry_run \
+--patch_version=31741641 \
 --project_id=$PROJECT_ID \
 --tag=$IMAGE_TAG_TIME
 
