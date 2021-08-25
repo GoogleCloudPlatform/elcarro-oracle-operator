@@ -108,8 +108,8 @@ usage() {
 
      --patch_version
        Version of the Oracle database PSU.
-       If unspecified, 31312468 is used as the default value for 12.2 ,
-       31281355 is used as the default value for 19.3 .
+       If unspecified, 31741641 is used as the default value for 12.2 ,
+       32545013 is used as the default value for 19.3 .
        This flag is not supported for Oracle 18c and will be ignored.
 
      --local_build
