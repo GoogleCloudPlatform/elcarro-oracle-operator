@@ -14,7 +14,11 @@
 
 package v1alpha1
 
-import "k8s.io/apimachinery/pkg/api/resource"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 //+kubebuilder:object:generate=true
 
@@ -42,6 +46,14 @@ type DiskSpec struct {
 	// These can be read and write by external tools through Kubernetes.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// AccessModes contains the desired access modes the volume should have.
+	// +optional
+	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
+
+	// A label query over volumes to consider for binding.
+	// +optional
+	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
 
 // DiskType is a type that points to the disk type
