@@ -106,10 +106,10 @@ test:
 	bazel \
 		--bazelrc=controllers/inttest/.bazelrc \
 		test \
- 		--jobs=10 \
- 		--local_cpu_resources=10 \
- 		--test_tag_filters="integration" \
- 		... \
+		--jobs=10 \
+		--local_cpu_resources=10 \
+		--test_tag_filters="integration" \
+		... \
 		--test_output=errors \
 		--spawn_strategy=local \
 		--genrule_strategy=local \
@@ -117,9 +117,10 @@ test:
 		--test_env=PROW_IMAGE_TAG=${PROW_IMAGE_TAG} \
 		--test_env=PROW_PROJECT=${PROW_PROJECT} \
 		--test_env=PROW_CLUSTER=${PROW_CLUSTER} \
+		--test_env=PROW_CANARY_JOB=${PROW_CANARY_JOB} \
 		--test_env=PROW_INT_TEST_SA=${PROW_INT_TEST_SA} \
-		--test_env=ARTIFACTS=${ARTIFACTS} \
-		--test_env=PROW_CLUSTER_ZONE=${PROW_CLUSTER_ZONE} || touch failed
+		--test_env=PROW_CLUSTER_ZONE=${PROW_CLUSTER_ZONE} \
+		--test_env=ARTIFACTS=${ARTIFACTS} || touch failed
 	if [[ -n "$$ARTIFACTS" ]]; then find ../bazel-testlogs/ -name '*.xml' -o -name '*.log' | xargs cp --parents -t "$$ARTIFACTS/" ; fi
 	if [[ -f "failed" ]]; then rm failed; exit 100; fi
 
@@ -216,6 +217,8 @@ operator-presubmit: prepare-prow
 # Prow canary test job entry point: operator-canary
 operator-canary: prepare-prow
 	scripts/canary_build_dbimage_image_build.sh
+	# Let the tests know they are in the canary job
+	export PROW_CANARY_JOB=true
 	$(MAKE) operator-presubmit
 
 # Github presubmit Prow job entry point

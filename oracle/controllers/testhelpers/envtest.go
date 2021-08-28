@@ -1150,3 +1150,9 @@ func StoreOracleLogs(pod string, ns string, instanceName string, CDBName string)
 	logf.FromContext(nil).Info(fmt.Sprintf("Stored Oracle /trace/ to %s", storePath))
 	return nil
 }
+
+// Returns true if 'PROW_CANARY_JOB' env is set.
+// Canary Job is supposed to host all long-running tests.
+func IsCanaryJob() bool {
+	return os.Getenv("PROW_CANARY_JOB") != ""
+}
