@@ -94,7 +94,11 @@ unit-test:
 test:
 	rm -f failed # clear any old flags
 	# Unit/Functional tests, unlimited jobs
-	bazel test --test_output=errors --test_tag_filters="-integration" ... || touch failed
+	bazel test \
+	  --test_output=errors \
+	  --test_tag_filters="-integration" \
+	  --@io_bazel_rules_go//go/config:race \
+	  ... || touch failed
 	# Load oracle image paths from env variables to .bazelrc
 	envsubst < controllers/inttest/.bazelrc.tmpl > controllers/inttest/.bazelrc
 	# Integration tests, build unlimited, but limit test jobs.

@@ -358,3 +358,11 @@ func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1a
 	}
 	return true, nil
 }
+
+func CloneMap(source map[string]string) map[string]string {
+	clone := make(map[string]string, len(source))
+	for key, value := range source {
+		clone[key] = value
+	}
+	return clone
+}

@@ -140,10 +140,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
-	images := make(map[string]string)
-	for k, v := range r.Images {
-		images[k] = v
-	}
+	images := CloneMap(r.Images)
 
 	if err := r.overrideDefaultImages(config, images, &inst, log); err != nil {
 		return ctrl.Result{}, err
