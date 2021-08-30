@@ -124,7 +124,7 @@ var _ = Describe("Datapump", func() {
 				createdExport := &v1alpha1.Export{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: tableExport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 2*time.Minute)
+					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute)
 			}
 
 			By("Erasing scott user")
@@ -151,7 +151,7 @@ drop user scott cascade;`
 				createdImport := &v1alpha1.Import{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: schemaImport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 2*time.Minute)
+					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute)
 			}
 
 			By("Granting unlimited tablespace to scott")
