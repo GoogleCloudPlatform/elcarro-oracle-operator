@@ -197,13 +197,20 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			r.setRestoreFailed(ctx, inst, "Unknown restore type", log)
 			return ctrl.Result{}, nil
 		}
+
+		if !done {
+			if err != nil {
+				// let the controller retry
+				return ctrl.Result{}, err
+			}
+			log.Info("restore still in progress, waiting")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+
+		// if done and the error is not nil
 		if err != nil {
 			r.setRestoreFailed(ctx, inst, err.Error(), log)
 			return ctrl.Result{}, err
-		}
-		if !done {
-			log.Info("restore still in progress, waiting")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreBootstrapInProgress, "")
 		// Reconcile again
