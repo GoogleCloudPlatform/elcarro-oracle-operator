@@ -48,18 +48,23 @@ var _ = AfterSuite(func() {
 
 var _ = Describe("Instance and Database provisioning", func() {
 	var namespace string
-	var instanceName string
+	var firstInstanceName string
+	var secondInstanceName string
+	var cdbName string
 
 	BeforeEach(func() {
 		defer GinkgoRecover()
 		namespace = testhelpers.RandName("instance-crd-test")
-		instanceName = "mydb"
+		firstInstanceName = "mydb-1"
+		secondInstanceName = "mydb-2"
+		cdbName = "MYDB"
 		k8sEnv.Init(namespace)
 	})
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintSimpleDebugInfo(k8sEnv, instanceName, "mydb")
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, firstInstanceName, cdbName)
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, secondInstanceName, cdbName)
 		}
 		k8sEnv.Close()
 	})
@@ -70,85 +75,37 @@ var _ = Describe("Instance and Database provisioning", func() {
 			k8sClient, err := client.New(k8sEnv.Env.Config, client.Options{})
 			Expect(err).ToNot(HaveOccurred())
 
-			By("By creating a new Instance")
-			instance := &v1alpha1.Instance{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      instanceName,
-					Namespace: namespace,
-				},
-				Spec: v1alpha1.InstanceSpec{
-					// Keep the CDBName in the spec different from the CDB name in the image (GCLOUD).
-					// Doing this implicitly test the CDB renaming feature.
-					CDBName:      "MYDB",
-					DBUniqueName: "MYDB",
-					InstanceSpec: commonv1alpha1.InstanceSpec{
-						Version: version,
-						Disks: []commonv1alpha1.DiskSpec{
-							{
-								Name: "DataDisk",
-								Size: resource.MustParse("45Gi"),
-							},
-							{
-								Name: "LogDisk",
-								Size: resource.MustParse("55Gi"),
-							},
-						},
-						DatabaseResources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("7Gi"),
-							},
-						},
-						Images: map[string]string{
-							"service": testhelpers.TestImageForVersion(version, edition, extra),
-						},
-					},
-				},
-			}
-			testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, instance)
-
-			createdInstance := &v1alpha1.Instance{}
-			instKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
-
-			insTimeout := instancecontroller.InstanceReadyTimeout
+			instanceTimeout := instancecontroller.InstanceReadyTimeout
 			dbTimeout := instancecontroller.DatabaseInstanceReadyTimeoutSeeded
 			if !isImageSeeded {
 				dbTimeout = instancecontroller.DatabaseInstanceReadyTimeoutUnseeded
 			}
 			dbTimeout += 5 * time.Minute // Add some buffer time given that this test runs in a different process space than the instance
 
+			By("By creating two new Instances")
+			createInstance(firstInstanceName, cdbName, namespace, version, edition, extra)
+			createInstance(secondInstanceName, cdbName, namespace, version, edition, extra)
+
 			By("By checking that Instance is created")
-			// Wait until the instance is "Ready" (requires 5+ minutes to download image)
-			Eventually(func() metav1.ConditionStatus {
-				Expect(k8sClient.Get(ctx, instKey, createdInstance)).Should(Succeed())
-				cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.Ready)
-				if cond != nil {
-					return cond.Status
-				}
-				return metav1.ConditionUnknown
-			}, insTimeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			verifyThatInstanceWasCreated(ctx, namespace, firstInstanceName, k8sClient, instanceTimeout)
+			verifyThatInstanceWasCreated(ctx, namespace, secondInstanceName, k8sClient, instanceTimeout)
 
 			By("By checking that Database is provisioned")
-			Eventually(func() metav1.ConditionStatus {
-				Expect(k8sClient.Get(ctx, instKey, createdInstance)).Should(Succeed())
-				cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.DatabaseInstanceReady)
-				if cond != nil {
-					return cond.Status
-				}
-				return metav1.ConditionUnknown
-			}, dbTimeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			verifyThatDatabaseWasProvisioned(ctx, namespace, firstInstanceName, k8sClient, dbTimeout)
+			verifyThatDatabaseWasProvisioned(ctx, namespace, secondInstanceName, k8sClient, dbTimeout)
 
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
 			Expect(k8sClient.List(ctx, &sts, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(sts.Items)).Should(Equal(1))
+			Expect(len(sts.Items)).Should(Equal(2))
 
 			var deployment appsv1.DeploymentList
 			Expect(k8sClient.List(ctx, &deployment, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(deployment.Items)).Should(Equal(2))
+			Expect(len(deployment.Items)).Should(Equal(3)) //1 deployment for the operator manager, 1 deployment for each instance
 
 			var svc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(svc.Items)).Should(Equal(4))
+			Expect(len(svc.Items)).Should(Equal(8))
 		})
 	}
 
@@ -181,6 +138,72 @@ var _ = Describe("Instance and Database provisioning", func() {
 		})
 	}
 })
+
+func createInstance(instanceName, cdbName, namespace, version, edition, extra string) {
+	instance := &v1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instanceName,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.InstanceSpec{
+			// Keep the CDBName in the spec different from the CDB name in the image (GCLOUD).
+			// Doing this implicitly test the CDB renaming feature.
+			CDBName:      cdbName,
+			DBUniqueName: cdbName,
+			InstanceSpec: commonv1alpha1.InstanceSpec{
+				Version: version,
+				Disks: []commonv1alpha1.DiskSpec{
+					{
+						Name: "DataDisk",
+						Size: resource.MustParse("45Gi"),
+					},
+					{
+						Name: "LogDisk",
+						Size: resource.MustParse("55Gi"),
+					},
+				},
+				DatabaseResources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceMemory: resource.MustParse("7Gi"),
+					},
+				},
+				Images: map[string]string{
+					"service": testhelpers.TestImageForVersion(version, edition, extra),
+				},
+			},
+		},
+	}
+	testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, instance)
+}
+
+func verifyThatInstanceWasCreated(ctx context.Context, namespace, instanceName string, k8sClient client.Client, timeout time.Duration) {
+	createdInstance := &v1alpha1.Instance{}
+	instanceKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
+
+	// Wait until the instance is "Ready" (requires 5+ minutes to download image)
+	Eventually(func() metav1.ConditionStatus {
+		Expect(k8sClient.Get(ctx, instanceKey, createdInstance)).Should(Succeed())
+		cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.Ready)
+		if cond != nil {
+			return cond.Status
+		}
+		return metav1.ConditionUnknown
+	}, timeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+}
+
+func verifyThatDatabaseWasProvisioned(ctx context.Context, namespace, instanceName string, k8sClient client.Client, timeout time.Duration) {
+	createdInstance := &v1alpha1.Instance{}
+	instanceKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
+
+	Eventually(func() metav1.ConditionStatus {
+		Expect(k8sClient.Get(ctx, instanceKey, createdInstance)).Should(Succeed())
+		cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.DatabaseInstanceReady)
+		if cond != nil {
+			return cond.Status
+		}
+		return metav1.ConditionUnknown
+	}, timeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+}
 
 func TestInstance(t *testing.T) {
 	RegisterFailHandler(Fail)
