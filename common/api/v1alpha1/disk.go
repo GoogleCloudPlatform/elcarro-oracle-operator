@@ -47,6 +47,10 @@ type DiskSpec struct {
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 
+	// VolumeName is the binding reference to the PersistentVolume tied to this disk.
+	// +optional
+	VolumeName string `json:"volumeName,omitempty"`
+
 	// AccessModes contains the desired access modes the volume should have.
 	// +optional
 	AccessModes []corev1.PersistentVolumeAccessMode `json:"accessModes,omitempty"`
