@@ -25,7 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 )
 
@@ -39,8 +39,8 @@ type ConfigReconciler struct {
 }
 
 var (
-	findInstance = (*ConfigReconciler).findInstance
-	patch        = (*ConfigReconciler).Patch
+	findInstances = (*ConfigReconciler).findInstances
+	Patch         = (*ConfigReconciler).Patch
 )
 
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=configs,verbs=get;list;watch;create;update;patch;delete
@@ -56,7 +56,7 @@ func (r *ConfigReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.
 
 	var config v1alpha1.Config
 	if err := r.Get(ctx, req.NamespacedName, &config); err != nil {
-		log.V(1).Error(err, "get config request error")
+		log.Error(err, "get config request error")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -66,63 +66,65 @@ func (r *ConfigReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.
 		flag.Set("v", "0")
 	}
 
-	inst, err := findInstance(r, ctx)
+	instances, err := findInstances(r, ctx, req.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// This is to allow creating a Config even when no Instances exist yet.
-	if inst == nil {
+	if len(instances) == 0 {
 		log.Info("no Instances found")
 		return ctrl.Result{}, nil
 	}
-	log.V(1).Info("Instance found", "inst", inst)
+	log.Info("Config controller", "Number of instances to be configured", len(instances))
 
+	for _, instance := range instances {
+		log.Info("Patching Agent Deployment for", "instance", instance.Name)
+		err := r.patchAgentDeployment(ctx, instance, config)
+		if err != nil {
+			log.Error(err, "failed to patch Agent Deployment for", "instance", instance.Name)
+			//fail fast
+			return ctrl.Result{}, err
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+// patchAgentDeployment patches the agent deployment for the specified instance using the provided config
+func (r *ConfigReconciler) patchAgentDeployment(ctx context.Context, instance v1alpha1.Instance, config v1alpha1.Config) error {
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
 	agentParam := controllers.AgentDeploymentParams{
-		Inst:           inst,
+		Inst:           &instance,
 		Config:         &config,
 		Scheme:         r.Scheme,
-		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
+		Name:           fmt.Sprintf(controllers.AgentDeploymentName, instance.Name),
 		Images:         r.Images,
 		PrivEscalation: false,
-		Log:            log,
+		Log:            r.Log,
 		Args:           controllers.GetLogLevelArgs(&config),
 	}
 
 	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
 	if err != nil {
-		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
-		return ctrl.Result{}, err
+		r.Log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
+		return err
 	}
 
-	if err := patch(r, ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
-		return ctrl.Result{}, err
+	if err := Patch(r, ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
+		r.Log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
+		return err
 	}
-
-	return ctrl.Result{}, nil
+	return nil
 }
 
-// findInstance attempts to find a customer specific instance
-// if it's been provided. There should be at most one instance.
-func (r *ConfigReconciler) findInstance(ctx context.Context) (*v1alpha1.Instance, error) {
-	var insts v1alpha1.InstanceList
-	listOptions := []client.ListOption{}
-	if err := r.List(ctx, &insts, listOptions...); err != nil {
+// findInstances attempts to find all the instances to which a config should be applied.
+func (r *ConfigReconciler) findInstances(ctx context.Context, namespace string) ([]v1alpha1.Instance, error) {
+	var instances v1alpha1.InstanceList
+	if err := r.List(ctx, &instances, client.InNamespace(namespace)); err != nil {
 		r.Log.Error(err, "failed to list instances")
 		return nil, err
 	}
-
-	if len(insts.Items) == 0 {
-		return nil, nil
-	}
-
-	if len(insts.Items) != 1 {
-		return nil, fmt.Errorf("number of instances != 1, numInstances:%d", len(insts.Items))
-	}
-
-	return &insts.Items[0], nil
+	return instances.Items, nil
 }
 
 // SetupWithManager starts the reconciler loop.
