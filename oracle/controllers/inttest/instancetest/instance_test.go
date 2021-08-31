@@ -157,26 +157,29 @@ var _ = Describe("Instance and Database provisioning", func() {
 		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "", true)
 	})
 
-	Context("Oracle 12.2 EE unseeded", func() {
-		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "31741641-unseeded", false)
-	})
-
 	Context("Oracle 19.3 EE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "", true)
-	})
-
-	Context("Oracle 19.3 EE unseeded", func() {
-		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
 	})
 
 	Context("Oracle 18c XE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("18c", "XE", "", true)
 	})
 
-	// Images from OCR
-	Context("Oracle 19.3 EE unseeded from OCR", func() {
-		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "ocr", false)
-	})
+	// Slow tests, only run in Canary
+	if testhelpers.IsCanaryJob() {
+		Context("Oracle 12.2 EE unseeded", func() {
+			TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "31741641-unseeded", false)
+		})
+
+		Context("Oracle 19.3 EE unseeded", func() {
+			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
+		})
+
+		// Images from OCR
+		Context("Oracle 19.3 EE unseeded from OCR", func() {
+			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "ocr", false)
+		})
+	}
 })
 
 func TestInstance(t *testing.T) {
