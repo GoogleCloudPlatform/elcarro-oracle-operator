@@ -218,8 +218,7 @@ operator-presubmit: prepare-prow
 operator-canary: prepare-prow
 	scripts/canary_build_dbimage_image_build.sh
 	# Let the tests know they are in the canary job
-	export PROW_CANARY_JOB=true
-	$(MAKE) operator-presubmit
+	export PROW_CANARY_JOB=true; $(MAKE) operator-presubmit
 
 # Github presubmit Prow job entry point
 operator-oss-presubmit: prepare-prow
