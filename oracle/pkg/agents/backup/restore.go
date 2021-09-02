@@ -203,7 +203,7 @@ func deleteFilesForRestore(ctx context.Context, dbdClient dbdpb.DatabaseDaemonCl
 func createDirsForRestore(ctx context.Context, dbdClient dbdpb.DatabaseDaemonClient, cdbName string) error {
 	toCreate := []string{
 		// adump dir
-		fmt.Sprintf(consts.OracleBase, "admin", cdbName, "adump"),
+		filepath.Join(consts.OracleBase, "admin", cdbName, "adump"),
 		// configfiles dir
 		fmt.Sprintf(consts.ConfigDir, consts.DataMount, cdbName),
 		// datafiles dir
