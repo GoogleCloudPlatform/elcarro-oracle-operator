@@ -1,0 +1,34 @@
+{
+  "name": "elCarro",
+  "source": {
+    "type": "S3",
+    "location": "codebuild-<ZONE>-<ACC_ID>-input-bucket/elCarroImage18cXe.zip"
+  },
+  "artifacts": {
+    "type": "NO_ARTIFACTS"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:4.0",
+    "computeType": "BUILD_GENERAL1_SMALL",
+    "environmentVariables": [
+      {
+        "name": "AWS_DEFAULT_REGION",
+        "value": "<ZONE>"
+      },
+      {
+        "name": "AWS_ACCOUNT_ID",
+        "value": "<ACC_ID>"
+      },
+      {
+        "name": "IMAGE_REPO_NAME",
+        "value": "elcarro"
+      },
+      {
+        "name": "IMAGE_TAG",
+        "value": "latest"
+      }
+    ],
+    "privilegedMode": true
+  },
+  "serviceRole": "arn:aws:iam::<ACC_ID>:role/CodeBuildServiceRole"
