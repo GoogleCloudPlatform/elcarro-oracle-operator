@@ -1,12 +1,10 @@
-# Running El Carro Operator on Amazon cloud (AWS)
+# Running El Carro Operator on Amazon cloud
 
 This guide helps you run El Carro Operator in [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/eks/).
 
-If you prefer to use GKE (Google Kubernetes Engine) to deploy the El
-Carro Operator, stop here and refer to the [Quickstart Guide](quickstart.md) or
-[Quickstart Guide for Oracle 18c XE](quickstart-18c-xe.md).
+If you prefer to use [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine) to deploy the El Carro Operator, stop here and refer to the [Quickstart Guide](quickstart.md).
 
-If you prefer to use a local cluster on your personal computer instead of AWS EKS, refer to either the [Minikube Guide](minikube.md) or [Kind Guide](kind.md).
+If you prefer to use a local cluster on your personal computer instead of a managed Kubernetes services such as AWS EKS or GCP GKE, refer to either the [Minikube Guide](minikube.md) or [Kind Guide](kind.md).
 
 ## Before you begin
 
@@ -33,7 +31,7 @@ All steps were executed as the ec2-user from within the EC2 instance:
     mkdir -p $HOME/bin && mv ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
     echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
     kubectl version --short --client
-    Client Version: v1.20.4-eks-6b7464
+    > Client Version: v1.20.4-eks-6b7464
     ```
 
 *  Install [eksctl](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html) to interact with the EKS cluster, which automates many individual tasks.
@@ -42,13 +40,13 @@ All steps were executed as the ec2-user from within the EC2 instance:
     curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
     sudo mv /tmp/eksctl /usr/local/bin
     eksctl version
-     0.55.0
+    > 0.55.0
     ```
 
-*   Make sure you have access to the latests El Carro source code from Github 
+*   Make sure you have access to the latest El Carro source code from Github 
 
     ```shell script
-    wget https://github.com/GoogleCloudPlatform/elcarro-oracle-operator/releases/download/v0.0.0-alpha/release-artifacts.tar.gz
+    wget https://github.com/GoogleCloudPlatform/elcarro-oracle-operator/releases/latest/download/release-artifacts.tar.gz
     tar -xzvf release-artifacts.tar.gz
     ```
 
@@ -69,7 +67,7 @@ Default region name [None]: <your region>
 ## Set environment variables
 
 ```sh
-export PATH_TO_EL_CARRO_REPO=<the complete path to the directory that contains the cloned El Carro repository>
+export PATH_TO_EL_CARRO_RELEASE=<the complete path to the directory that contains the cloned El Carro repository>
 export DBNAME=<Database name>
 export CRD_NS=<Namespace where you will deploy your El Carro instance, for example "db">
 export CLUSTER_NAME=<EKS cluster name>
@@ -80,7 +78,7 @@ export ACC_ID=<AWS account id>
 Example of values used in this guide:
     
 ```sh
-export PATH_TO_EL_CARRO_REPO=/home/ec2-user/v0.0.0-alpha
+export PATH_TO_EL_CARRO_RELEASE=/home/ec2-user/v0.0.0-alpha
 export DBNAME=GCLOUD
 export CRD_NS=db
 export CLUSTER_NAME=gkecluster
@@ -102,9 +100,9 @@ You could create a local image instead, following similar steps as described in 
 1. Create a service role, needed for CodeBuild as described [here](https://docs.aws.amazon.com/codebuild/latest/userguide/setting-up.html#setting-up-service-role):
 
     ```sh
-    aws iam create-role --role-name CodeBuildServiceRole --assume-role-policy-document file://${PATH_TO_EL_CARRO_REPO}/dbimage/aws/create-service-role.json
+    aws iam create-role --role-name CodeBuildServiceRole --assume-role-policy-document file://${PATH_TO_EL_CARRO_RELEASE}/dbimage/aws/create-service-role.json
 
-    aws iam put-role-policy --role-name CodeBuildServiceRole --policy-name CodeBuildServiceRolePolicy --policy-document file://${PATH_TO_EL_CARRO_REPO}/dbimage/aws/put-role-policy.json
+    aws iam put-role-policy --role-name CodeBuildServiceRole --policy-name CodeBuildServiceRolePolicy --policy-document file://${PATH_TO_EL_CARRO_RELEASE}/dbimage/aws/put-role-policy.json
     ```
 
 2. Create an ECR repository. We are naming it elcarro:
@@ -121,8 +119,8 @@ You could create a local image instead, following similar steps as described in 
    If you want to install a different Oracle version, adjust buildspec.yml file and include the proper install scripts in this zip.
   
     ```sh
-    cd ${PATH_TO_EL_CARRO_REPO}/dbimage
-    zip ../elCarroImage18cXe.zip buildspec.yml Dockerfile install-oracle-18c-xe.sh
+    cd ${PATH_TO_EL_CARRO_RELEASE}/dbimage
+    zip -j ../elCarroImage18cXe.zip aws/buildspec.yml Dockerfile install-oracle-18c-xe.sh
     ```
     
 4. Create an S3 bucket and copy above zip file
@@ -253,7 +251,7 @@ kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernete
 We are ready to add our storage class into the cluster. Will create the configuration YAML based on the one for GCP, adjusting a few values:
 
 ```sh
-sed -e 's/provisioner: pd.csi.storage.gke.io/provisioner: ebs.csi.aws.com/; /^  type: pd-standard/d; /parameters:/d' ${PATH_TO_EL_CARRO_REPO}/deploy/csi/gce_pd_storage_class.yaml > /tmp/aws_pd_storage_class.yaml
+sed -e 's/provisioner: pd.csi.storage.gke.io/provisioner: ebs.csi.aws.com/; /^  type: pd-standard/d; /parameters:/d' ${PATH_TO_EL_CARRO_RELEASE}/deploy/csi/gce_pd_storage_class.yaml > /tmp/aws_pd_storage_class.yaml
 
 kubectl create -f /tmp//aws_pd_storage_class.yaml
 ```
@@ -271,7 +269,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snaps
 And now we add the storage class into the cluster, again by adjusting the GCP configuration file to AWS services:
 
 ```sh
-sed -e 's/driver: pd.csi.storage.gke.io/driver: ebs.csi.aws.com/; s#apiVersion: snapshot.storage.k8s.io/v1beta1#apiVersion: snapshot.storage.k8s.io/v1#' ${PATH_TO_EL_CARRO_REPO}/deploy/csi/gce_pd_volume_snapshot_class.yaml > /tmp/aws_pd_volume_snapshot_class.yaml
+sed -e 's/driver: pd.csi.storage.gke.io/driver: ebs.csi.aws.com/; s#apiVersion: snapshot.storage.k8s.io/v1beta1#apiVersion: snapshot.storage.k8s.io/v1#' ${PATH_TO_EL_CARRO_RELEASE}/deploy/csi/gce_pd_volume_snapshot_class.yaml > /tmp/aws_pd_volume_snapshot_class.yaml
 
 kubectl create -f /tmp/aws_pd_volume_snapshot_class.yaml
 ```
@@ -293,7 +291,7 @@ kubectl get events --sort-by=.metadata.creationTimestamp
 We use the code provided by the GCP project without any change:
 
 ```sh
-kubectl apply -f ${PATH_TO_EL_CARRO_REPO}/operator.yaml
+kubectl apply -f ${PATH_TO_EL_CARRO_RELEASE}/operator.yaml
 ```
 
 Now we are ready to create an Oracle 18c XE database. The only change required to the YAML file used in GCP for this step is the URL for the DB image—we need the one we created a few steps ago. There’s no need to adjust other parameters as the storageClass name, as we deployed to the cluster with the same name used by the GCP example but pointing to the correct AWS driver. 
@@ -301,7 +299,7 @@ Now we are ready to create an Oracle 18c XE database. The only change required t
 This command will create the YAML with the changes we need, based on the a sample file included in the project:
 
 ```sh
-cd ${PATH_TO_EL_CARRO_REPO}/samples
+cd ${PATH_TO_EL_CARRO_RELEASE}/samples
 sed "s#service: \"gcr.io.*#service: \"${ACC_ID}.dkr.ecr.${ZONE}.amazonaws.com/elcarro:latest\"#g; s#\${DB}#${DBNAME}#g" v1alpha1_instance_18c_XE_express.yaml > /tmp/v1alpha1_instance_18c_XE_express_AWS.yaml
 ```
 
@@ -351,7 +349,7 @@ mydb   Oracle      18c       Express   mydb-svc.db   af8b37a22dc304391b51335848c
 The last step is to deploy the database (PDB), which doesn't need any change from the sample file provided for GCP:
 
 ```sh
-kubectl apply -f ${PATH_TO_EL_CARRO_REPO}/samples/v1alpha1_database_pdb1_express.yaml -n $CRD_NS
+kubectl apply -f ${PATH_TO_EL_CARRO_RELEASE}/samples/v1alpha1_database_pdb1_express.yaml -n $CRD_NS
 database.oracle.db.anthosapis.com/pdb1 created
 ```
 
