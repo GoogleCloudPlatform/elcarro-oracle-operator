@@ -265,6 +265,10 @@ spec:
                       description: StorageClass points to a particular CSI driver
                         and is used for disk provisioning.
                       type: string
+                    volumeName:
+                      description: VolumeName is the binding reference to the PersistentVolume
+                        tied to this disk.
+                      type: string
                   required:
                   - name
                   type: object
