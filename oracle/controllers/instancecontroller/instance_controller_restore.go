@@ -70,6 +70,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 	// Find the requested backup resource
 	backup, err := r.findBackupForRestore(ctx, *inst, req.Namespace, log)
 	if err != nil {
+		log.Error(err, "findBackupForRestore failed")
 		r.setRestoreFailed(ctx, inst, fmt.Sprintf(
 			"Could not find a matching backup for BackupID: %v, BackupRef: %v, BackupType: %v",
 			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupRef, inst.Spec.Restore.BackupType), log)
