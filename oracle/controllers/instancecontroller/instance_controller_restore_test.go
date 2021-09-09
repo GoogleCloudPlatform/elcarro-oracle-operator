@@ -64,101 +64,8 @@ func testInstanceRestore() {
 	restoreRequestTime := metav1.Now()
 
 	createInstanceAndStartRestore := func(mode testhelpers.FakeOperationStatus) (*v1alpha1.Instance, *v1alpha1.Backup) {
-		By("creating a new Instance")
-		instance := &v1alpha1.Instance{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      InstanceName,
-				Namespace: Namespace,
-			},
-			Spec: v1alpha1.InstanceSpec{
-				CDBName: "GCLOUD",
-				InstanceSpec: commonv1alpha1.InstanceSpec{
-					Images: images,
-				},
-			},
-		}
-
-		Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
-
-		By("checking that statefulset/deployment/svc are created")
-
-		Eventually(
-			func() error {
-				var createdInst v1alpha1.Instance
-				if err := k8sClient.Get(ctx, objKey, &createdInst); err != nil {
-					return err
-				}
-				if cond := k8s.FindCondition(createdInst.Status.Conditions, k8s.Ready); !k8s.ConditionReasonEquals(cond, k8s.CreateInProgress) {
-					return errors.New("expected update has not happened yet")
-				}
-				return nil
-			}, timeout, interval).Should(Succeed())
-
-		By("setting Instance as Ready")
-		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-			if err := k8sClient.Get(ctx, objKey, instance); err != nil {
-				return err
-			}
-			instance.Status = v1alpha1.InstanceStatus{
-				InstanceStatus: commonv1alpha1.InstanceStatus{
-					Conditions: []metav1.Condition{
-						{
-							Type:               k8s.Ready,
-							Status:             metav1.ConditionTrue,
-							Reason:             k8s.CreateComplete,
-							LastTransitionTime: metav1.Now().Rfc3339Copy(),
-						},
-						{
-							Type:               k8s.DatabaseInstanceReady,
-							Status:             metav1.ConditionTrue,
-							Reason:             k8s.CreateComplete,
-							LastTransitionTime: metav1.Now().Rfc3339Copy(),
-						},
-					},
-				},
-			}
-			return k8sClient.Status().Update(ctx, instance)
-		})).Should(Succeed())
-
-		trueVar := true
-		By("creating a new RMAN backup")
-		backup := &v1alpha1.Backup{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: Namespace,
-				Name:      backupName,
-			},
-			Spec: v1alpha1.BackupSpec{
-				BackupSpec: commonv1alpha1.BackupSpec{
-					Instance: InstanceName,
-					Type:     commonv1alpha1.BackupTypePhysical,
-				},
-				Subtype:   "Instance",
-				Backupset: &trueVar,
-			},
-		}
-
-		backupObjKey := client.ObjectKey{Namespace: Namespace, Name: backupName}
-		Expect(k8sClient.Create(ctx, backup)).Should(Succeed())
-		Eventually(
-			func() error {
-				return k8sClient.Get(ctx, backupObjKey, backup)
-			}, timeout, interval).Should(Succeed())
-
-		backup.Status = v1alpha1.BackupStatus{
-			BackupStatus: commonv1alpha1.BackupStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               k8s.Ready,
-						Status:             metav1.ConditionTrue,
-						Reason:             k8s.BackupReady,
-						LastTransitionTime: metav1.Now().Rfc3339Copy(),
-					},
-				},
-				Phase: commonv1alpha1.BackupSucceeded,
-			},
-			BackupID: backupID,
-		}
-		Expect(k8sClient.Status().Update(ctx, backup)).Should(Succeed())
+		instance := createSimpleInstance(ctx, InstanceName, Namespace, timeout, interval)
+		backup := createSimpleRMANBackup(ctx, InstanceName, backupName, backupID, Namespace)
 
 		By("invoking RMAN restore for the Instance")
 
@@ -543,7 +450,7 @@ func createSimpleInstance(ctx context.Context, instanceName string, namespace st
 			},
 		},
 	}
-	Expect(k8sClient.Create(ctx, instance)).Should(Succeed())
+	testhelpers.K8sCreateWithRetry(k8sClient, ctx, instance)
 
 	By("checking that statefulset/deployment/svc are created")
 

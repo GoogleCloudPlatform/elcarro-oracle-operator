@@ -1036,11 +1036,13 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 	objKey client.ObjectKey,
 	emptyObj client.Object,
 	modifyObjectFunc func(*client.Object)) {
-
+	originalRV := ""
 	Eventually(
 		func() error {
 			// Get a fresh version of the object
 			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			// Save resource version
+			originalRV = emptyObj.GetResourceVersion()
 			// Apply modifyObjectFunc()
 			modifyObjectFunc(&emptyObj)
 			// Try to update object in k8s
@@ -1050,6 +1052,14 @@ func K8sGetAndUpdateWithRetry(k8sClient client.Client,
 			}
 			return nil
 		}, retryTimeout, retryInterval).Should(Succeed())
+
+	// Verify that RV has changed
+	Eventually(
+		func() string {
+			// Get a fresh version of the object
+			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			return emptyObj.GetResourceVersion()
+		}, retryTimeout, retryInterval).Should(Not(Equal(originalRV)))
 }
 
 // Simple helper to make the Get-Modify-UpdateStatus-Retry cycle easier
@@ -1061,11 +1071,13 @@ func K8sGetAndUpdateStatusWithRetry(k8sClient client.Client,
 	objKey client.ObjectKey,
 	emptyObj client.Object,
 	modifyObjectFunc func(*client.Object)) {
-
+	originalRV := ""
 	Eventually(
 		func() error {
 			// Get a fresh version of the object
 			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			// Save resource version
+			originalRV = emptyObj.GetResourceVersion()
 			// Apply modifyObjectFunc()
 			modifyObjectFunc(&emptyObj)
 			// Try to update status in k8s
@@ -1075,6 +1087,14 @@ func K8sGetAndUpdateStatusWithRetry(k8sClient client.Client,
 			}
 			return nil
 		}, retryTimeout, retryInterval).Should(Succeed())
+
+	// Verify that RV has changed
+	Eventually(
+		func() string {
+			// Get a fresh version of the object
+			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			return emptyObj.GetResourceVersion()
+		}, retryTimeout, retryInterval).Should(Not(Equal(originalRV)))
 }
 
 // K8sCreateAndGet calls k8s Create() with retry and then wait for the object to be created.
