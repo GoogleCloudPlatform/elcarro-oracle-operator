@@ -108,11 +108,13 @@ var _ = Describe("Backup controller", func() {
 	})
 
 	AfterEach(func() {
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, &instance)
+		objKey := client.ObjectKey{Namespace: Namespace, Name: instance.Name}
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, &instance)
 		createdBackups := &v1alpha1.BackupList{}
 		Expect(k8sClient.List(ctx, createdBackups)).Should(Succeed())
 		for _, backup := range createdBackups.Items {
-			testhelpers.K8sDeleteWithRetry(k8sClient, ctx, &backup)
+			objKey = client.ObjectKey{Namespace: Namespace, Name: backup.Name}
+			testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, &backup)
 		}
 	})
 

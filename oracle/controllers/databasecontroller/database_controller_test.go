@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
@@ -93,12 +93,13 @@ var _ = Describe("Database controller", func() {
 	// Currently we only have one create database tests, after each
 	// serves as finally resource clean-up.
 	AfterEach(func() {
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdInstance)
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdNs)
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdPod)
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdAgentSvc)
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdSvc)
-		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, createdDatabase)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: instanceName}, createdInstance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Name: podName, Namespace: Namespace}, createdPod)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Name: svcAgentName, Namespace: Namespace}, createdAgentSvc)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Name: svcName, Namespace: Namespace}, createdSvc)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: DatabaseName}, createdDatabase)
+		// Namespace objects can not be completely deleted in testenv.
+		testhelpers.K8sDeleteWithRetryNoWait(k8sClient, ctx, client.ObjectKey{Name: Namespace}, createdNs)
 	})
 
 	Context("Setup database with manager", func() {

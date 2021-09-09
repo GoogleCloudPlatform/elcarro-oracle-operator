@@ -178,7 +178,7 @@ var _ = Describe("User operations", func() {
 			createdDatabase := &v1alpha1.Database{}
 			objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: databaseName}
 
-			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				objKey,
 				createdDatabase,
 				func(obj *client.Object) {
