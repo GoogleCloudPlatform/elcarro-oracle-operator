@@ -139,9 +139,11 @@ var _ = Describe("Backup controller", func() {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupInProgress))
 
-			var snapshots snapv1.VolumeSnapshotList
-			Expect(k8sClient.List(ctx, &snapshots, client.InNamespace(Namespace))).Should(Succeed())
-			Expect(len(snapshots.Items)).Should(Equal(2))
+			Eventually(func() int {
+				var snapshots snapv1.VolumeSnapshotList
+				Expect(k8sClient.List(ctx, &snapshots, client.InNamespace(Namespace))).Should(Succeed())
+				return len(snapshots.Items)
+			}, timeout, interval).Should(Equal(2))
 		})
 
 		It("Should mark backup as failed because of invalid instance name", func() {
