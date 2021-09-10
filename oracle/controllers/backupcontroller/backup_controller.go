@@ -56,6 +56,8 @@ type BackupReconciler struct {
 	OracleBackupFactory oracleBackupFactory
 	Recorder            record.EventRecorder
 	BackupCtrl          backupControl
+
+	DatabaseClientFactory controllers.DatabaseClientFactory
 }
 
 type backupControl interface {

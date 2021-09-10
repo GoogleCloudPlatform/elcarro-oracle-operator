@@ -48,6 +48,8 @@ var (
 	}
 	reconciler        *InstanceReconciler
 	fakeClientFactory *testhelpers.FakeClientFactory
+
+	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
 )
 
 func TestInstanceController(t *testing.T) {
@@ -58,6 +60,7 @@ func TestInstanceController(t *testing.T) {
 	}
 
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
+	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Instance controller", func() []testhelpers.Reconciler {
 		reconciler = &InstanceReconciler{
@@ -69,6 +72,8 @@ func TestInstanceController(t *testing.T) {
 			Images:        CloneMap(images),
 			ClientFactory: fakeClientFactory,
 			Recorder:      k8sManager.GetEventRecorderFor("instance-controller"),
+
+			DatabaseClientFactory: fakeDatabaseClientFactory,
 		}
 
 		return []testhelpers.Reconciler{reconciler}
@@ -86,6 +91,8 @@ var _ = Describe("Instance controller", func() {
 				OracleHome:  "/u01/app/oracle/product/12.2/db",
 				SeededImage: true,
 			})
+
+		fakeDatabaseClientFactory.Reset()
 	})
 
 	Context("New instance", testInstanceProvision)
@@ -162,7 +169,8 @@ func testInstanceProvision() {
 
 		By("setting Instance as Ready")
 		fakeClientFactory.Caclient.SetAsyncBootstrapDatabase(true)
-		fakeClientFactory.Caclient.SetNextGetOperationStatus(testhelpers.StatusRunning)
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusRunning)
+
 		createdInstance := &v1alpha1.Instance{}
 		testhelpers.K8sUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
 			(*obj).(*v1alpha1.Instance).Status = v1alpha1.InstanceStatus{
@@ -185,7 +193,8 @@ func testInstanceProvision() {
 		}, timeout, interval).Should(Equal(k8s.BootstrapInProgress))
 
 		By("Verifying database instance is Ready on bootstrap LRO completion")
-		fakeClientFactory.Caclient.SetNextGetOperationStatus(testhelpers.StatusDone)
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusDone)
+
 		Eventually(func() (metav1.ConditionStatus, error) {
 			return getConditionStatus(ctx, objKey, k8s.DatabaseInstanceReady)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))

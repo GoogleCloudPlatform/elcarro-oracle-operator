@@ -51,6 +51,8 @@ type InstanceReconciler struct {
 	Images        map[string]string
 	ClientFactory controllers.ConfigAgentClientFactory
 	Recorder      record.EventRecorder
+
+	DatabaseClientFactory controllers.DatabaseClientFactory
 }
 
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=instances,verbs=get;list;watch;create;update;patch;delete
@@ -411,7 +413,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.CreateInProgress:
 		id := lroCreateCDBOperationID(*inst)
-		done, err := controllers.IsLROOperationDone(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, id, inst.Name)
 		if !done {
 			log.Info("CreateCDB still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
@@ -464,7 +466,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.BootstrapInProgress:
 		id := lroBootstrapCDBOperationID(*inst)
-		done, err := controllers.IsLROOperationDone(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, id, inst.Name)
 		if !done {
 			log.Info("BootstrapDatabase still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil

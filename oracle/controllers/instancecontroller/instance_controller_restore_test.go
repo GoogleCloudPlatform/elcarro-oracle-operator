@@ -30,11 +30,14 @@ func testInstanceRestore() {
 	)
 
 	var fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
+	var fakeDatabaseClient *testhelpers.FakeDatabaseClient
 	oldPreflightFunc := restorePhysicalPreflightCheck
 
 	BeforeEach(func() {
 		fakeClientFactory.Reset()
 		fakeConfigAgentClient = fakeClientFactory.Caclient
+		fakeDatabaseClientFactory.Reset()
+		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
 		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 		fakeClientFactory.Caclient.SetMethodToResp(
@@ -65,7 +68,7 @@ func testInstanceRestore() {
 		By("invoking RMAN restore for the Instance")
 
 		// configure fake ConfigAgent to be in requested mode
-		fakeConfigAgentClient.SetNextGetOperationStatus(mode)
+		fakeDatabaseClient.SetNextGetOperationStatus(mode)
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			if err := k8sClient.Get(ctx, objKey, instance); err != nil {
 				return err
@@ -101,7 +104,7 @@ func testInstanceRestore() {
 		}, timeout, interval).Should(Equal(1))
 
 		By("checking that instance is Ready on restore LRO completion")
-		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
+		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
 		Eventually(func() (metav1.ConditionStatus, error) {
 			return getConditionStatus(ctx, objKey, k8s.Ready)
@@ -141,7 +144,7 @@ func testInstanceRestore() {
 		instance, backup := testCaseHappyPathLRORestore()
 
 		oldPhysicalRestoreCalledCnt := fakeConfigAgentClient.PhysicalRestoreCalledCnt()
-		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
+		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 
 		By("restoring from same backup with same RequestTime")
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -181,7 +184,7 @@ func testInstanceRestore() {
 		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 
 		By("restoring from same backup with later RequestTime")
-		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
+		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 		secondRestoreRequestTime := metav1.NewTime(restoreRequestTime.Rfc3339Copy().Add(time.Second))
 
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -211,7 +214,7 @@ func testInstanceRestore() {
 		}, timeout, interval).Should(Equal("instancecontroller"))
 
 		By("checking that instance is Ready on restore LRO completion")
-		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
+		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 		Eventually(func() (metav1.ConditionStatus, error) {
 			return getConditionStatus(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
@@ -300,7 +303,7 @@ func testInstanceRestore() {
 		})).Should(Succeed())
 
 		// configure fake ConfigAgent to be in requested mode
-		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusNotFound)
+		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusNotFound)
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			if err := k8sClient.Get(ctx, objKey, instance); err != nil {
 				return err

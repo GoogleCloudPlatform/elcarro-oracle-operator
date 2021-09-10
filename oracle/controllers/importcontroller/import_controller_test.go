@@ -36,10 +36,13 @@ var (
 	k8sManager        ctrl.Manager
 	reconciler        *ImportReconciler
 	fakeClientFactory *testhelpers.FakeClientFactory
+
+	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
 )
 
 func TestImportController(t *testing.T) {
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
+	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Import controller", func() []testhelpers.Reconciler {
 		reconciler = &ImportReconciler{
@@ -48,6 +51,8 @@ func TestImportController(t *testing.T) {
 			Scheme:        k8sManager.GetScheme(),
 			ClientFactory: fakeClientFactory,
 			Recorder:      k8sManager.GetEventRecorderFor("import-controller"),
+
+			DatabaseClientFactory: fakeDatabaseClientFactory,
 		}
 
 		return []testhelpers.Reconciler{reconciler}
@@ -66,6 +71,7 @@ var _ = Describe("Import controller", func() {
 	ctx := context.Background()
 
 	var fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
+	var fakeDatabaseClient *testhelpers.FakeDatabaseClient
 
 	var (
 		instance        *v1alpha1.Instance
@@ -112,6 +118,8 @@ var _ = Describe("Import controller", func() {
 
 		fakeClientFactory.Reset()
 		fakeConfigAgentClient = fakeClientFactory.Caclient
+		fakeDatabaseClientFactory.Reset()
+		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
 		// define import, expect each test case create one
 		importObjectKey = client.ObjectKey{Namespace: namespace, Name: testhelpers.RandName("import")}
@@ -153,7 +161,7 @@ var _ = Describe("Import controller", func() {
 
 		It("Should succeed when LRO completes successfully", func() {
 			By("simulating successful DataPumpImport LRO completion")
-			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
+			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
 			By("creating a new import")
 			Expect(k8sClient.Create(ctx, imp)).Should(Succeed())
@@ -172,7 +180,7 @@ var _ = Describe("Import controller", func() {
 
 		It("Should handle LRO failure", func() {
 			By("simulating failed DataPumpImport LRO completion")
-			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
+			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
 
 			By("creating a new import")
 			Expect(k8sClient.Create(ctx, imp)).Should(Succeed())

@@ -108,6 +108,8 @@ func main() {
 		Images:        images,
 		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
 		Recorder:      mgr.GetEventRecorderFor("instance-controller"),
+
+		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Instance")
 		os.Exit(1)
@@ -130,6 +132,8 @@ func main() {
 		Recorder:            mgr.GetEventRecorderFor("backup-controller"),
 		OracleBackupFactory: &backupcontroller.RealOracleBackupFactory{},
 		BackupCtrl:          &backupcontroller.RealBackupControl{Client: mgr.GetClient()},
+
+		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Backup")
 		os.Exit(1)
@@ -150,6 +154,8 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
 		Recorder:      mgr.GetEventRecorderFor("export-controller"),
+
+		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Export")
 		os.Exit(1)
@@ -160,6 +166,8 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
 		Recorder:      mgr.GetEventRecorderFor("import-controller"),
+
+		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Import")
 		os.Exit(1)

@@ -41,6 +41,8 @@ type ImportReconciler struct {
 	Scheme        *runtime.Scheme
 	ClientFactory controllers.ConfigAgentClientFactory
 	Recorder      record.EventRecorder
+
+	DatabaseClientFactory controllers.DatabaseClientFactory
 }
 
 const (
@@ -209,7 +211,7 @@ func (r *ImportReconciler) handleRunningImport(ctx context.Context, log logr.Log
 	operationID := lroOperationID(imp)
 
 	// check import LRO status
-	operation, err := controllers.GetLROOperation(r.ClientFactory, ctx, r, req.Namespace, operationID, imp.Spec.Instance)
+	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, operationID, imp.Spec.Instance)
 	if err != nil {
 		log.Error(err, "GetLROOperation returned an error")
 		return ctrl.Result{}, err
