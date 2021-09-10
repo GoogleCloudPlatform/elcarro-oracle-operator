@@ -25,6 +25,7 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	grpcstatus "google.golang.org/grpc/status"
@@ -32,6 +33,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
+
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
 // FakeOperationStatus is an enum type for LRO statuses managed by FakeConfigAgentClient.
@@ -86,6 +89,187 @@ type FakeConfigAgentClient struct {
 	GotPhysicalBackupReq *capb.PhysicalBackupRequest
 }
 
+// FakeDatabaseClient mocks DatabaseDaemon
+type FakeDatabaseClient struct {
+	getOperationCalledCnt int32
+
+	lock                   sync.Mutex
+	nextGetOperationStatus FakeOperationStatus
+}
+
+// CreateDir RPC call to create a directory named path, along with any
+// necessary parents.
+func (cli *FakeDatabaseClient) CreateDir(ctx context.Context, in *dbdpb.CreateDirRequest, opts ...grpc.CallOption) (*dbdpb.CreateDirResponse, error) {
+	panic("implement me")
+}
+
+// ReadDir RPC call to read the directory named by path and returns Fileinfos
+// for the path and children.
+func (cli *FakeDatabaseClient) ReadDir(ctx context.Context, in *dbdpb.ReadDirRequest, opts ...grpc.CallOption) (*dbdpb.ReadDirResponse, error) {
+	panic("implement me")
+}
+
+// DeleteDir RPC to call remove path.
+func (cli *FakeDatabaseClient) DeleteDir(ctx context.Context, in *dbdpb.DeleteDirRequest, opts ...grpc.CallOption) (*dbdpb.DeleteDirResponse, error) {
+	panic("implement me")
+}
+
+// BounceDatabase RPC call to start/stop a database.
+func (cli *FakeDatabaseClient) BounceDatabase(ctx context.Context, in *dbdpb.BounceDatabaseRequest, opts ...grpc.CallOption) (*dbdpb.BounceDatabaseResponse, error) {
+	panic("implement me")
+}
+
+// BounceListener RPC call to start/stop a listener.
+func (cli *FakeDatabaseClient) BounceListener(ctx context.Context, in *dbdpb.BounceListenerRequest, opts ...grpc.CallOption) (*dbdpb.BounceListenerResponse, error) {
+	panic("implement me")
+}
+
+// CheckDatabaseState RPC call verifies the database is running.
+func (cli *FakeDatabaseClient) CheckDatabaseState(ctx context.Context, in *dbdpb.CheckDatabaseStateRequest, opts ...grpc.CallOption) (*dbdpb.CheckDatabaseStateResponse, error) {
+	panic("implement me")
+}
+
+// RunSQLPlus RPC call executes Oracle's sqlplus utility.
+func (cli *FakeDatabaseClient) RunSQLPlus(ctx context.Context, in *dbdpb.RunSQLPlusCMDRequest, opts ...grpc.CallOption) (*dbdpb.RunCMDResponse, error) {
+	panic("implement me")
+}
+
+// RunSQLPlusFormatted RPC is similar to RunSQLPlus, but for queries.
+func (cli *FakeDatabaseClient) RunSQLPlusFormatted(ctx context.Context, in *dbdpb.RunSQLPlusCMDRequest, opts ...grpc.CallOption) (*dbdpb.RunCMDResponse, error) {
+	panic("implement me")
+}
+
+// KnownPDBs RPC call returns a list of known PDBs.
+func (cli *FakeDatabaseClient) KnownPDBs(ctx context.Context, in *dbdpb.KnownPDBsRequest, opts ...grpc.CallOption) (*dbdpb.KnownPDBsResponse, error) {
+	panic("implement me")
+}
+
+// RunRMAN RPC call executes Oracle's rman utility.
+func (cli *FakeDatabaseClient) RunRMAN(ctx context.Context, in *dbdpb.RunRMANRequest, opts ...grpc.CallOption) (*dbdpb.RunRMANResponse, error) {
+	panic("implement me")
+}
+
+// RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
+func (cli *FakeDatabaseClient) RunRMANAsync(ctx context.Context, in *dbdpb.RunRMANAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// NID changes a database id and/or database name.
+func (cli *FakeDatabaseClient) NID(ctx context.Context, in *dbdpb.NIDRequest, opts ...grpc.CallOption) (*dbdpb.NIDResponse, error) {
+	panic("implement me")
+}
+
+// GetDatabaseType returns database type(eg. ORACLE_12_2_ENTERPRISE_NONCDB)
+func (cli *FakeDatabaseClient) GetDatabaseType(ctx context.Context, in *dbdpb.GetDatabaseTypeRequest, opts ...grpc.CallOption) (*dbdpb.GetDatabaseTypeResponse, error) {
+	panic("implement me")
+}
+
+// GetDatabaseName returns database name.
+func (cli *FakeDatabaseClient) GetDatabaseName(ctx context.Context, in *dbdpb.GetDatabaseNameRequest, opts ...grpc.CallOption) (*dbdpb.GetDatabaseNameResponse, error) {
+	panic("implement me")
+}
+
+// CreatePasswordFile creates a password file for the database.
+func (cli *FakeDatabaseClient) CreatePasswordFile(ctx context.Context, in *dbdpb.CreatePasswordFileRequest, opts ...grpc.CallOption) (*dbdpb.CreatePasswordFileResponse, error) {
+	panic("implement me")
+}
+
+// CreateReplicaInitOraFile creates init.ora file using the template and the
+// provided parameters.
+func (cli *FakeDatabaseClient) CreateReplicaInitOraFile(ctx context.Context, in *dbdpb.CreateReplicaInitOraFileRequest, opts ...grpc.CallOption) (*dbdpb.CreateReplicaInitOraFileResponse, error) {
+	panic("implement me")
+}
+
+// SetListenerRegistration sets a static listener registration and restarts
+// the listener.
+func (cli *FakeDatabaseClient) SetListenerRegistration(ctx context.Context, in *dbdpb.SetListenerRegistrationRequest, opts ...grpc.CallOption) (*dbdpb.BounceListenerResponse, error) {
+	panic("implement me")
+}
+
+// BootstrapStandby performs bootstrap tasks that have to be done by dbdaemon.
+func (cli *FakeDatabaseClient) BootstrapStandby(ctx context.Context, in *dbdpb.BootstrapStandbyRequest, opts ...grpc.CallOption) (*dbdpb.BootstrapStandbyResponse, error) {
+	panic("implement me")
+}
+
+// CreateCDBAsync creates a database instance asynchronously.
+func (cli *FakeDatabaseClient) CreateCDBAsync(ctx context.Context, in *dbdpb.CreateCDBAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// BootstrapDatabaseAsync bootstraps seeded database asynchronously.
+func (cli *FakeDatabaseClient) BootstrapDatabaseAsync(ctx context.Context, in *dbdpb.BootstrapDatabaseAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// CreateListener creates a database listener.
+func (cli *FakeDatabaseClient) CreateListener(ctx context.Context, in *dbdpb.CreateListenerRequest, opts ...grpc.CallOption) (*dbdpb.CreateListenerResponse, error) {
+	panic("implement me")
+}
+
+// FileExists runs a simple check to confirm whether a requested file
+// exists in a database container or not.
+// An example of where FileExists is used is a check on
+// the provisioning_successful file, but any file (nor a dir) can be
+// checked via this RPC call.
+func (cli *FakeDatabaseClient) FileExists(ctx context.Context, in *dbdpb.FileExistsRequest, opts ...grpc.CallOption) (*dbdpb.FileExistsResponse, error) {
+	panic("implement me")
+}
+
+// PhysicalRestoreAsync runs RMAN and SQL queries in sequence to restore
+// a database from an RMAN backup.
+func (cli *FakeDatabaseClient) PhysicalRestoreAsync(ctx context.Context, in *dbdpb.PhysicalRestoreAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// DataPumpImportAsync imports data from a .dmp file to an existing PDB.
+func (cli *FakeDatabaseClient) DataPumpImportAsync(ctx context.Context, in *dbdpb.DataPumpImportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// DataPumpExportAsync exports data to a .dmp file using expdp
+func (cli *FakeDatabaseClient) DataPumpExportAsync(ctx context.Context, in *dbdpb.DataPumpExportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
+	panic("implement me")
+}
+
+// ListOperations lists operations that match the specified filter in the
+// request.
+func (cli *FakeDatabaseClient) ListOperations(ctx context.Context, in *lropb.ListOperationsRequest, opts ...grpc.CallOption) (*lropb.ListOperationsResponse, error) {
+	panic("implement me")
+}
+
+// DeleteOperation deletes a long-running operation. This method indicates
+// that the client is no longer interested in the operation result. It does
+// not cancel the operation.
+func (cli *FakeDatabaseClient) DeleteOperation(ctx context.Context, in *lropb.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	panic("implement me")
+}
+
+// RecoverConfigFile creates a binary pfile from the backed up spfile
+func (cli *FakeDatabaseClient) RecoverConfigFile(ctx context.Context, in *dbdpb.RecoverConfigFileRequest, opts ...grpc.CallOption) (*dbdpb.RecoverConfigFileResponse, error) {
+	panic("implement me")
+}
+
+// DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
+// path.
+func (cli *FakeDatabaseClient) DownloadDirectoryFromGCS(ctx context.Context, in *dbdpb.DownloadDirectoryFromGCSRequest, opts ...grpc.CallOption) (*dbdpb.DownloadDirectoryFromGCSResponse, error) {
+	panic("implement me")
+}
+
+// FetchServiceImageMetaData returns the service image metadata.
+func (cli *FakeDatabaseClient) FetchServiceImageMetaData(ctx context.Context, in *dbdpb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*dbdpb.FetchServiceImageMetaDataResponse, error) {
+	panic("implement me")
+}
+
+// CreateFile creates file based on file path and content.
+func (cli *FakeDatabaseClient) CreateFile(ctx context.Context, in *dbdpb.CreateFileRequest, opts ...grpc.CallOption) (*dbdpb.CreateFileResponse, error) {
+	panic("implement me")
+}
+
+// BootstrapDatabase bootstraps seeded database by executing init_oracle
+func (cli *FakeDatabaseClient) BootstrapDatabase(ctx context.Context, in *dbdpb.BootstrapDatabaseRequest, opts ...grpc.CallOption) (*dbdpb.BootstrapDatabaseResponse, error) {
+	panic("implement me")
+}
+
 var (
 	emptyConnCloseFunc = func() {}
 )
@@ -93,6 +277,11 @@ var (
 // FakeClientFactory is a simple factory to create our FakeConfigAgentClient.
 type FakeClientFactory struct {
 	Caclient *FakeConfigAgentClient
+}
+
+// FakeClientFactory is a simple factory to create our FakeConfigAgentClient.
+type FakeDatabaseClientFactory struct {
+	Dbclient *FakeDatabaseClient
 }
 
 // New returns a new fake ConfigAgent.
@@ -103,9 +292,22 @@ func (g *FakeClientFactory) New(context.Context, client.Reader, string, string) 
 	return g.Caclient, emptyConnCloseFunc, nil
 }
 
+// New returns a new fake ConfigAgent.
+func (g *FakeDatabaseClientFactory) New(context.Context, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
+	if g.Dbclient == nil {
+		g.Reset()
+	}
+	return g.Dbclient, func() error { return nil }, nil
+}
+
 // Reset clears the inner ConfigAgent.
 func (g *FakeClientFactory) Reset() {
 	g.Caclient = &FakeConfigAgentClient{}
+}
+
+// Reset clears the inner ConfigAgent.
+func (g *FakeDatabaseClientFactory) Reset() {
+	g.Dbclient = &FakeDatabaseClient{}
 }
 
 // Reset reset's the config agent's counters.
@@ -185,8 +387,9 @@ func (cli *FakeConfigAgentClient) ListOperations(context.Context, *longrunning.L
 	return nil, nil
 }
 
-// GetOperation wrapper.
-func (cli *FakeConfigAgentClient) GetOperation(context.Context, *longrunning.GetOperationRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
+// GetOperation gets the latest state of a long-running operation. Clients can
+// use this method to poll the operation result.
+func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOperationRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
 	atomic.AddInt32(&cli.getOperationCalledCnt, 1)
 
 	switch cli.NextGetOperationStatus() {
@@ -293,7 +496,7 @@ func (cli *FakeConfigAgentClient) PhysicalRestoreCalledCnt() int {
 }
 
 // GetOperationCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) GetOperationCalledCnt() int {
+func (cli *FakeDatabaseClient) GetOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.getOperationCalledCnt))
 }
 
@@ -327,13 +530,15 @@ func (cli *FakeConfigAgentClient) FetchServiceImageMetaData(ctx context.Context,
 	return nil, nil
 }
 
-func (cli *FakeConfigAgentClient) SetNextGetOperationStatus(status FakeOperationStatus) {
+// Set the next operation's status
+func (cli *FakeDatabaseClient) SetNextGetOperationStatus(status FakeOperationStatus) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.nextGetOperationStatus = status
 }
 
-func (cli *FakeConfigAgentClient) NextGetOperationStatus() FakeOperationStatus {
+// Return the next operation's status
+func (cli *FakeDatabaseClient) NextGetOperationStatus() FakeOperationStatus {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	return cli.nextGetOperationStatus

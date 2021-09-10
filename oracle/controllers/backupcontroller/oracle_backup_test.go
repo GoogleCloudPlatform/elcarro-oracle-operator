@@ -91,7 +91,7 @@ func TestPhysicalBackupCreate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r, _, _, caclient := newTestBackupReconciler()
+			r, _, _, caclient, _ := newTestBackupReconciler()
 			if tc.physicalBackupFailure {
 				caclient.SetMethodToError("PhysicalBackup", fmt.Errorf("PhysicalBackup fail."))
 			}
@@ -105,7 +105,7 @@ func TestPhysicalBackupCreate(t *testing.T) {
 				t.Fatalf("physicalBackup.create() returns unexpected error: wantErr:%v gotErr:%v", tc.wantError, gotErr)
 			}
 			if caclient.PhysicalBackupCalledCnt() != tc.wantPhysicalBackupCalledCnt {
-				t.Errorf("physicalBackup.create() make unexpected number of calls to caclient.PhysicalBackup(): want:%v got:%v", tc.wantPhysicalBackupCalledCnt, caclient.GetOperationCalledCnt())
+				t.Errorf("physicalBackup.create() make unexpected number of calls to caclient.PhysicalBackup(): want:%v got:%v", tc.wantPhysicalBackupCalledCnt, caclient.PhysicalBackupCalledCnt())
 			}
 			if caclient.GotPhysicalBackupReq.GetBackupset() != tc.wantBackupSet {
 				t.Errorf("Unexpected PhysicalBackupRequest.Backupset: want:%v got:%v", tc.wantBackupSet, caclient.GotPhysicalBackupReq.Backupset)
@@ -148,8 +148,9 @@ func TestPhysicalBackupStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r, _, _, caclient := newTestBackupReconciler()
-			caclient.SetNextGetOperationStatus(tc.operationStatus)
+			r, _, _, _, dbClient := newTestBackupReconciler()
+
+			dbClient.SetNextGetOperationStatus(tc.operationStatus)
 			backup := &physicalBackup{
 				r:      r,
 				backup: newBackupWithSpec(v1alpha1.BackupSpec{}),

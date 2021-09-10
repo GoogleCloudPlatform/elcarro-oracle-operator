@@ -42,10 +42,6 @@ service ConfigAgent {
   // Lists operations that match the specified filter in the request.
   rpc ListOperations(google.longrunning.ListOperationsRequest)
       returns (google.longrunning.ListOperationsResponse);
-  // Gets the latest state of a long-running operation.  Clients can use this
-  // method to poll the operation result.
-  rpc GetOperation(google.longrunning.GetOperationRequest)
-      returns (google.longrunning.Operation);
   // Deletes a long-running operation. This method indicates that the client is
   // no longer interested in the operation result. It does not cancel the
   // operation.

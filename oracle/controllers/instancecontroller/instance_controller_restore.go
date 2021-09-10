@@ -190,7 +190,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			done, err = r.isSnapshotRestoreDone(ctx, *inst, log)
 		case "Physical":
 			id := lroRestoreOperationID(physicalRestore, *inst)
-			done, err = controllers.IsLROOperationDone(r.ClientFactory, ctx, r, req.Namespace, id, inst.Name)
+			done, err = controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, id, inst.Name)
 			// Clean up LRO after we are done.
 			// The job will remain available for `ttlAfterDelete`.
 			if done {
@@ -463,7 +463,7 @@ var restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconci
 // Return (false, err) if other error occurred.
 func (r *InstanceReconciler) isPhysicalRestoreDone(ctx context.Context, req ctrl.Request, inst v1alpha1.Instance, log logr.Logger) (bool, error) {
 	id := lroRestoreOperationID(physicalRestore, inst)
-	operation, err := controllers.GetLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, inst.Name)
+	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, id, inst.Name)
 	if err != nil {
 		log.Error(err, "GetLROOperation returned an error")
 		return false, err

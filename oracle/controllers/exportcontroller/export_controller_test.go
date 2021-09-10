@@ -37,10 +37,13 @@ var (
 	k8sManager        ctrl.Manager
 	reconciler        *ExportReconciler
 	fakeClientFactory *testhelpers.FakeClientFactory
+
+	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
 )
 
 func TestExportController(t *testing.T) {
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
+	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Export controller", func() []testhelpers.Reconciler {
 		reconciler = &ExportReconciler{
@@ -49,6 +52,8 @@ func TestExportController(t *testing.T) {
 			Scheme:        k8sManager.GetScheme(),
 			ClientFactory: fakeClientFactory,
 			Recorder:      k8sManager.GetEventRecorderFor("export-controller"),
+
+			DatabaseClientFactory: fakeDatabaseClientFactory,
 		}
 
 		return []testhelpers.Reconciler{reconciler}
@@ -73,6 +78,7 @@ var _ = Describe("Export controller", func() {
 		dbObjKey              client.ObjectKey
 		objKey                client.ObjectKey
 		fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
+		fakeDatabaseClient    *testhelpers.FakeDatabaseClient
 	)
 	ctx := context.Background()
 
@@ -120,6 +126,8 @@ var _ = Describe("Export controller", func() {
 
 		fakeClientFactory.Reset()
 		fakeConfigAgentClient = fakeClientFactory.Caclient
+		fakeDatabaseClientFactory.Reset()
+		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 	})
 
 	AfterEach(func() {
@@ -177,7 +185,7 @@ var _ = Describe("Export controller", func() {
 			SetDatabaseReadyStatus(metav1.ConditionTrue)
 
 			By("setting LRO status to Done")
-			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
+			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
 			CreateExport()
 
@@ -195,7 +203,7 @@ var _ = Describe("Export controller", func() {
 			SetDatabaseReadyStatus(metav1.ConditionTrue)
 
 			By("setting LRO status to DoneWithError")
-			fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
+			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
 
 			CreateExport()
 
