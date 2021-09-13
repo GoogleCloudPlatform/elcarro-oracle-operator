@@ -130,7 +130,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 				By("By restoring an instance from backup")
 				instKey = client.ObjectKey{Namespace: namespace, Name: tc.instanceName}
-				testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 					instKey,
 					instance,
 					func(obj *client.Object) {

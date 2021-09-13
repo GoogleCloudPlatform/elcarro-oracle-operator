@@ -138,8 +138,8 @@ func testInstanceRestore() {
 	It("it should restore successfully in LRO mode", func() {
 		instance, backup := testCaseHappyPathLRORestore()
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 
 	It("it should NOT attempt to restore with the same RequestTime", func() {
@@ -168,8 +168,8 @@ func testInstanceRestore() {
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 		Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(oldPhysicalRestoreCalledCnt))
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 
 	It("it should run new restore with a later RequestTime", func() {
@@ -228,8 +228,8 @@ func testInstanceRestore() {
 		Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
 		Expect(instance.Status.LastRestoreTime.UnixNano()).Should(Equal(secondRestoreRequestTime.UnixNano()))
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 
 	It("it should handle failure in LRO operation", func() {
@@ -262,8 +262,8 @@ func testInstanceRestore() {
 		Expect(cond.Message).Should(HavePrefix("Failed to restore on"))
 		Expect(cond.Message).Should(ContainSubstring(backupID))
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 
 	It("it should be able to restore from RestoreFailed state", func() {
@@ -345,8 +345,8 @@ func testInstanceRestore() {
 			return nil
 		}, timeout, interval).Should(Succeed())
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 
 	It("it should restore successfully in sync mode", func() {
@@ -386,8 +386,8 @@ func testInstanceRestore() {
 			return nil
 		}, timeout, interval).Should(Succeed())
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
-		Expect(k8sClient.Delete(ctx, backup)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
 }
 
@@ -414,7 +414,7 @@ func createSimpleRMANBackup(ctx context.Context, instanceName string, backupName
 	testhelpers.K8sCreateAndGet(k8sClient, ctx, backupObjKey, backup, createdBackup)
 
 	createdBackup = &v1alpha1.Backup{}
-	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, backupObjKey, createdBackup, func(obj *client.Object) {
+	testhelpers.K8sUpdateStatusWithRetry(k8sClient, ctx, backupObjKey, createdBackup, func(obj *client.Object) {
 		(*obj).(*v1alpha1.Backup).Status = v1alpha1.BackupStatus{
 			BackupStatus: commonv1alpha1.BackupStatus{
 				Conditions: []metav1.Condition{
@@ -468,7 +468,7 @@ func createSimpleInstance(ctx context.Context, instanceName string, namespace st
 
 	By("setting Instance as Ready")
 	createdInstance := &v1alpha1.Instance{}
-	testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
+	testhelpers.K8sUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
 		(*obj).(*v1alpha1.Instance).Status = v1alpha1.InstanceStatus{
 			InstanceStatus: commonv1alpha1.InstanceStatus{
 				Conditions: []metav1.Condition{

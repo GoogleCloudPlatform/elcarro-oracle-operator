@@ -175,7 +175,7 @@ func testInstanceParameterUpdate() {
 			return instance.Status.IsChangeApplied == metav1.ConditionTrue
 		}, timeout*2, interval).Should(Equal(true))
 
-		Expect(k8sClient.Delete(ctx, &instance)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, &instance)
 	})
 }
 

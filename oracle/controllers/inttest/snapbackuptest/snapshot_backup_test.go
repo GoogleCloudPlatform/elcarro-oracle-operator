@@ -130,7 +130,7 @@ var _ = Describe("Backup through snapshot", func() {
 				RequestTime:      metav1.Time{Time: time.Now()},
 			}
 
-			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
 				func(obj *client.Object) {

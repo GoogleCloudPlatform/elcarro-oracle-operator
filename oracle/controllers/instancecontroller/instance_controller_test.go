@@ -169,7 +169,7 @@ func testInstanceProvision() {
 		fakeClientFactory.Caclient.SetAsyncBootstrapDatabase(true)
 		fakeClientFactory.Caclient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 		createdInstance := &v1alpha1.Instance{}
-		testhelpers.K8sGetAndUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
+		testhelpers.K8sUpdateStatusWithRetry(k8sClient, ctx, objKey, createdInstance, func(obj *client.Object) {
 			(*obj).(*v1alpha1.Instance).Status = v1alpha1.InstanceStatus{
 				InstanceStatus: commonv1alpha1.InstanceStatus{
 					Conditions: []metav1.Condition{
@@ -200,7 +200,7 @@ func testInstanceProvision() {
 		Eventually(fakeClientFactory.Caclient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
 		Expect(fakeClientFactory.Caclient.BootstrapDatabaseCalledCnt()).Should(BeNumerically(">=", 1))
 
-		Expect(k8sClient.Delete(ctx, instance)).Should(Succeed())
+		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 	})
 }
 

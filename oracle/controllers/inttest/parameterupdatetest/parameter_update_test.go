@@ -84,7 +84,7 @@ var _ = Describe("ParameterUpdate", func() {
 			randVal := strconv.Itoa(1 + (rand.New(rand.NewSource(time.Now().UnixNano() / 1000)).Intn(100)))
 
 			createdInstance := &v1alpha1.Instance{}
-			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
 				func(obj *client.Object) {
@@ -128,7 +128,7 @@ var _ = Describe("ParameterUpdate", func() {
 			diskAsyncValuePreUpdate := fetchParameterValue(pod, "disk_asynch_io")
 			memMaxTargetPreUpdate := fetchParameterValue(pod, "memory_max_target")
 
-			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
 				func(obj *client.Object) {
@@ -176,7 +176,7 @@ var _ = Describe("ParameterUpdate", func() {
 			createdInstance := &v1alpha1.Instance{}
 			parallelThreadCountPreUpdate := fetchParameterValue(pod, "parallel_threads_per_cpu")
 
-			testhelpers.K8sGetAndUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey,
 				createdInstance,
 				func(obj *client.Object) {
