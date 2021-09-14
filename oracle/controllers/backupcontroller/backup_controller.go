@@ -114,13 +114,7 @@ func (b *snapshotBackup) status(ctx context.Context) (done bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	sel.Add(*req1)
-
-	req2, err := labels.NewRequirement("namespace", selection.Equals, []string{ns})
-	if err != nil {
-		return false, err
-	}
-	sel.Add(*req2)
+	sel = sel.Add(*req1)
 
 	listOpts := []client.ListOption{
 		client.InNamespace(ns),
@@ -138,7 +132,11 @@ func (b *snapshotBackup) status(ctx context.Context) (done bool, err error) {
 		b.log.Info("no volume snapshots found for a backup request marked as in-progress.", "backup.Status", b.backup.Status)
 		return false, errors.New("no volume snapshots found")
 	}
-	b.log.Info("found a volume snapshot(s) for a backup request in-progress")
+	if len(volSnaps.Items) > 2 {
+		b.log.Info("Found more than 2 volume snapshots for a backup request marked as in-progress.", "backup.Status", b.backup.Status, "Volume snapshot count", len(volSnaps.Items))
+		return false, errors.New("found more than 2 volume snapshots")
+	}
+	b.log.Info("found 2 volume snapshots for a backup request in-progress")
 
 	vsStatus := make(map[string]bool)
 	for i, vs := range volSnaps.Items {
