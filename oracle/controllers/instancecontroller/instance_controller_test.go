@@ -79,18 +79,13 @@ var _ = Describe("Instance controller", func() {
 
 	BeforeEach(func() {
 		fakeClientFactory.Reset()
-		fakeClientFactory.Caclient.SetMethodToRespFunc(
-			map[string]func(interface{}) (interface{}, error){
-				"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
-					return &pb.FetchServiceImageMetaDataResponse{
-						Version:     "12.2",
-						CdbName:     "GCLOUD",
-						OracleHome:  "/u01/app/oracle/product/12.2/db",
-						SeededImage: true,
-					}, nil
-				},
-			},
-		)
+		fakeClientFactory.Caclient.SetMethodToResp(
+			"FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+				Version:     "12.2",
+				CdbName:     "GCLOUD",
+				OracleHome:  "/u01/app/oracle/product/12.2/db",
+				SeededImage: true,
+			})
 	})
 
 	Context("New instance", testInstanceProvision)

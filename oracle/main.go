@@ -123,11 +123,13 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&backupcontroller.BackupReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Backup"),
-		Scheme:        mgr.GetScheme(),
-		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
-		Recorder:      mgr.GetEventRecorderFor("backup-controller"),
+		Client:              mgr.GetClient(),
+		Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
+		Scheme:              mgr.GetScheme(),
+		ClientFactory:       &controllers.GrpcConfigAgentClientFactory{},
+		Recorder:            mgr.GetEventRecorderFor("backup-controller"),
+		OracleBackupFactory: &backupcontroller.RealOracleBackupFactory{},
+		BackupCtrl:          &backupcontroller.RealBackupControl{Client: mgr.GetClient()},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Backup")
 		os.Exit(1)

@@ -79,8 +79,11 @@ type FakeConfigAgentClient struct {
 	asyncBootstrapDatabase       bool
 	asyncPhysicalBackup          bool
 	asyncPhysicalRestore         bool
-	methodToRespFunc             map[string]func(interface{}) (interface{}, error)
+	methodToResp                 map[string](interface{})
+	methodToError                map[string]error
 	nextGetOperationStatus       FakeOperationStatus
+
+	GotPhysicalBackupReq *capb.PhysicalBackupRequest
 }
 
 var (
@@ -137,13 +140,19 @@ func (cli *FakeConfigAgentClient) UpdateUsers(context.Context, *capb.UpdateUsers
 // VerifyPhysicalBackup wrapper.
 func (cli *FakeConfigAgentClient) VerifyPhysicalBackup(ctx context.Context, in *capb.VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*capb.VerifyPhysicalBackupResponse, error) {
 	atomic.AddInt32(&cli.verifyPhysicalBackupCalledCnt, 1)
-	return &capb.VerifyPhysicalBackupResponse{}, nil
+	resp, err := cli.getMethodRespErr("VerifyPhysicalBackup")
+	if resp == nil {
+		return &capb.VerifyPhysicalBackupResponse{}, err
+	}
+	return resp.(*capb.VerifyPhysicalBackupResponse), err
 }
 
 // PhysicalBackup wrapper.
-func (cli *FakeConfigAgentClient) PhysicalBackup(context.Context, *capb.PhysicalBackupRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
+func (cli *FakeConfigAgentClient) PhysicalBackup(ctx context.Context, req *capb.PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	atomic.AddInt32(&cli.physicalBackupCalledCnt, 1)
-	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, nil
+	cli.GotPhysicalBackupReq = req
+	_, err := cli.getMethodRespErr("PhysicalBackup")
+	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, err
 }
 
 // PhysicalRestore wrapper.
@@ -308,13 +317,12 @@ func (cli *FakeConfigAgentClient) RecoverConfigFile(ctx context.Context, in *cap
 
 func (cli *FakeConfigAgentClient) FetchServiceImageMetaData(ctx context.Context, in *capb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*capb.FetchServiceImageMetaDataResponse, error) {
 	atomic.AddInt32(&cli.fetchServiceImageMetaDataCnt, 1)
-	if cli.methodToRespFunc == nil {
+	if cli.methodToResp == nil {
 		return nil, nil
 	}
 	method := "FetchServiceImageMetaData"
-	if fun, ok := cli.methodToRespFunc[method]; ok {
-		out, err := fun(in)
-		return out.(*capb.FetchServiceImageMetaDataResponse), err
+	if resp, ok := cli.methodToResp[method]; ok {
+		return resp.(*capb.FetchServiceImageMetaDataResponse), nil
 	}
 	return nil, nil
 }
@@ -349,8 +357,36 @@ func (cli *FakeConfigAgentClient) SetAsyncBootstrapDatabase(async bool) {
 	cli.asyncBootstrapDatabase = async
 }
 
-func (cli *FakeConfigAgentClient) SetMethodToRespFunc(m map[string]func(interface{}) (interface{}, error)) {
+func (cli *FakeConfigAgentClient) SetMethodToResp(method string, resp interface{}) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
-	cli.methodToRespFunc = m
+	if cli.methodToResp == nil {
+		cli.methodToResp = make(map[string]interface{})
+	}
+	cli.methodToResp[method] = resp
+}
+
+func (cli *FakeConfigAgentClient) SetMethodToError(method string, err error) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	if cli.methodToError == nil {
+		cli.methodToError = make(map[string]error)
+	}
+	cli.methodToError[method] = err
+}
+
+func (cli *FakeConfigAgentClient) getMethodRespErr(method string) (interface{}, error) {
+	var err error
+	var resp interface{}
+	if cli.methodToResp != nil {
+		if _, ok := cli.methodToResp[method]; ok {
+			resp = cli.methodToResp[method]
+		}
+	}
+	if cli.methodToError != nil {
+		if _, ok := cli.methodToError[method]; ok {
+			err = cli.methodToError[method]
+		}
+	}
+	return resp, err
 }
