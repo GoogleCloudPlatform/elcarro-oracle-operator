@@ -198,7 +198,7 @@ func newSnapshot(owner v1.Object, scheme *runtime.Scheme, pvcName, snapName, vol
 
 	snapshot := &snapv1.VolumeSnapshot{
 		TypeMeta:   metav1.TypeMeta{APIVersion: snapv1.SchemeGroupVersion.String(), Kind: "VolumeSnapshot"},
-		ObjectMeta: metav1.ObjectMeta{Name: snapName, Namespace: owner.GetNamespace(), Labels: map[string]string{"snap": snapName}},
+		ObjectMeta: metav1.ObjectMeta{Name: snapName, Namespace: owner.GetNamespace(), Labels: map[string]string{"name": snapName}},
 		Spec: snapv1.VolumeSnapshotSpec{
 			Source:                  snapv1.VolumeSnapshotSource{PersistentVolumeClaimName: &pvcName},
 			VolumeSnapshotClassName: func() *string { s := string(volumeSnapshotClassName); return &s }(),
