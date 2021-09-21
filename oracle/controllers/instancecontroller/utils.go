@@ -366,3 +366,68 @@ func CloneMap(source map[string]string) map[string]string {
 	}
 	return clone
 }
+
+// AcquireInstanceMaintenanceLock gives caller an exclusive maintenance
+// access to the specified instance object.
+// 'inst' points to an existing instance object (will be updated after the call)
+// 'owner' identifies the owning controller e.g. 'instancecontroller'
+// Convention:
+// If the call succeeds the caller can safely assume
+// that he has exclusive access now.
+// If the call fails the caller needs to retry acquiring the lock.
+//
+// Function is idempotent, caller can acquire the lock multiple times.
+//
+// Note: The call will commit the instance object to k8s (with all changes),
+// updating the supplied 'inst' object and making all other
+// references stale.
+func AcquireInstanceMaintenanceLock(ctx context.Context, k8sClient client.Client, inst *v1alpha1.Instance, owner string) error {
+	var result error = nil
+	if inst.Status.LockedByController == "" {
+		inst.Status.LockedByController = owner
+		result = nil
+	} else if inst.Status.LockedByController == owner {
+		result = nil
+	} else {
+		result = fmt.Errorf("requested owner: %s, instance already locked by %v", owner, inst.Status.LockedByController)
+	}
+	// Will return an error if 'inst' is stale.
+	if err := k8sClient.Status().Update(ctx, inst); err != nil {
+		return fmt.Errorf("requested owner: %s, failed to update the instance status: %v", owner, err)
+	}
+	return result
+}
+
+// ReleaseInstanceMaintenanceLock releases exclusive maintenance
+// access to the specified instance object.
+// 'inst' points to an existing instance object (will be updated after the call)
+// 'owner' identifies the owning controller e.g. 'instancecontroller'
+// Convention:
+// If the call succeeds the caller can safely assume
+// that lock was released.
+// If the call fails the caller needs to retry releasing the lock.
+//
+// Call is idempotent, caller can release it multiple times.
+// If caller's not owning the lock the call will return success
+// without affecting the ownership.
+//
+// Note: The call will commit the instance object to k8s (with all changes),
+// updating the supplied 'inst' object and making all other
+// references stale.
+func ReleaseInstanceMaintenanceLock(ctx context.Context, k8sClient client.Client, inst *v1alpha1.Instance, owner string) error {
+	var result error = nil
+	if inst.Status.LockedByController == "" {
+		result = nil
+	} else if inst.Status.LockedByController == owner {
+		inst.Status.LockedByController = ""
+		result = nil
+	} else {
+		// Return success even if it's owned by someone else
+		result = nil
+	}
+	// Will return an error if 'inst' is stale.
+	if err := k8sClient.Status().Update(ctx, inst); err != nil {
+		return fmt.Errorf("requested owner: %s, failed to update the instance status: %v", owner, err)
+	}
+	return result
+}
