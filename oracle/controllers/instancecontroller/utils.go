@@ -373,7 +373,7 @@ func CloneMap(source map[string]string) map[string]string {
 // 'owner' identifies the owning controller e.g. 'instancecontroller'
 // Convention:
 // If the call succeeds the caller can safely assume
-// that he has exclusive access now.
+// that it has exclusive access now.
 // If the call fails the caller needs to retry acquiring the lock.
 //
 // Function is idempotent, caller can acquire the lock multiple times.
