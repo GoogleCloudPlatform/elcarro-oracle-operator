@@ -102,13 +102,14 @@ test:
 	# Load oracle image paths from env variables to .bazelrc
 	envsubst < controllers/inttest/.bazelrc.tmpl > controllers/inttest/.bazelrc
 	# Integration tests, build unlimited, but limit test jobs.
-	bazel build --test_tag_filters="integration" ... || touch failed
+	bazel build --@io_bazel_rules_go//go/config:race --test_tag_filters="integration" ... || touch failed
 	bazel \
 		--bazelrc=controllers/inttest/.bazelrc \
 		test \
 		--jobs=10 \
 		--local_cpu_resources=10 \
 		--test_tag_filters="integration" \
+		--@io_bazel_rules_go//go/config:race \
 		... \
 		--test_output=errors \
 		--spawn_strategy=local \
