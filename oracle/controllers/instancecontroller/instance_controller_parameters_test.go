@@ -64,17 +64,11 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 	fakeClientFactory := &testhelpers.FakeClientFactory{}
 	fakeClientFactory.Reset()
 	fakeConfigAgentClient := fakeClientFactory.Caclient
-	fakeConfigAgentClient.SetMethodToRespFunc(
-		map[string]func(interface{}) (interface{}, error){
-			"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
-				return &pb.FetchServiceImageMetaDataResponse{
-					Version:    "19.3",
-					CdbName:    "GCLOUD",
-					OracleHome: "/u01/app/oracle/product/19.3/db",
-				}, nil
-			},
-		},
-	)
+	fakeConfigAgentClient.SetMethodToResp("FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+		Version:    "19.3",
+		CdbName:    "GCLOUD",
+		OracleHome: "/u01/app/oracle/product/19.3/db",
+	})
 
 	for _, tc := range tests {
 		instanceSpec := v1alpha1.InstanceSpec{

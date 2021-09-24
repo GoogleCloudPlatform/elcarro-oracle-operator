@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,12 +45,15 @@ func TestBackupController(t *testing.T) {
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
 
 	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Backup controller", func() []testhelpers.Reconciler {
+		client := k8sManager.GetClient()
 		reconciler = &BackupReconciler{
-			Client:        k8sManager.GetClient(),
-			Log:           ctrl.Log.WithName("controllers").WithName("Backup"),
-			Scheme:        k8sManager.GetScheme(),
-			ClientFactory: fakeClientFactory,
-			Recorder:      k8sManager.GetEventRecorderFor("backup-controller"),
+			Client:              client,
+			Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
+			Scheme:              k8sManager.GetScheme(),
+			ClientFactory:       fakeClientFactory,
+			Recorder:            k8sManager.GetEventRecorderFor("backup-controller"),
+			BackupCtrl:          &RealBackupControl{Client: k8sClient},
+			OracleBackupFactory: &RealOracleBackupFactory{},
 		}
 
 		return []testhelpers.Reconciler{reconciler}
@@ -199,12 +201,6 @@ var _ = Describe("Backup controller", func() {
 
 	Context("New backup through RMAN with VerifyExists mode", func() {
 		It("Should verify RMAN backup correctly", func() {
-			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
-				return nil
-			}
-			defer func() { preflightCheck = oldFunc }()
-
 			By("By creating a RMAN type backup with VerifyExists mode of the instance")
 			backup := &v1alpha1.Backup{
 				ObjectMeta: metav1.ObjectMeta{
@@ -234,14 +230,9 @@ var _ = Describe("Backup controller", func() {
 
 	Context("New backup through RMAN in LRO async environment", func() {
 		It("Should create RMAN backup correctly", func() {
-			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
-				return nil
-			}
 			oldStatusCheckInterval := statusCheckInterval
 			statusCheckInterval = interval
 			defer func() {
-				preflightCheck = oldFunc
 				statusCheckInterval = oldStatusCheckInterval
 			}()
 
@@ -297,12 +288,6 @@ var _ = Describe("Backup controller", func() {
 		})
 
 		It("Should mark unsuccessful RMAN backup as Failed", func() {
-			oldFunc := preflightCheck
-			preflightCheck = func(ctx context.Context, r *BackupReconciler, namespace, instName string, log logr.Logger) error {
-				return nil
-			}
-			defer func() { preflightCheck = oldFunc }()
-
 			// configure fake ConfigAgent to be in LRO mode with a
 			// failed operation result.
 			fakeConfigAgentClient := fakeClientFactory.Caclient

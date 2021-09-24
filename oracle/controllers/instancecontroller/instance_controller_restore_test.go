@@ -37,17 +37,12 @@ func testInstanceRestore() {
 		fakeConfigAgentClient = fakeClientFactory.Caclient
 
 		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
-		fakeConfigAgentClient.SetMethodToRespFunc(
-			map[string]func(interface{}) (interface{}, error){
-				"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
-					return &pb.FetchServiceImageMetaDataResponse{
-						Version:    "19.3",
-						CdbName:    "",
-						OracleHome: "/u01/app/oracle/product/19.3/db",
-					}, nil
-				},
-			},
-		)
+		fakeClientFactory.Caclient.SetMethodToResp(
+			"FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+				Version:    "19.3",
+				CdbName:    "",
+				OracleHome: "/u01/app/oracle/product/19.3/db",
+			})
 		restorePhysicalPreflightCheck = func(ctx context.Context, r *InstanceReconciler, namespace, instName string, log logr.Logger) error {
 			return nil
 		}
@@ -178,17 +173,11 @@ func testInstanceRestore() {
 
 		// reset method call counters used later
 		fakeConfigAgentClient.Reset()
-		fakeConfigAgentClient.SetMethodToRespFunc(
-			map[string]func(interface{}) (interface{}, error){
-				"FetchServiceImageMetaData": func(interface{}) (interface{}, error) {
-					return &pb.FetchServiceImageMetaDataResponse{
-						Version:    "12.2",
-						CdbName:    "GCLOUD",
-						OracleHome: "/u01/app/oracle/product/12.2/db",
-					}, nil
-				},
-			},
-		)
+		fakeConfigAgentClient.SetMethodToResp("FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+			Version:    "12.2",
+			CdbName:    "GCLOUD",
+			OracleHome: "/u01/app/oracle/product/12.2/db",
+		})
 		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
 
 		By("restoring from same backup with later RequestTime")
