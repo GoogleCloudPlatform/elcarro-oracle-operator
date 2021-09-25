@@ -97,7 +97,7 @@ var _ = Describe("Datapump", func() {
 				createdExport := &v1alpha1.Export{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: schemaExport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 2*time.Minute)
+					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute)
 			}
 
 			By("Creating a new Table export")
@@ -179,7 +179,7 @@ drop table test_table;`
 				createdImport := &v1alpha1.Import{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: tableImport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 2*time.Minute)
+					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute)
 			}
 
 			testhelpers.VerifySimpleData(k8sEnv)
