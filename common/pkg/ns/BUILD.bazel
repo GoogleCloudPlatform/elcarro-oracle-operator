@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ns",
+    srcs = ["ns.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/ns",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "ns_test",
+    srcs = ["ns_test.go"],
+    embed = [":ns"],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
