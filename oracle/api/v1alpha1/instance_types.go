@@ -196,6 +196,13 @@ type InstanceStatus struct {
 	// LastFailedParameterUpdate is used to avoid getting into the failed
 	// parameter update loop.
 	LastFailedParameterUpdate map[string]string `json:"lastFailedParameterUpdate,omitempty"`
+
+	// LockedByController is a shared lock field granting exclusive access
+	// to maintenance operations to only one controller.
+	// Empty value means unlocked.
+	// Non-empty value contains the name of the owning controller.
+	// +optional
+	LockedByController string `json:"lockedBy,omitempty"`
 }
 
 // +kubebuilder:object:root=true
