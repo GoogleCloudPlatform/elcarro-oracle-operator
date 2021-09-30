@@ -96,7 +96,7 @@ if [[ ${NOINSTALL} == true ]] ;then
 fi
 
 # Setup image targets for make.
-export PROW_IMAGE_REPO=${PROW_IMAGE_REPO:-gcr.io/${PROJECTID}}
+export PROW_IMAGE_REPO=${PROW_IMAGE_REPO:-gcr.io}
 export PROW_PROJECT=${PROW_PROJECT:-${PROJECTID}}
 export PROW_IMAGE_TAG=${PROW_IMAGE_TAG:-latest}
 date; make deploy

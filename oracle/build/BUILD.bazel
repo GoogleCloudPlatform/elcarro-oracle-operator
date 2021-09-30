@@ -8,7 +8,7 @@ load("@io_bazel_rules_docker//container:container.bzl", "container_image", "cont
 
 # Read in workspace status values to configure _push targets.
 # REGISTRY = "${PROW_IMAGE_REPO}".split("/")[0]
-REGISTRY = "gcr.io"
+REGISTRY = "{PROW_IMAGE_REPO}"
 
 # PROJECT = "${PROW_IMAGE_REPO}".split("/")[1]
 PROJECT = "{PROW_PROJECT}"

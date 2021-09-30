@@ -23,10 +23,7 @@ bazel_noui=--ui_event_filters=-INFO --noshow_loading_progress --show_result=0
 KUSTOMIZE=bazel run --run_under="cd $$PWD &&" $(bazel_noui) -- //:kustomize
 
 export PROW_IMAGE_REPO ?= $(shell\
-	if [ -n "${PROW_JOB_ID}" ]; then \
-		echo "gcr.io/prow-build-graybox"; \
-	else echo "gcr.io/${USER}-playground-operator"; \
-	fi \
+	echo "gcr.io"; \
 )
 # Prefer Louhi refSha, then check for general prow, finally assume dev.
 export PROW_IMAGE_TAG ?= $(shell\
@@ -191,7 +188,7 @@ uninstall: generate-config
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: generate-config
 	$(MAKE) buildah-push-all -j8
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${PROW_IMAGE_REPO}/oracle.db.anthosapis.com/operator:${PROW_IMAGE_TAG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${PROW_IMAGE_REPO}/${PROW_PROJECT}/oracle.db.anthosapis.com/operator:${PROW_IMAGE_TAG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 # Install all the required dependencies for prow.

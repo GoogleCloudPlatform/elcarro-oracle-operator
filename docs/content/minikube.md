@@ -22,8 +22,9 @@ You should set these variables in your environment.
     [Get Started guide](https://minikube.sigs.k8s.io/docs/start/).
 *   Install [kubectl](https://kubernetes.io/docs/tasks/tools/) to access the
     kubernetes cluster inside minikube
-*   Install Docker to build images locally
-*   Make sure you have access to El Carro source code either through Github because we will build container images locally and push to the local
+*   Install Docker to build the oracle image locally
+*   Make sure you have access to El Carro source code either through Github
+    because we will build container images locally and push to the local
     minikube registry.
 
 ## Prepare a minikube cluster
@@ -137,56 +138,33 @@ docker tag gcr.io/local-build/oracle-database-images/oracle-12.2-ee-seeded-mydb:
 docker push localhost:5000/oracle-12.2-ee-seeded-mydb:latest
 ```
 
-### Build and push the El Carro Operator image
+### Build and push the El Carro Operator and Agent images
 
-Build the El Carro operator image and push it to your local registry by running:
+Configure your environment for your local registry by running:
 
 ```sh
 cd $PATH_TO_EL_CARRO_REPO
-export REPO="localhost:5000/oracle.db.anthosapis.com"
-export TAG="latest"
-export OPERATOR_IMG="${REPO}/operator:${TAG}"
-docker build -f oracle/Dockerfile -t ${OPERATOR_IMG} .
-docker push ${OPERATOR_IMG}
+export PROW_IMAGE_REPO="localhost:5000"
+export PROW_IMAGE_TAG="latest"
+export PROW_PROJECT="local"
 ```
 
-### Build and push the El Carro agent images:
+To deploy the El Carro operator to the current kubectl context using your
+locally built image, run the following:
 
 ```sh
-export DBINIT_IMG="${REPO}/dbinit:${TAG}"
-docker build -f  oracle/build/dbinit/Dockerfile -t ${DBINIT_IMG} .
-docker push ${DBINIT_IMG}
-
-export CONFIG_AGENT_IMG="${REPO}/configagent:${TAG}"
-docker build -f oracle/build/config_agent/Dockerfile -t ${CONFIG_AGENT_IMG} .
-docker push ${CONFIG_AGENT_IMG}
-
-export LOGGING_IMG="${REPO}/loggingsidecar:${TAG}"
-docker build -f oracle/build/loggingsidecar/Dockerfile -t ${LOGGING_IMG} .
-docker push ${LOGGING_IMG}
-
-export MONITORING_IMG="${REPO}/monitoring:${TAG}"
-docker build -f oracle/build/monitoring/Dockerfile -t ${MONITORING_IMG} .
-docker push ${MONITORING_IMG}
+make -C oracle deploy
 ```
 
 Verify that your images were successfully pushed to your local repository by running:
+
 ```sh
 curl http://localhost:5000/v2/_catalog
 ```
 
 You should see an output similar to this:
 ```sh
-{"repositories":["oracle-12.2-ee-seeded-mydb","oracle.db.anthosapis.com/configagent","oracle.db.anthosapis.com/dbinit","oracle.db.anthosapis.com/loggingsidecar","oracle.db.anthosapis.com/monitoring","oracle.db.anthosapis.com/operator"]}
-```
-
-## Deploying the El Carro Operator
-
-To deploy the El Carro operator using your locally built image, run the following:
-
-```sh
-sed -i 's/image: gcr.*oracle.db.anthosapis.com/image: localhost:5000\/oracle.db.anthosapis.com/g' $PATH_TO_EL_CARRO_REPO/oracle/operator.yaml
-kubectl apply -f $PATH_TO_EL_CARRO_REPO/oracle/operator.yaml
+{"repositories":["oracle-12.2-ee-seeded-mydb","local/oracle.db.anthosapis.com/configagent","local/oracle.db.anthosapis.com/dbinit","local/oracle.db.anthosapis.com/loggingsidecar","local/oracle.db.anthosapis.com/monitoring","local/oracle.db.anthosapis.com/operator"]}
 ```
 
 ### Setup a namespace:

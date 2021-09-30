@@ -408,19 +408,22 @@ func PrintLogs(namespace string, env envtest.Environment, dumpLogsFor []string, 
 // DeployOperator deploys an operator and returns a cleanup function to delete
 // all cluster level objects created outside of the namespace.
 func DeployOperator(ctx context.Context, k8sClient client.Client, namespace string) (func() error, error) {
-	var agentImageTag, agentImageRepo string
+	var agentImageTag, agentImageRepo, agentImageProject string
 	if agentImageTag = os.Getenv("PROW_IMAGE_TAG"); agentImageTag == "" {
 		return nil, errors.New("PROW_IMAGE_TAG envvar was not set. Did you try to test without make?")
 	}
 	if agentImageRepo = os.Getenv("PROW_IMAGE_REPO"); agentImageRepo == "" {
 		return nil, errors.New("PROW_IMAGE_REPO envar was not set. Did you try to test without make?")
 	}
+	if agentImageProject = os.Getenv("PROW_PROJECT"); agentImageProject == "" {
+		return nil, errors.New("PROW_PROJECT envar was not set. Did you try to test without make?")
+	}
 
-	dbInitImage := fmt.Sprintf("%s/%s:%s", agentImageRepo, dbInitImage, agentImageTag)
-	configAgentImage := fmt.Sprintf("%s/%s:%s", agentImageRepo, configAgentImage, agentImageTag)
-	loggingSidecarImage := fmt.Sprintf("%s/%s:%s", agentImageRepo, loggingSidecarImage, agentImageTag)
-	monitoringAgentImage := fmt.Sprintf("%s/%s:%s", agentImageRepo, monitoringAgentImage, agentImageTag)
-	operatorImage := fmt.Sprintf("%s/%s:%s", agentImageRepo, operatorImage, agentImageTag)
+	dbInitImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, dbInitImage, agentImageTag)
+	configAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, configAgentImage, agentImageTag)
+	loggingSidecarImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, loggingSidecarImage, agentImageTag)
+	monitoringAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, monitoringAgentImage, agentImageTag)
+	operatorImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, operatorImage, agentImageTag)
 
 	objs, err := readYamls([]string{
 		"config/manager/manager.yaml",
