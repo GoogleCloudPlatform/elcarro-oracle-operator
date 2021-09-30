@@ -186,9 +186,11 @@ func (g *gcsUtilImpl) uploadFile(ctx context.Context, gcsPath, filePath, content
 
 	b := client.Bucket(bucket)
 	// check if bucket exists and it is accessible
+	/* YOLO
 	if _, err := b.Attrs(ctx); err != nil {
 		return err
 	}
+	*/
 
 	gcsWriter := b.Object(name).NewWriter(ctx)
 	gcsWriter.ContentType = contentType
