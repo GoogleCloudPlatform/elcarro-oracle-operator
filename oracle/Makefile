@@ -208,8 +208,8 @@ operator-presubmit: prepare-prow
 	$(MAKE) -j8 buildah-push-all
 	# Remove stale resources from the project
 	scripts/integration_test_cluster/cleanup_integration_test_clusters.sh
-	# Create a new GKE cluster for int tests
-	scripts/integration_test_cluster/create_integration_test_cluster.sh
+	# Create a new GKE cluster for int tests (can be flaky)
+	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Retrying creating test cluster *** "; scripts/integration_test_cluster/create_integration_test_cluster.sh)
 	# Run tests, remove temp cluster in case of failure
 	$(MAKE) test || (scripts/integration_test_cluster/delete_integration_test_cluster.sh; exit 100)
 	# Delete the GKE cluster
