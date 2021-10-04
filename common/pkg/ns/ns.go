@@ -6,6 +6,7 @@ package ns
 
 import (
 	"hash/fnv"
+	"strings"
 )
 
 // NamespaceMapper maps an entity namespace/name to another namespace/name.
@@ -32,7 +33,7 @@ func NewSameMapper() NamespaceMapper {
 // { ns: "a", "name: "b" } -> { ns: "target", name: "a-b-hash" }
 // { ns: "", name: "c" } -> { ns: "target", name: "c-hash" }
 func NewRedirectMapper(destNS string) NamespaceMapper {
-	return &redirectToAnother{TargetNS: destNS}
+	return &redirectToAnother{targetNS: destNS}
 }
 
 // NewNSPrefixMapper returns a NamespaceMapper that redirects all entities to
@@ -45,6 +46,19 @@ func NewRedirectMapper(destNS string) NamespaceMapper {
 // { ns: "long-name", name: "c" } -> { ns: "pre-long-clipped-hash", name: "c" }
 func NewNSPrefixMapper(nsPrefix string) NamespaceMapper {
 	return &prefixer{prefix: nsPrefix}
+}
+
+//NewPrefixSwappingNSMapper returns a NamespaceMapper that replaces the old
+//prefix of a namespace with a new prefix.  If the namespace does not have the
+//old prefix, a new prefix will be added in front of the namespace. The entity name
+//doesn't change. The destination namespace may have a prefix-hash appended at
+//the end for long names (with truncation)
+//Examples, for an old prefix "g-" and a new prefix "gs-ods-"
+//{ ns: "g-a", "name: "b" } -> { ns: "gs-ods-a", name: "b" }
+//{ ns: "g-g-a", name: "c" } -> { ns: "gs-ods-g-a", name: "c" }
+//{ ns: "a, name: "c" } -> { ns: "gs-ods-a", name: "c" }
+func NewPrefixSwappingNSMapper(oldPrefix, newPrefix string) NamespaceMapper {
+	return &prefixSwapper{oldPre: oldPrefix, newPre: newPrefix}
 }
 
 type same struct{}
@@ -70,7 +84,7 @@ func (r *prefixer) DestNamespace(srcNS string) string {
 }
 
 type redirectToAnother struct {
-	TargetNS string
+	targetNS string
 }
 
 func (r *redirectToAnother) DestName(srcNS, srcName string) string {
@@ -78,7 +92,21 @@ func (r *redirectToAnother) DestName(srcNS, srcName string) string {
 }
 
 func (r *redirectToAnother) DestNamespace(srcNS string) string {
-	return r.TargetNS
+	return r.targetNS
+}
+
+type prefixSwapper struct {
+	oldPre string
+	newPre string
+}
+
+func (p *prefixSwapper) DestName(srcNS, srcName string) string {
+	return srcName
+}
+
+func (p *prefixSwapper) DestNamespace(srcNS string) string {
+	destNS := p.newPre + strings.TrimPrefix(srcNS, p.oldPre)
+	return munge("", destNS, 63, false)
 }
 
 func munge(s1, s2 string, limit int, alwaysAddHash bool) string {
@@ -89,20 +117,19 @@ func munge(s1, s2 string, limit int, alwaysAddHash bool) string {
 	if len(s2) == 0 {
 		j = s1
 	}
-	hashRequired := alwaysAddHash
-	if len(j) > limit-suffixLen {
-		j = j[:limit-suffixLen]
-		hashRequired = true
-	}
-	if hashRequired {
+
+	if alwaysAddHash || len(j) >= limit {
+		if len(j) > limit-suffixLen {
+			j = j[:limit-suffixLen]
+		}
 		j = j + hashSuffix(s1+"/"+s2)
 	}
 	return j
 }
 
-var charset = []rune("01234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var charset = []rune("0123456789abcdefghijklmnopqrstuvwxyz")
 
-const suffixLen = 12
+const suffixLen = 14
 
 func hashSuffix(s string) string {
 	e := fnv.New64()
