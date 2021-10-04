@@ -99,7 +99,7 @@ type Server struct {
 	dbdClientClose func() error
 	lroServer      *lro.Server
 	syncJobs       *syncJobs
-	gcsUtil        gcsUtil
+	gcsUtil        GCSUtil
 }
 
 // Remove pdbConnStr from String(), as that may contain the pdb user/password
@@ -416,7 +416,7 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	dumpDir := filepath.Join(pdbPath, consts.DpdumpDir.Linux)
 	klog.InfoS("dbdaemon/dataPumpImport", "dumpDir", dumpDir)
 
-	dmpReader, err := s.gcsUtil.download(ctx, req.GcsPath)
+	dmpReader, err := s.gcsUtil.Download(ctx, req.GcsPath)
 	if err != nil {
 		return nil, fmt.Errorf("dbdaemon/dataPumpImport: initiating GCS download failed: %v", err)
 	}
@@ -459,7 +459,7 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	if len(req.GcsLogPath) > 0 {
 		logFullPath := filepath.Join(dumpDir, logFilename)
 
-		if err := s.gcsUtil.uploadFile(ctx, req.GcsLogPath, logFullPath, contentTypePlainText); err != nil {
+		if err := s.gcsUtil.UploadFile(ctx, req.GcsLogPath, logFullPath, contentTypePlainText); err != nil {
 			return nil, fmt.Errorf("dbdaemon/dataPumpImport: import completed successfully, failed to upload import log to GCS: %v", err)
 		}
 
@@ -544,7 +544,7 @@ func (s *Server) dataPumpExport(ctx context.Context, req *dbdpb.DataPumpExportRe
 	}
 	klog.Infof("dbdaemon/dataPumpExport: export to %s completed successfully", dmpPath)
 
-	if err := s.gcsUtil.uploadFile(ctx, req.GcsPath, dmpPath, contentTypePlainText); err != nil {
+	if err := s.gcsUtil.UploadFile(ctx, req.GcsPath, dmpPath, contentTypePlainText); err != nil {
 		return nil, fmt.Errorf("dbdaemon/dataPumpExport: failed to upload dmp file to %s: %v", req.GcsPath, err)
 	}
 	klog.Infof("dbdaemon/dataPumpExport: uploaded dmp file to %s", req.GcsPath)
@@ -552,7 +552,7 @@ func (s *Server) dataPumpExport(ctx context.Context, req *dbdpb.DataPumpExportRe
 	if len(req.GcsLogPath) > 0 {
 		logPath := filepath.Join(pdbPath, consts.DpdumpDir.Linux, dmpLogFile)
 
-		if err := s.gcsUtil.uploadFile(ctx, req.GcsLogPath, logPath, contentTypePlainText); err != nil {
+		if err := s.gcsUtil.UploadFile(ctx, req.GcsLogPath, logPath, contentTypePlainText); err != nil {
 			return nil, fmt.Errorf("dbdaemon/dataPumpExport: failed to upload log file to %s: %v", req.GcsLogPath, err)
 		}
 		klog.Infof("dbdaemon/dataPumpExport: uploaded log file to %s", req.GcsLogPath)
@@ -1076,7 +1076,7 @@ func (s *Server) uploadDirectoryContentsToGCS(ctx context.Context, backupDir, gc
 		gcsTarget.Path = path.Join(gcsTarget.Path, relPath)
 		klog.InfoS("gcs", "target", gcsTarget)
 		start := time.Now()
-		err = s.gcsUtil.uploadFile(ctx, gcsTarget.String(), fpath, contentTypePlainText)
+		err = s.gcsUtil.UploadFile(ctx, gcsTarget.String(), fpath, contentTypePlainText)
 		if err != nil {
 			return err
 		}
@@ -1721,7 +1721,7 @@ func New(ctx context.Context, cdbNameFromYaml string) (*Server, error) {
 func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.DownloadDirectoryFromGCSRequest) (*dbdpb.DownloadDirectoryFromGCSResponse, error) {
 
 	klog.Infof("dbdaemon/DownloadDirectoryFromGCS: req %v", req)
-	bucket, prefix, err := s.gcsUtil.splitURI(req.GcsPath)
+	bucket, prefix, err := s.gcsUtil.SplitURI(req.GcsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse gcs path %s", err)
 	}
