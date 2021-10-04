@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/storage"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
 
@@ -112,24 +113,24 @@ func (o *osUtilImpl) removeFile(file string) error {
 	return os.Remove(file)
 }
 
-// gcsUtil contains helper methods for reading/writing GCS objects.
-type gcsUtil interface {
-	// download returns an io.ReadCloser for GCS object at given gcsPath.
-	download(ctx context.Context, gcsPath string) (io.ReadCloser, error)
-	// uploadFile uploads contents of a file at filepath to gcsPath location in
+// GCSUtil contains helper methods for reading/writing GCS objects.
+type GCSUtil interface {
+	// Download returns an io.ReadCloser for GCS object at given gcsPath.
+	Download(ctx context.Context, gcsPath string) (io.ReadCloser, error)
+	// UploadFile uploads contents of a file at filepath to gcsPath location in
 	// GCS and sets object's contentType.
 	// If gcsPath ends with .gz it also compresses the uploaded contents
 	// and sets object's content type to application/gzip.
-	uploadFile(ctx context.Context, gcsPath, filepath, contentType string) error
-	// splitURI takes a GCS URI and splits it into bucket and object names. If the URI does not have
+	UploadFile(ctx context.Context, gcsPath, filepath, contentType string) error
+	// SplitURI takes a GCS URI and splits it into bucket and object names. If the URI does not have
 	// the gs:// scheme, or the URI doesn't specify both a bucket and an object name, returns an error.
-	splitURI(url string) (bucket, name string, err error)
+	SplitURI(url string) (bucket, name string, err error)
 }
 
 type gcsUtilImpl struct{}
 
-func (g *gcsUtilImpl) download(ctx context.Context, gcsPath string) (io.ReadCloser, error) {
-	bucket, name, err := g.splitURI(gcsPath)
+func (g *gcsUtilImpl) Download(ctx context.Context, gcsPath string) (io.ReadCloser, error) {
+	bucket, name, err := g.SplitURI(gcsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +149,21 @@ func (g *gcsUtilImpl) download(ctx context.Context, gcsPath string) (io.ReadClos
 	return reader, nil
 }
 
+func (g *gcsUtilImpl) UploadFile(ctx context.Context, gcsPath, filePath, contentType string) error {
+	return retry.OnError(retry.DefaultBackoff, func(err error) bool {
+		klog.ErrorS(err, "failed to upload a file")
+		// tried to cast err to *googleapi.Error with errors.As and wrap the error
+		// in uploadFile. returned err is not a *googleapi.Error.
+		return err != nil && strings.Contains(err.Error(), "compute: Received 500 ")
+	}, func() error {
+		return g.uploadFile(ctx, gcsPath, filePath, contentType)
+	})
+
+}
+
+// uploadFile is the implementation of UploadFile to be wrapped with retry logic.
 func (g *gcsUtilImpl) uploadFile(ctx context.Context, gcsPath, filePath, contentType string) error {
-	bucket, name, err := g.splitURI(gcsPath)
+	bucket, name, err := g.SplitURI(gcsPath)
 	if err != nil {
 		return err
 	}
@@ -195,7 +209,7 @@ func (g *gcsUtilImpl) uploadFile(ctx context.Context, gcsPath, filePath, content
 	return nil
 }
 
-func (g *gcsUtilImpl) splitURI(url string) (bucket, name string, err error) {
+func (g *gcsUtilImpl) SplitURI(url string) (bucket, name string, err error) {
 	u := strings.TrimPrefix(url, gsPrefix)
 	if u == url {
 		return "", "", fmt.Errorf("URL %q is missing the %q prefix", url, gsPrefix)

@@ -30,10 +30,10 @@ func TestGcsUtilImplSplitURI(t *testing.T) {
 
 	for _, test := range tests {
 		g := &gcsUtilImpl{}
-		gotBucket, gotName, err := g.splitURI(test.url)
+		gotBucket, gotName, err := g.SplitURI(test.url)
 
 		if err != nil || gotBucket != test.wantBucket || gotName != test.wantName {
-			t.Errorf("gcsUtilImpl.splitURI(%q)=(%q, %q, %q); wanted (%q, %q, nil)",
+			t.Errorf("gcsUtilImpl.SplitURI(%q)=(%q, %q, %q); wanted (%q, %q, nil)",
 				test.url, gotBucket, gotName, err, test.wantBucket, test.wantName)
 		}
 	}
@@ -49,7 +49,7 @@ func TestGcsUtilImplSplitURIError(t *testing.T) {
 
 	for _, test := range tests {
 		g := &gcsUtilImpl{}
-		gotBucket, gotName, err := g.splitURI(test.url)
+		gotBucket, gotName, err := g.SplitURI(test.url)
 
 		if err == nil {
 			t.Errorf("gcsUtilImpl.splitURI(%q)=(%q, %q, nil); wanted an error",
