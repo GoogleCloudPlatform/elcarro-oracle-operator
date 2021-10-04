@@ -192,18 +192,22 @@ func (g *gcsUtilImpl) uploadFile(ctx context.Context, gcsPath, filePath, content
 
 	gcsWriter := b.Object(name).NewWriter(ctx)
 	gcsWriter.ContentType = contentType
-	defer gcsWriter.Close()
 
 	var writer io.WriteCloser = gcsWriter
 	if strings.HasSuffix(gcsPath, ".gz") {
 		gcsWriter.ContentType = contentTypeGZ
 		writer = gzip.NewWriter(gcsWriter)
-		defer writer.Close()
 	}
 
 	_, err = io.Copy(writer, f)
 	if err != nil {
 		return fmt.Errorf("failed to write file %s to %s: %v", filePath, gcsPath, err)
+	}
+	if err = writer.Close(); err != nil {
+		return fmt.Errorf("failed to complete writing file %s to %s: %v", filePath, gcsPath, err)
+	}
+	if err = gcsWriter.Close(); err != nil {
+		return fmt.Errorf("failed to complete writing file %s to %s: %v", filePath, gcsPath, err)
 	}
 
 	return nil
