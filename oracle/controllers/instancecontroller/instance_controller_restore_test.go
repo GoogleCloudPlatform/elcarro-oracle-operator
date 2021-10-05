@@ -202,6 +202,14 @@ func testInstanceRestore() {
 			return getConditionReason(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(k8s.RestoreInProgress))
 
+		By("checking that instance maintenance lock is acquired")
+		Eventually(func() string {
+			if err := k8sClient.Get(ctx, objKey, instance); err != nil {
+				return ""
+			}
+			return instance.Status.LockedByController
+		}, timeout, interval).Should(Equal("instancecontroller"))
+
 		By("checking that instance is Ready on restore LRO completion")
 		fakeConfigAgentClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 		Eventually(func() (metav1.ConditionStatus, error) {
@@ -250,6 +258,10 @@ func testInstanceRestore() {
 		cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
 		Expect(cond.Message).Should(HavePrefix("Failed to restore on"))
 		Expect(cond.Message).Should(ContainSubstring(backupID))
+
+		By("checking that instance maintenance lock is released")
+		// Instance object should be fresh at this point, no need to retry
+		Expect(instance.Status.LockedByController).Should(Equal(""))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
@@ -334,6 +346,10 @@ func testInstanceRestore() {
 			return nil
 		}, timeout, interval).Should(Succeed())
 
+		By("checking that instance maintenance lock is released")
+		// Instance object should be fresh at this point, no need to retry
+		Expect(instance.Status.LockedByController).Should(Equal(""))
+
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
 	})
@@ -374,6 +390,10 @@ func testInstanceRestore() {
 			}
 			return nil
 		}, timeout, interval).Should(Succeed())
+
+		By("checking that instance maintenance lock is released")
+		// Instance object should be fresh at this point, no need to retry
+		Expect(instance.Status.LockedByController).Should(Equal(""))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)

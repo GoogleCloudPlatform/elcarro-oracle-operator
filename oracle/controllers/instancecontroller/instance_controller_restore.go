@@ -71,18 +71,18 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 	backup, err := r.findBackupForRestore(ctx, *inst, req.Namespace, log)
 	if err != nil {
 		log.Error(err, "findBackupForRestore failed")
-		r.setRestoreFailed(ctx, inst, fmt.Sprintf(
+		e := r.setRestoreFailed(ctx, inst, fmt.Sprintf(
 			"Could not find a matching backup for BackupID: %v, BackupRef: %v, BackupType: %v",
 			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupRef, inst.Spec.Restore.BackupType), log)
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, e
 	}
 
 	// Check if the Backup object is in Ready status
 	backupReadyCond := k8s.FindCondition(backup.Status.Conditions, k8s.Ready)
 	if !k8s.ConditionStatusEquals(backupReadyCond, v1.ConditionTrue) {
 		if k8s.ConditionReasonEquals(backupReadyCond, k8s.BackupFailed) {
-			r.setRestoreFailed(ctx, inst, "Backup is in failed state", log)
-			return ctrl.Result{}, nil
+			e := r.setRestoreFailed(ctx, inst, "Backup is in failed state", log)
+			return ctrl.Result{}, e
 		} else {
 			log.Info("Backup is in progress, waiting")
 			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
@@ -106,6 +106,11 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				requestTime, inst.Status.LastRestoreTime.Time))
 			return ctrl.Result{}, nil
 		}
+		// Acquire maintenance lock
+		if e := AcquireInstanceMaintenanceLock(ctx, r.Client, inst, "instancecontroller"); e != nil {
+			log.Error(e, "AcquireInstanceMaintenanceLock failed")
+			return ctrl.Result{RequeueAfter: 5 * time.Second}, e
+		}
 		inst.Status.LastRestoreTime = inst.Spec.Restore.RequestTime.DeepCopy()
 		inst.Status.BackupID = ""
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.RestorePreparationInProgress, "")
@@ -121,7 +126,9 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			// Cleanup STS and PVCs.
 			done, err := r.cleanupSTSandPVCs(ctx, *inst, stsParams, log)
 			if err != nil {
-				r.setRestoreFailed(ctx, inst, err.Error(), log)
+				if e := r.setRestoreFailed(ctx, inst, err.Error(), log); e != nil {
+					return ctrl.Result{}, e
+				}
 				return ctrl.Result{}, err
 			}
 			if !done {
@@ -166,7 +173,9 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 					log.Info("restoreStateMachine: CreateComplete->RestoreComplete")
 					message := fmt.Sprintf("Physical restore done. Elapsed Time: %v",
 						k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(inst.Status.Conditions, k8s.Ready), time.Second))
-					r.setRestoreSucceeded(ctx, inst, message, log)
+					if e := r.setRestoreSucceeded(ctx, inst, message, log); e != nil {
+						return ctrl.Result{}, e
+					}
 				} else {
 					log.Info("PhysicalRestore started")
 				}
@@ -195,8 +204,8 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				}
 			}
 		default:
-			r.setRestoreFailed(ctx, inst, "Unknown restore type", log)
-			return ctrl.Result{}, nil
+			e := r.setRestoreFailed(ctx, inst, "Unknown restore type", log)
+			return ctrl.Result{}, e
 		}
 
 		if !done {
@@ -210,7 +219,9 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 
 		// if done and the error is not nil
 		if err != nil {
-			r.setRestoreFailed(ctx, inst, err.Error(), log)
+			if e := r.setRestoreFailed(ctx, inst, err.Error(), log); e != nil {
+				return ctrl.Result{}, e
+			}
 			return ctrl.Result{}, err
 		}
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreBootstrapInProgress, "")
@@ -224,7 +235,6 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				log.Error(err, "failed to check the database instance status")
 				return ctrl.Result{}, err
 			}
-
 			if !oracleRunning {
 				log.Info("post restore bootstrap still in progress, waiting")
 				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
@@ -243,14 +253,19 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				Dbdomain:     controllers.GetDBDomain(inst),
 				Mode:         capb.BootstrapDatabaseRequest_Restore,
 			}); err != nil {
-				r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err), log)
+				if e := r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err), log); e != nil {
+					return ctrl.Result{}, e
+				}
 				return ctrl.Result{}, nil
 			}
 		}
 
 		description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),
 			time.Now().Nanosecond(), inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType)
-		r.setRestoreSucceeded(ctx, inst, description, log)
+		if e := r.setRestoreSucceeded(ctx, inst, description, log); e != nil {
+			log.Error(e, "setRestoreSucceeded returned an error, retrying")
+			return ctrl.Result{}, e
+		}
 	default:
 		log.Info("restoreStateMachine: no action needed, proceed with main reconciliation")
 	}
@@ -258,8 +273,12 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 }
 
 // Update spec and status of the instance to reflect restore success.
-func (r *InstanceReconciler) setRestoreSucceeded(ctx context.Context, inst *v1alpha1.Instance, message string, log logr.Logger) {
+func (r *InstanceReconciler) setRestoreSucceeded(ctx context.Context, inst *v1alpha1.Instance, message string, log logr.Logger) error {
 	log.Info("Restore succeeded")
+	// Release maintenance lock
+	if err := ReleaseInstanceMaintenanceLock(ctx, r.Client, inst, "instancecontroller"); err != nil {
+		return fmt.Errorf("ReleaseInstanceMaintenanceLock failed: %v", err)
+	}
 	description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),
 		time.Now().Nanosecond(), inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType)
 	// Create event.
@@ -267,25 +286,31 @@ func (r *InstanceReconciler) setRestoreSucceeded(ctx context.Context, inst *v1al
 	// Remove restore spec. Update the inst object in place.
 	inst.Spec.Restore = nil
 	if err := r.Update(ctx, inst); err != nil {
-		log.Error(err, "failed to update instance spec")
+		return fmt.Errorf("failed to update instance spec: %v", err)
 	}
 	// Update status.
 	k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.RestoreComplete, message)
 	inst.Status.Description = description
+	return nil
 }
 
 // Update spec and status of the instance to reflect restore failure.
-func (r *InstanceReconciler) setRestoreFailed(ctx context.Context, inst *v1alpha1.Instance, reason string, log logr.Logger) {
+func (r *InstanceReconciler) setRestoreFailed(ctx context.Context, inst *v1alpha1.Instance, reason string, log logr.Logger) error {
 	log.Error(goerrors.New(reason), "Restore failed")
+	// Release maintenance lock
+	if err := ReleaseInstanceMaintenanceLock(ctx, r.Client, inst, "instancecontroller"); err != nil {
+		return fmt.Errorf("ReleaseInstanceMaintenanceLock failed: %v", err)
+	}
 	// Create event.
 	r.Recorder.Eventf(inst, corev1.EventTypeWarning, "RestoreFailed", reason)
 	// Remove restore spec. Update the inst object in place.
 	inst.Spec.Restore = nil
 	if err := r.Update(ctx, inst); err != nil {
-		log.Error(err, "failed to update instance spec")
+		return fmt.Errorf("failed to update instance spec: %v", err)
 	}
 	// Update status.
 	k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.RestoreFailed, reason)
+	return nil
 }
 
 // Check for Snapshot restore status
@@ -408,7 +433,7 @@ func (r *InstanceReconciler) restoreSnapshot(ctx context.Context, inst v1alpha1.
 		return err
 	}
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
-	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
+	if err = r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
 		log.Error(err, "failed to patch the restored StatefulSet")
 		return err
 	}
@@ -502,8 +527,8 @@ func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context, inst v1alpha
 	// If STS exists delete it and restart reconciling.
 	if err == nil {
 		log.Info("deleting sts", "name", sts.Name)
-		if err := r.Delete(ctx, sts); err != nil {
-			log.Error(err, "restoreSnapshot: failed to delete the old STS")
+		if e := r.Delete(ctx, sts); e != nil {
+			log.Error(e, "restoreSnapshot: failed to delete the old STS")
 		}
 		log.Info("deleted STS, need to reconcile again")
 		return false, nil
@@ -523,8 +548,8 @@ func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context, inst v1alpha
 		// If PVC exists delete it and restart reconciling.
 		if err == nil {
 			log.Info("deleting pvc", "name", pvc.Name)
-			if err := r.Delete(ctx, &pvc); err != nil {
-				log.Error(err, "cleanupSTSandPVCs: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
+			if e := r.Delete(ctx, &pvc); e != nil {
+				log.Error(e, "cleanupSTSandPVCs: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
 			}
 			log.Info("deleted PVC, need to reconcile again")
 			return false, nil
