@@ -107,6 +107,7 @@ test:
 		--local_cpu_resources=10 \
 		--test_tag_filters="integration" \
 		--@io_bazel_rules_go//go/config:race \
+		--test_timeout=60,300,900,7200 \
 		... \
 		--test_output=errors \
 		--spawn_strategy=local \
