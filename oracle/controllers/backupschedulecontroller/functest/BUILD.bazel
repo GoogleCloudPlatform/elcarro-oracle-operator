@@ -4,6 +4,7 @@ go_test(
     name = "functest_test",
     size = "medium",
     srcs = ["backupschedule_controller_functional_test.go"],
+    tags = ["functional"],
     deps = [
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",

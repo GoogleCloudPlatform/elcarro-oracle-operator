@@ -84,15 +84,17 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 			By("By creating two new Instances")
 			createInstance(firstInstanceName, cdbName, namespace, version, edition, extra)
+			instKey1 := client.ObjectKey{Namespace: namespace, Name: firstInstanceName}
 			createInstance(secondInstanceName, cdbName, namespace, version, edition, extra)
+			instKey2 := client.ObjectKey{Namespace: namespace, Name: secondInstanceName}
 
 			By("By checking that Instance is created")
-			verifyThatInstanceWasCreated(ctx, namespace, firstInstanceName, k8sClient, instanceTimeout)
-			verifyThatInstanceWasCreated(ctx, namespace, secondInstanceName, k8sClient, instanceTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
 
 			By("By checking that Database is provisioned")
-			verifyThatDatabaseWasProvisioned(ctx, namespace, firstInstanceName, k8sClient, dbTimeout)
-			verifyThatDatabaseWasProvisioned(ctx, namespace, secondInstanceName, k8sClient, dbTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
 
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
@@ -174,35 +176,6 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 		},
 	}
 	testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, instance)
-}
-
-func verifyThatInstanceWasCreated(ctx context.Context, namespace, instanceName string, k8sClient client.Client, timeout time.Duration) {
-	createdInstance := &v1alpha1.Instance{}
-	instanceKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
-
-	// Wait until the instance is "Ready" (requires 5+ minutes to download image)
-	Eventually(func() metav1.ConditionStatus {
-		Expect(k8sClient.Get(ctx, instanceKey, createdInstance)).Should(Succeed())
-		cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.Ready)
-		if cond != nil {
-			return cond.Status
-		}
-		return metav1.ConditionUnknown
-	}, timeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
-}
-
-func verifyThatDatabaseWasProvisioned(ctx context.Context, namespace, instanceName string, k8sClient client.Client, timeout time.Duration) {
-	createdInstance := &v1alpha1.Instance{}
-	instanceKey := client.ObjectKey{Namespace: namespace, Name: instanceName}
-
-	Eventually(func() metav1.ConditionStatus {
-		Expect(k8sClient.Get(ctx, instanceKey, createdInstance)).Should(Succeed())
-		cond := k8s.FindCondition(createdInstance.Status.Conditions, k8s.DatabaseInstanceReady)
-		if cond != nil {
-			return cond.Status
-		}
-		return metav1.ConditionUnknown
-	}, timeout, 5*time.Second).Should(Equal(metav1.ConditionTrue))
 }
 
 func TestInstance(t *testing.T) {

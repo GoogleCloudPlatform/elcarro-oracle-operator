@@ -877,20 +877,26 @@ func WaitForObjectConditionState(k8sEnv K8sOperatorEnvironment,
 	timeout time.Duration) {
 	Eventually(func() bool {
 		K8sGetWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, key, emptyObj)
+		failed := false
 		cond := &metav1.Condition{}
 		switch emptyObj.(type) {
 		case *v1alpha1.Instance:
-			cond = k8s.FindCondition(emptyObj.(*v1alpha1.Instance).Status.Conditions, condition)
+			failed, cond = k8s.FindConditionOrFailed(emptyObj.(*v1alpha1.Instance).Status.Conditions, condition)
 		case *v1alpha1.Import:
-			cond = k8s.FindCondition(emptyObj.(*v1alpha1.Import).Status.Conditions, condition)
+			failed, cond = k8s.FindConditionOrFailed(emptyObj.(*v1alpha1.Import).Status.Conditions, condition)
 		case *v1alpha1.Export:
-			cond = k8s.FindCondition(emptyObj.(*v1alpha1.Export).Status.Conditions, condition)
+			failed, cond = k8s.FindConditionOrFailed(emptyObj.(*v1alpha1.Export).Status.Conditions, condition)
 		case *v1alpha1.Database:
-			cond = k8s.FindCondition(emptyObj.(*v1alpha1.Database).Status.Conditions, condition)
+			failed, cond = k8s.FindConditionOrFailed(emptyObj.(*v1alpha1.Database).Status.Conditions, condition)
 		}
 		if cond != nil {
 			logf.FromContext(nil).Info(fmt.Sprintf("Waiting %v, status=%v:%v, expecting=%v:%v", condition, cond.Status, cond.Reason, targetStatus, targetReason))
-			return cond.Status == targetStatus && cond.Reason == targetReason
+			done := cond.Status == targetStatus && cond.Reason == targetReason
+			if !done && failed { // Allow for expecting a "Failed" condition.
+				Fail(fmt.Sprintf("Failed %v, status=%v:%v, expecting=%v:%v", condition, cond.Status, cond.Reason, targetStatus, targetReason))
+			}
+			return done
+
 		}
 		return false
 	}, timeout, 5*time.Second).Should(Equal(true))
