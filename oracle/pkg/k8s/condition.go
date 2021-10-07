@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"strings"
 	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,6 +91,15 @@ func FindCondition(conditions []v1.Condition, name string) *v1.Condition {
 		}
 	}
 	return nil
+}
+
+func FindConditionOrFailed(conditions []v1.Condition, name string) (bool, *v1.Condition) {
+	for i, c := range conditions {
+		if c.Type == name {
+			return strings.Contains(c.Reason, "Failed"), &conditions[i]
+		}
+	}
+	return false, nil
 }
 
 func ConditionStatusEquals(cond *v1.Condition, status v1.ConditionStatus) bool {
