@@ -32,8 +32,6 @@ type ConfigAgentClient interface {
 	CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	CreateListener(ctx context.Context, in *CreateListenerRequest, opts ...grpc.CallOption) (*CreateListenerResponse, error)
 	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	// Lists operations that match the specified filter in the request.
-	ListOperations(ctx context.Context, in *longrunning.ListOperationsRequest, opts ...grpc.CallOption) (*longrunning.ListOperationsResponse, error)
 	// Deletes a long-running operation. This method indicates that the client is
 	// no longer interested in the operation result. It does not cancel the
 	// operation.
@@ -164,15 +162,6 @@ func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImpo
 	return out, nil
 }
 
-func (c *configAgentClient) ListOperations(ctx context.Context, in *longrunning.ListOperationsRequest, opts ...grpc.CallOption) (*longrunning.ListOperationsResponse, error) {
-	out := new(longrunning.ListOperationsResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/ListOperations", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DeleteOperation", in, out, opts...)
@@ -270,8 +259,6 @@ type ConfigAgentServer interface {
 	CreateCDB(context.Context, *CreateCDBRequest) (*longrunning.Operation, error)
 	CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error)
 	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
-	// Lists operations that match the specified filter in the request.
-	ListOperations(context.Context, *longrunning.ListOperationsRequest) (*longrunning.ListOperationsResponse, error)
 	// Deletes a long-running operation. This method indicates that the client is
 	// no longer interested in the operation result. It does not cancel the
 	// operation.
@@ -326,9 +313,6 @@ func (UnimplementedConfigAgentServer) CreateListener(context.Context, *CreateLis
 }
 func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
-}
-func (UnimplementedConfigAgentServer) ListOperations(context.Context, *longrunning.ListOperationsRequest) (*longrunning.ListOperationsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListOperations not implemented")
 }
 func (UnimplementedConfigAgentServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteOperation not implemented")
@@ -586,24 +570,6 @@ func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_ListOperations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(longrunning.ListOperationsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).ListOperations(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/ListOperations",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).ListOperations(ctx, req.(*longrunning.ListOperationsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_DeleteOperation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(longrunning.DeleteOperationRequest)
 	if err := dec(in); err != nil {
@@ -820,10 +786,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataPumpImport",
 			Handler:    _ConfigAgent_DataPumpImport_Handler,
-		},
-		{
-			MethodName: "ListOperations",
-			Handler:    _ConfigAgent_ListOperations_Handler,
 		},
 		{
 			MethodName: "DeleteOperation",
