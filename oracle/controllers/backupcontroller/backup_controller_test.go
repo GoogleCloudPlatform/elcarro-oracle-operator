@@ -293,7 +293,7 @@ var _ = Describe("Backup controller", func() {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupReady))
 
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
+			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
 		})
 
 		It("Should mark unsuccessful RMAN backup as Failed", func() {

@@ -194,7 +194,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			// Clean up LRO after we are done.
 			// The job will remain available for `ttlAfterDelete`.
 			if done {
-				_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, id, inst.Name)
+				_ = controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r.Client, id, inst.Namespace, inst.Name)
 				if err != nil {
 					backupID := inst.Spec.Restore.BackupID
 					backupType := inst.Spec.Restore.BackupType

@@ -18,7 +18,6 @@ syntax = "proto3";
 package protos;
 
 import "google/longrunning/operations.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos;protos";
 
@@ -39,11 +38,6 @@ service ConfigAgent {
   rpc CreateListener(CreateListenerRequest) returns (CreateListenerResponse) {}
   rpc DataPumpImport(DataPumpImportRequest)
       returns (google.longrunning.Operation);
-  // Deletes a long-running operation. This method indicates that the client is
-  // no longer interested in the operation result. It does not cancel the
-  // operation.
-  rpc DeleteOperation(google.longrunning.DeleteOperationRequest)
-      returns (google.protobuf.Empty);
   rpc BootstrapDatabase(BootstrapDatabaseRequest)
       returns (google.longrunning.Operation) {};
   rpc BootstrapStandby(BootstrapStandbyRequest)

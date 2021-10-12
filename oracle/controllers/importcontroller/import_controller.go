@@ -225,7 +225,7 @@ func (r *ImportReconciler) handleRunningImport(ctx context.Context, log logr.Log
 	// handle import LRO completion
 	log.Info("LRO is DONE", "operationID", operationID)
 	defer func() {
-		_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, operationID, imp.Spec.Instance)
+		_ = controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r.Client, operationID, imp.Namespace, imp.Spec.Instance)
 	}()
 
 	if operation.GetError() != nil {

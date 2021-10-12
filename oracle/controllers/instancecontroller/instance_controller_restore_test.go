@@ -114,7 +114,7 @@ func testInstanceRestore() {
 		// There might be more than one call to DeleteOperation
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
-		Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt).Should(BeNumerically(">=", 1))
+		Eventually(fakeDatabaseClient.DeleteOperationCalledCnt).Should(BeNumerically(">=", 1))
 
 		By("checking that instance Restore section is deleted")
 		Eventually(func() error {
@@ -223,7 +223,7 @@ func testInstanceRestore() {
 		// There might be more than one call to DeleteOperation
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
-		Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
+		Eventually(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
 		Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(1))
 
 		By("checking Status.LastRestoreTime was updated")
@@ -246,7 +246,7 @@ func testInstanceRestore() {
 		// There might be more than one call to DeleteOperation
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
-		Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
+		Eventually(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
 
 		By("checking that instance Restore section is deleted")
 		Eventually(func() error {
@@ -324,7 +324,7 @@ func testInstanceRestore() {
 			return getConditionStatus(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 
-		Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(0))
+		Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(0))
 
 		By("checking that instance Restore section is deleted")
 		Eventually(func() error {
@@ -369,7 +369,7 @@ func testInstanceRestore() {
 			return getConditionStatus(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 
-		Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(0))
+		Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(0))
 
 		By("checking that instance Restore section is deleted")
 		Eventually(func() error {

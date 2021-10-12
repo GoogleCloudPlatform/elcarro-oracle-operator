@@ -232,7 +232,7 @@ func (r *ExportReconciler) handleRunningExport(ctx context.Context, log logr.Log
 	// handle export LRO completion
 	log.Info("LRO is DONE", "operationID", operationID)
 	defer func() {
-		_ = controllers.DeleteLROOperation(r.ClientFactory, ctx, r, req.Namespace, operationID, exp.Spec.Instance)
+		_ = controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r.Client, operationID, exp.Namespace, exp.Spec.Instance)
 	}()
 
 	if operation.GetError() != nil {

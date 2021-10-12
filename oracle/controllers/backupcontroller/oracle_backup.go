@@ -221,7 +221,7 @@ func (b *physicalBackup) status(ctx context.Context) (done bool, err error) {
 		if operation.GetError() != nil {
 			err = errors.New(operation.GetError().GetMessage())
 		}
-		if err := controllers.DeleteLROOperation(b.r.ClientFactory, ctx, b.r, b.backup.Namespace, id, b.backup.Spec.Instance); err != nil {
+		if err := controllers.DeleteLROOperation(ctx, b.r.DatabaseClientFactory, b.r.Client, id, b.backup.Namespace, b.backup.Spec.Instance); err != nil {
 			b.log.Error(err, "failed to delete a LRO ")
 		}
 		return true, err

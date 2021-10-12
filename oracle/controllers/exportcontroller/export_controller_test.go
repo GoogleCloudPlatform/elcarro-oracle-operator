@@ -178,7 +178,7 @@ var _ = Describe("Export controller", func() {
 
 			By("verifying post-conditions")
 			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(0))
-			Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(0))
+			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(0))
 		})
 
 		It("should mark export as complete", func() {
@@ -196,7 +196,7 @@ var _ = Describe("Export controller", func() {
 
 			By("verifying post-conditions")
 			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(1))
-			Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(1))
+			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(1))
 		})
 
 		It("should mark export as failed", func() {
@@ -214,7 +214,7 @@ var _ = Describe("Export controller", func() {
 
 			By("verifying post-conditions")
 			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(1))
-			Expect(fakeConfigAgentClient.DeleteOperationCalledCnt()).Should(Equal(1))
+			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(1))
 		})
 	})
 })
