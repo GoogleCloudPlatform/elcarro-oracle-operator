@@ -420,7 +420,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 			log.Info("CreateCDB still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
-		controllers.DeleteLROOperation(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r.Client, id, inst.Namespace, inst.Name)
 		if err != nil {
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, "CreateCDB LRO returned error")
 			log.Error(err, "CreateCDB LRO returned error")
@@ -473,7 +473,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 			log.Info("BootstrapDatabase still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 		}
-		controllers.DeleteLROOperation(r.ClientFactory, ctx, r, inst.Namespace, id, inst.Name)
+		controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r.Client, id, inst.Namespace, inst.Name)
 		if err != nil {
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.CreateFailed, "BootstrapDatabase LRO returned error")
 			log.Error(err, "BootstrapDatabase LRO returned error")

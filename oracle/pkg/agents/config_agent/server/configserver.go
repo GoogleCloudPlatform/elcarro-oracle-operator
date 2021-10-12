@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"github.com/golang/protobuf/ptypes/empty"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
@@ -556,19 +555,6 @@ func (s *ConfigServer) GetOperation(ctx context.Context, req *lropb.GetOperation
 	klog.InfoS("configagent/GetOperation", "client", client)
 
 	return client.GetOperation(ctx, req)
-}
-
-// DeleteOperation deletes lro given by name.
-func (s *ConfigServer) DeleteOperation(ctx context.Context, req *lropb.DeleteOperationRequest) (*empty.Empty, error) {
-	klog.InfoS("configagent/DeleteOperation", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/DeleteOperation: failed to create database daemon client: %v", err)
-	}
-	defer func() { _ = closeConn() }()
-	klog.InfoS("configagent/DeleteOperation", "client", client)
-
-	return client.DeleteOperation(ctx, req)
 }
 
 // CreateCDBUser creates CDB user as requested.

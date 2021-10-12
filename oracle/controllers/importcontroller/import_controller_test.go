@@ -171,7 +171,7 @@ var _ = Describe("Import controller", func() {
 				return getConditionStatus(ctx, importObjectKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 			Eventually(fakeConfigAgentClient.DataPumpImportCalledCnt, timeout, interval).Should(Equal(1))
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
+			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
 
 			readyCond, err := getCondition(ctx, importObjectKey, k8s.Ready)
 			Expect(err).ShouldNot(HaveOccurred())
@@ -190,7 +190,7 @@ var _ = Describe("Import controller", func() {
 				return getConditionReason(ctx, importObjectKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.ImportFailed))
 			Eventually(fakeConfigAgentClient.DataPumpImportCalledCnt, timeout, interval).Should(Equal(1))
-			Eventually(fakeConfigAgentClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
+			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
 		})
 	})
 

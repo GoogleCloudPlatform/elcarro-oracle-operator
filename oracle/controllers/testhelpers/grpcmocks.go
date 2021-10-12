@@ -20,7 +20,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
@@ -93,6 +92,7 @@ type FakeDatabaseClient struct {
 	getOperationCalledCnt        int32
 	listOperationsCalledCnt      int32
 	fetchServiceImageMetaDataCnt int32
+	deleteOperationCalledCnt     int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -239,7 +239,8 @@ func (cli *FakeDatabaseClient) ListOperations(ctx context.Context, in *lropb.Lis
 // that the client is no longer interested in the operation result. It does
 // not cancel the operation.
 func (cli *FakeDatabaseClient) DeleteOperation(ctx context.Context, in *lropb.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.deleteOperationCalledCnt, 1)
+	return nil, nil
 }
 
 // RecoverConfigFile creates a binary pfile from the backed up spfile
@@ -419,12 +420,6 @@ func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOpe
 	}
 }
 
-// DeleteOperation wrapper.
-func (cli *FakeConfigAgentClient) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest, ...grpc.CallOption) (*empty.Empty, error) {
-	atomic.AddInt32(&cli.deleteOperationCalledCnt, 1)
-	return nil, nil
-}
-
 // CreateCDBUser wrapper.
 func (cli *FakeConfigAgentClient) CreateCDBUser(context.Context, *capb.CreateCDBUserRequest, ...grpc.CallOption) (*capb.CreateCDBUserResponse, error) {
 	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
@@ -477,7 +472,7 @@ func (cli *FakeConfigAgentClient) DataPumpExportCalledCnt() int {
 }
 
 // DeleteOperationCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) DeleteOperationCalledCnt() int {
+func (cli *FakeDatabaseClient) DeleteOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.deleteOperationCalledCnt))
 }
 

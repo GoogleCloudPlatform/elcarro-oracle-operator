@@ -35,14 +35,14 @@ func GetLROOperation(ctx context.Context, dbClientFactory DatabaseClientFactory,
 }
 
 // DeleteLROOperation deletes LRO operation for the specified namespace instance and operation id.
-func DeleteLROOperation(caClientFactory ConfigAgentClientFactory, ctx context.Context, r client.Reader, namespace, id, instName string) error {
-	caClient, closeConn, err := caClientFactory.New(ctx, r, namespace, instName)
+func DeleteLROOperation(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, id, namespace, instName string) error {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
 	if err != nil {
 		return err
 	}
 	defer closeConn()
 
-	_, err = caClient.DeleteOperation(ctx, &lropb.DeleteOperationRequest{Name: id})
+	_, err = dbClient.DeleteOperation(ctx, &lropb.DeleteOperationRequest{Name: id})
 	return err
 }
 

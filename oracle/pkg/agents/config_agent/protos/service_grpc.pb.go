@@ -8,7 +8,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -32,10 +31,6 @@ type ConfigAgentClient interface {
 	CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	CreateListener(ctx context.Context, in *CreateListenerRequest, opts ...grpc.CallOption) (*CreateListenerResponse, error)
 	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	// Deletes a long-running operation. This method indicates that the client is
-	// no longer interested in the operation result. It does not cancel the
-	// operation.
-	DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
@@ -161,15 +156,6 @@ func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImpo
 	return out, nil
 }
 
-func (c *configAgentClient) DeleteOperation(ctx context.Context, in *longrunning.DeleteOperationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DeleteOperation", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/BootstrapDatabase", in, out, opts...)
@@ -249,10 +235,6 @@ type ConfigAgentServer interface {
 	CreateCDB(context.Context, *CreateCDBRequest) (*longrunning.Operation, error)
 	CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error)
 	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
-	// Deletes a long-running operation. This method indicates that the client is
-	// no longer interested in the operation result. It does not cancel the
-	// operation.
-	DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error)
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error)
 	BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
@@ -302,9 +284,6 @@ func (UnimplementedConfigAgentServer) CreateListener(context.Context, *CreateLis
 }
 func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
-}
-func (UnimplementedConfigAgentServer) DeleteOperation(context.Context, *longrunning.DeleteOperationRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteOperation not implemented")
 }
 func (UnimplementedConfigAgentServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
@@ -556,24 +535,6 @@ func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_DeleteOperation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(longrunning.DeleteOperationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).DeleteOperation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/DeleteOperation",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).DeleteOperation(ctx, req.(*longrunning.DeleteOperationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_BootstrapDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BootstrapDatabaseRequest)
 	if err := dec(in); err != nil {
@@ -754,10 +715,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataPumpImport",
 			Handler:    _ConfigAgent_DataPumpImport_Handler,
-		},
-		{
-			MethodName: "DeleteOperation",
-			Handler:    _ConfigAgent_DeleteOperation_Handler,
 		},
 		{
 			MethodName: "BootstrapDatabase",

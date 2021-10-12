@@ -200,7 +200,7 @@ func testInstanceProvision() {
 		// There might be more than one call to DeleteOperation
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
-		Eventually(fakeClientFactory.Caclient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
+		Eventually(fakeDatabaseClientFactory.Dbclient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
 		Expect(fakeClientFactory.Caclient.BootstrapDatabaseCalledCnt()).Should(BeNumerically(">=", 1))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
