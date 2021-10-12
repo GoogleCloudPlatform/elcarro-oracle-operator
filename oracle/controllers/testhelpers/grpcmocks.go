@@ -68,7 +68,6 @@ type FakeConfigAgentClient struct {
 	bootstrapStandbyCalledCnt      int32
 	bounceDatabaseCalledCnt        int32
 	createListenerCalledCnt        int32
-	listOperationsCalledCnt        int32
 	getOperationCalledCnt          int32
 	deleteOperationCalledCnt       int32
 	dataPumpImportCalledCnt        int32
@@ -91,7 +90,8 @@ type FakeConfigAgentClient struct {
 
 // FakeDatabaseClient mocks DatabaseDaemon
 type FakeDatabaseClient struct {
-	getOperationCalledCnt int32
+	getOperationCalledCnt   int32
+	listOperationsCalledCnt int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -234,7 +234,8 @@ func (cli *FakeDatabaseClient) DataPumpExportAsync(ctx context.Context, in *dbdp
 // ListOperations lists operations that match the specified filter in the
 // request.
 func (cli *FakeDatabaseClient) ListOperations(ctx context.Context, in *lropb.ListOperationsRequest, opts ...grpc.CallOption) (*lropb.ListOperationsResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.listOperationsCalledCnt, 1)
+	return nil, nil
 }
 
 // DeleteOperation deletes a long-running operation. This method indicates
@@ -378,12 +379,6 @@ func (cli *FakeConfigAgentClient) CreateCDB(context.Context, *capb.CreateCDBRequ
 // CreateListener wrapper.
 func (cli *FakeConfigAgentClient) CreateListener(context.Context, *capb.CreateListenerRequest, ...grpc.CallOption) (*capb.CreateListenerResponse, error) {
 	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
-	return nil, nil
-}
-
-// ListOperations wrapper.
-func (cli *FakeConfigAgentClient) ListOperations(context.Context, *longrunning.ListOperationsRequest, ...grpc.CallOption) (*longrunning.ListOperationsResponse, error) {
-	atomic.AddInt32(&cli.listOperationsCalledCnt, 1)
 	return nil, nil
 }
 

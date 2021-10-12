@@ -554,19 +554,6 @@ func (s *ConfigServer) GetOperation(ctx context.Context, req *lropb.GetOperation
 	return client.GetOperation(ctx, req)
 }
 
-// ListOperations lists all lro.
-func (s *ConfigServer) ListOperations(ctx context.Context, req *lropb.ListOperationsRequest) (*lropb.ListOperationsResponse, error) {
-	klog.InfoS("configagent/ListOperations", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/ListOperations: failed to create database daemon client: %v", err)
-	}
-	defer func() { _ = closeConn() }()
-	klog.InfoS("configagent/ListOperations", "client", client)
-
-	return client.ListOperations(ctx, req)
-}
-
 // DeleteOperation deletes lro given by name.
 func (s *ConfigServer) DeleteOperation(ctx context.Context, req *lropb.DeleteOperationRequest) (*empty.Empty, error) {
 	klog.InfoS("configagent/DeleteOperation", "req", req)

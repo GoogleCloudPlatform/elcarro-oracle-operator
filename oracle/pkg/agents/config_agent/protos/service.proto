@@ -39,9 +39,6 @@ service ConfigAgent {
   rpc CreateListener(CreateListenerRequest) returns (CreateListenerResponse) {}
   rpc DataPumpImport(DataPumpImportRequest)
       returns (google.longrunning.Operation);
-  // Lists operations that match the specified filter in the request.
-  rpc ListOperations(google.longrunning.ListOperationsRequest)
-      returns (google.longrunning.ListOperationsResponse);
   // Deletes a long-running operation. This method indicates that the client is
   // no longer interested in the operation result. It does not cancel the
   // operation.
