@@ -90,11 +90,14 @@ type FakeConfigAgentClient struct {
 
 // FakeDatabaseClient mocks DatabaseDaemon
 type FakeDatabaseClient struct {
-	getOperationCalledCnt   int32
-	listOperationsCalledCnt int32
+	getOperationCalledCnt        int32
+	listOperationsCalledCnt      int32
+	fetchServiceImageMetaDataCnt int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
+
+	methodToResp map[string](interface{})
 }
 
 // CreateDir RPC call to create a directory named path, along with any
@@ -258,7 +261,16 @@ func (cli *FakeDatabaseClient) DownloadDirectoryFromGCS(ctx context.Context, in 
 
 // FetchServiceImageMetaData returns the service image metadata.
 func (cli *FakeDatabaseClient) FetchServiceImageMetaData(ctx context.Context, in *dbdpb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*dbdpb.FetchServiceImageMetaDataResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.fetchServiceImageMetaDataCnt, 1)
+	if cli.methodToResp == nil {
+		return nil, nil
+	}
+	method := "FetchServiceImageMetaData"
+	if resp, ok := cli.methodToResp[method]; ok {
+		return resp.(*dbdpb.FetchServiceImageMetaDataResponse), nil
+	}
+	return nil, nil
+
 }
 
 // CreateFile creates file based on file path and content.
@@ -513,18 +525,6 @@ func (cli *FakeConfigAgentClient) RecoverConfigFile(ctx context.Context, in *cap
 	return nil, nil
 }
 
-func (cli *FakeConfigAgentClient) FetchServiceImageMetaData(ctx context.Context, in *capb.FetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*capb.FetchServiceImageMetaDataResponse, error) {
-	atomic.AddInt32(&cli.fetchServiceImageMetaDataCnt, 1)
-	if cli.methodToResp == nil {
-		return nil, nil
-	}
-	method := "FetchServiceImageMetaData"
-	if resp, ok := cli.methodToResp[method]; ok {
-		return resp.(*capb.FetchServiceImageMetaDataResponse), nil
-	}
-	return nil, nil
-}
-
 // Set the next operation's status
 func (cli *FakeDatabaseClient) SetNextGetOperationStatus(status FakeOperationStatus) {
 	cli.lock.Lock()
@@ -558,6 +558,15 @@ func (cli *FakeConfigAgentClient) SetAsyncBootstrapDatabase(async bool) {
 }
 
 func (cli *FakeConfigAgentClient) SetMethodToResp(method string, resp interface{}) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	if cli.methodToResp == nil {
+		cli.methodToResp = make(map[string]interface{})
+	}
+	cli.methodToResp[method] = resp
+}
+
+func (cli *FakeDatabaseClient) SetMethodToResp(method string, resp interface{}) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	if cli.methodToResp == nil {

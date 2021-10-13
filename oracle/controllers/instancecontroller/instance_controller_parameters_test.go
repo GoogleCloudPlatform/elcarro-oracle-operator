@@ -8,7 +8,7 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -64,7 +64,11 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 	fakeClientFactory := &testhelpers.FakeClientFactory{}
 	fakeClientFactory.Reset()
 	fakeConfigAgentClient := fakeClientFactory.Caclient
-	fakeConfigAgentClient.SetMethodToResp("FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+
+	fakeDatabaseClientFactory := &testhelpers.FakeDatabaseClientFactory{}
+	fakeDatabaseClientFactory.Reset()
+	fakeDatabaseClient := fakeDatabaseClientFactory.Dbclient
+	fakeDatabaseClient.SetMethodToResp("FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
 		Version:    "19.3",
 		CdbName:    "GCLOUD",
 		OracleHome: "/u01/app/oracle/product/19.3/db",

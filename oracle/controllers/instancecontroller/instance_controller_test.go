@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -34,6 +33,7 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
@@ -84,15 +84,15 @@ var _ = Describe("Instance controller", func() {
 
 	BeforeEach(func() {
 		fakeClientFactory.Reset()
-		fakeClientFactory.Caclient.SetMethodToResp(
-			"FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+
+		fakeDatabaseClientFactory.Reset()
+		fakeDatabaseClientFactory.Dbclient.SetMethodToResp(
+			"FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
 				Version:     "12.2",
 				CdbName:     "GCLOUD",
 				OracleHome:  "/u01/app/oracle/product/12.2/db",
 				SeededImage: true,
 			})
-
-		fakeDatabaseClientFactory.Reset()
 	})
 
 	Context("New instance", testInstanceProvision)

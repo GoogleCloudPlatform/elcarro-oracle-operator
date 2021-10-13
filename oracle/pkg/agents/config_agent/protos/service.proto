@@ -56,8 +56,6 @@ service ConfigAgent {
   rpc BounceDatabase(BounceDatabaseRequest) returns (BounceDatabaseResponse) {}
   rpc RecoverConfigFile(RecoverConfigFileRequest)
       returns (RecoverConfigFileResponse) {}
-  rpc FetchServiceImageMetaData(FetchServiceImageMetaDataRequest)
-      returns (FetchServiceImageMetaDataResponse) {}
 }
 
 message CreateCDBRequest {
@@ -339,12 +337,3 @@ message RecoverConfigFileRequest {
 }
 
 message RecoverConfigFileResponse {}
-
-message FetchServiceImageMetaDataRequest {}
-
-message FetchServiceImageMetaDataResponse {
-  string version = 1;
-  string cdb_name = 2;
-  string oracle_home = 3;
-  bool seeded_image = 4;
-}

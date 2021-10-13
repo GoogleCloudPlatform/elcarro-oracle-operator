@@ -25,8 +25,9 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/databasecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -181,13 +182,14 @@ func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.I
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
 func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
 	log.Info("isImageSeeded: requesting image metadata...", inst.GetName())
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
+	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, inst.Name)
+
 	if err != nil {
-		log.Error(err, "failed to create config agent client")
+		log.Error(err, "failed to create database client")
 		return false, err
 	}
 	defer closeConn()
-	serviceImageMetaData, err := caClient.FetchServiceImageMetaData(ctx, &capb.FetchServiceImageMetaDataRequest{})
+	serviceImageMetaData, err := dbClient.FetchServiceImageMetaData(ctx, &dbdpb.FetchServiceImageMetaDataRequest{})
 	if err != nil {
 		return false, fmt.Errorf("isImageSeeded: failed on FetchServiceImageMetaData call: %v", err)
 	}
