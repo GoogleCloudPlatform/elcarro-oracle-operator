@@ -223,7 +223,7 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 			}
 			if restartRequired {
 				log.Info("setInstanceParameterStateMachine: static parameter specified in config, scheduling restart to activate them")
-				if _, err := caClient.BounceDatabase(ctx, &capb.BounceDatabaseRequest{
+				if err := controllers.BounceDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, controllers.BounceDatabaseRequest{
 					Sid: inst.Spec.CDBName,
 				}); err != nil {
 					msg := "setInstanceParameterStateMachine: error while restarting database after setting static parameters"
@@ -283,7 +283,7 @@ func (r *InstanceReconciler) initiateRecovery(ctx context.Context, inst v1alpha1
 		return err
 	}
 
-	if _, err := caClient.BounceDatabase(ctx, &capb.BounceDatabaseRequest{
+	if err := controllers.BounceDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, controllers.BounceDatabaseRequest{
 		Sid: inst.Spec.CDBName,
 	}); err != nil {
 		return err

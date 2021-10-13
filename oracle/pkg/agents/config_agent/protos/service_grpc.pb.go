@@ -36,7 +36,6 @@ type ConfigAgentClient interface {
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	SetParameter(ctx context.Context, in *SetParameterRequest, opts ...grpc.CallOption) (*SetParameterResponse, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
-	BounceDatabase(ctx context.Context, in *BounceDatabaseRequest, opts ...grpc.CallOption) (*BounceDatabaseResponse, error)
 	RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error)
 }
 
@@ -201,15 +200,6 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 	return out, nil
 }
 
-func (c *configAgentClient) BounceDatabase(ctx context.Context, in *BounceDatabaseRequest, opts ...grpc.CallOption) (*BounceDatabaseResponse, error) {
-	out := new(BounceDatabaseResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/BounceDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error) {
 	out := new(RecoverConfigFileResponse)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/RecoverConfigFile", in, out, opts...)
@@ -240,7 +230,6 @@ type ConfigAgentServer interface {
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
 	SetParameter(context.Context, *SetParameterRequest) (*SetParameterResponse, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
-	BounceDatabase(context.Context, *BounceDatabaseRequest) (*BounceDatabaseResponse, error)
 	RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
 }
@@ -299,9 +288,6 @@ func (UnimplementedConfigAgentServer) SetParameter(context.Context, *SetParamete
 }
 func (UnimplementedConfigAgentServer) GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetParameterTypeValue not implemented")
-}
-func (UnimplementedConfigAgentServer) BounceDatabase(context.Context, *BounceDatabaseRequest) (*BounceDatabaseResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BounceDatabase not implemented")
 }
 func (UnimplementedConfigAgentServer) RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RecoverConfigFile not implemented")
@@ -625,24 +611,6 @@ func _ConfigAgent_GetParameterTypeValue_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_BounceDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BounceDatabaseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).BounceDatabase(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/BounceDatabase",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).BounceDatabase(ctx, req.(*BounceDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_RecoverConfigFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RecoverConfigFileRequest)
 	if err := dec(in); err != nil {
@@ -735,10 +703,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetParameterTypeValue",
 			Handler:    _ConfigAgent_GetParameterTypeValue_Handler,
-		},
-		{
-			MethodName: "BounceDatabase",
-			Handler:    _ConfigAgent_BounceDatabase_Handler,
 		},
 		{
 			MethodName: "RecoverConfigFile",

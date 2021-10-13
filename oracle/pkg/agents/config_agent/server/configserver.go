@@ -871,38 +871,6 @@ func (s *ConfigServer) GetParameterTypeValue(ctx context.Context, req *pb.GetPar
 	return &pb.GetParameterTypeValueResponse{Types: types, Values: values}, nil
 }
 
-// BounceDatabase shutdown/startup the database as requested.
-func (s *ConfigServer) BounceDatabase(ctx context.Context, req *pb.BounceDatabaseRequest) (*pb.BounceDatabaseResponse, error) {
-	klog.InfoS("configagent/BounceDatabase", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/BounceDatabase: failed to create dbdClient: %v", err)
-	}
-	defer closeConn()
-
-	klog.InfoS("configagent/BounceDatabase", "client", client)
-	_, err = client.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
-		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
-		DatabaseName: req.Sid,
-		Option:       "immediate",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/BounceDatabase: error while shutting db: %v", err)
-	}
-	klog.InfoS("configagent/BounceDatabase: shutdown successful")
-
-	_, err = client.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
-		Operation:         dbdpb.BounceDatabaseRequest_STARTUP,
-		DatabaseName:      req.Sid,
-		AvoidConfigBackup: req.AvoidConfigBackup,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/BounceDatabase: error while starting db: %v", err)
-	}
-	klog.InfoS("configagent/BounceDatabase: startup successful")
-	return &pb.BounceDatabaseResponse{}, err
-}
-
 // RecoverConfigFile generates the binary spfile from the human readable backup pfile.
 func (s *ConfigServer) RecoverConfigFile(ctx context.Context, req *pb.RecoverConfigFileRequest) (*pb.RecoverConfigFileResponse, error) {
 	klog.InfoS("configagent/RecoverConfigFile", "req", req)

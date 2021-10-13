@@ -47,7 +47,6 @@ service ConfigAgent {
   rpc SetParameter(SetParameterRequest) returns (SetParameterResponse) {}
   rpc GetParameterTypeValue(GetParameterTypeValueRequest)
       returns (GetParameterTypeValueResponse) {}
-  rpc BounceDatabase(BounceDatabaseRequest) returns (BounceDatabaseResponse) {}
   rpc RecoverConfigFile(RecoverConfigFileRequest)
       returns (RecoverConfigFileResponse) {}
 }
@@ -316,15 +315,6 @@ message GetParameterTypeValueResponse {
   repeated string types = 1;
   repeated string values = 2;
 }
-
-message BounceDatabaseRequest {
-  string sid = 1;
-  // avoid_config_backup: by default we backup the config except for scenarios
-  // when it isn't possible (like bootstrapping)
-  bool avoid_config_backup = 2;
-}
-
-message BounceDatabaseResponse {}
 
 message RecoverConfigFileRequest {
   string cdb_name = 1;
