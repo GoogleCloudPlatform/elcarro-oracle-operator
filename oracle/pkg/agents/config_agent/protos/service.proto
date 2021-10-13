@@ -44,7 +44,6 @@ service ConfigAgent {
       returns (BootstrapStandbyResponse) {};
   rpc DataPumpExport(DataPumpExportRequest)
       returns (google.longrunning.Operation);
-  rpc SetParameter(SetParameterRequest) returns (SetParameterResponse) {}
   rpc GetParameterTypeValue(GetParameterTypeValueRequest)
       returns (GetParameterTypeValueResponse) {}
 }
@@ -288,21 +287,6 @@ message BootstrapStandbyResponse {
     repeated User users = 2;
   }
   repeated PDB pdbs = 1;
-}
-
-message SetParameterRequest {
-  string key = 1;
-  string value = 2;
-  Type type = 3;
-  enum Type {
-    DYNAMIC = 0;
-    STATIC = 1;
-    DEFERRED = 2;
-  }
-}
-
-message SetParameterResponse {
-  bool static = 1;
 }
 
 message GetParameterTypeValueRequest {

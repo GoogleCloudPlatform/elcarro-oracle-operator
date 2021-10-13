@@ -34,7 +34,6 @@ type ConfigAgentClient interface {
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	SetParameter(ctx context.Context, in *SetParameterRequest, opts ...grpc.CallOption) (*SetParameterResponse, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
 }
 
@@ -181,15 +180,6 @@ func (c *configAgentClient) DataPumpExport(ctx context.Context, in *DataPumpExpo
 	return out, nil
 }
 
-func (c *configAgentClient) SetParameter(ctx context.Context, in *SetParameterRequest, opts ...grpc.CallOption) (*SetParameterResponse, error) {
-	out := new(SetParameterResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/SetParameter", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error) {
 	out := new(GetParameterTypeValueResponse)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/GetParameterTypeValue", in, out, opts...)
@@ -218,7 +208,6 @@ type ConfigAgentServer interface {
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error)
 	BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
-	SetParameter(context.Context, *SetParameterRequest) (*SetParameterResponse, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
 }
@@ -271,9 +260,6 @@ func (UnimplementedConfigAgentServer) BootstrapStandby(context.Context, *Bootstr
 }
 func (UnimplementedConfigAgentServer) DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpExport not implemented")
-}
-func (UnimplementedConfigAgentServer) SetParameter(context.Context, *SetParameterRequest) (*SetParameterResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetParameter not implemented")
 }
 func (UnimplementedConfigAgentServer) GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetParameterTypeValue not implemented")
@@ -561,24 +547,6 @@ func _ConfigAgent_DataPumpExport_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_SetParameter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetParameterRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).SetParameter(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/SetParameter",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).SetParameter(ctx, req.(*SetParameterRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_GetParameterTypeValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetParameterTypeValueRequest)
 	if err := dec(in); err != nil {
@@ -663,10 +631,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataPumpExport",
 			Handler:    _ConfigAgent_DataPumpExport_Handler,
-		},
-		{
-			MethodName: "SetParameter",
-			Handler:    _ConfigAgent_SetParameter_Handler,
 		},
 		{
 			MethodName: "GetParameterTypeValue",

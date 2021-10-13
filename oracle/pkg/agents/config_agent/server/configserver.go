@@ -790,54 +790,6 @@ func (s *ConfigServer) DataPumpExport(ctx context.Context, req *pb.DataPumpExpor
 	})
 }
 
-// SetParameter sets database parameter as requested.
-func (s *ConfigServer) SetParameter(ctx context.Context, req *pb.SetParameterRequest) (*pb.SetParameterResponse, error) {
-	klog.InfoS("configagent/SetParameter", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/SetParameter: failed to create dbdClient: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/SetParameter", "client", client)
-
-	// Fetch parameter type
-	// The possible values are IMMEDIATE FALSE DEFERRED
-	query := fmt.Sprintf("select issys_modifiable from v$parameter where name='%s'", sql.StringParam(req.Key))
-	paramType, err := fetchAndParseSingleResultQuery(ctx, client, query)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/SetParameter: error while inferring parameter type: %v", err)
-	}
-	query = fmt.Sprintf("select type from v$parameter where name='%s'", sql.StringParam(req.Key))
-	paramDatatype, err := fetchAndParseSingleResultQuery(ctx, client, query)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/SetParameter: error while inferring parameter data type: %v", err)
-	}
-	// string parameters need to be quoted,
-	// those have type 2, see the link for the parameter types description
-	// https://docs.oracle.com/database/121/REFRN/GUID-C86F3AB0-1191-447F-8EDF-4727D8693754.htm
-	isStringParam := paramDatatype == "2"
-	command, err := sql.QuerySetSystemParameterNoPanic(req.Key, req.Value, isStringParam)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/SetParameter: error constructing set parameter query: %v", err)
-	}
-
-	isStatic := false
-	if paramType == "FALSE" {
-		klog.InfoS("configagent/SetParameter", "parameter_type", "STATIC")
-		command = fmt.Sprintf("%s scope=spfile", command)
-		isStatic = true
-	}
-
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
-		Commands: []string{command},
-		Suppress: false,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/SetParameter: error while executing parameter command: %q", command)
-	}
-	return &pb.SetParameterResponse{Static: isStatic}, nil
-}
-
 // GetParameterTypeValue returns parameters' type and value by querying DB.
 func (s *ConfigServer) GetParameterTypeValue(ctx context.Context, req *pb.GetParameterTypeValueRequest) (*pb.GetParameterTypeValueResponse, error) {
 	klog.InfoS("configagent/GetParameterTypeValue", "req", req)
