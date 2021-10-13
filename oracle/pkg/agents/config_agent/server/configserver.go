@@ -985,20 +985,6 @@ func buildPDB(cdbName, pdbName, pdbAdminPass, version string, listeners map[stri
 	}, nil
 }
 
-// FetchServiceImageMetaData fetches the image metadata from the service image.
-func (s *ConfigServer) FetchServiceImageMetaData(ctx context.Context, req *pb.FetchServiceImageMetaDataRequest) (*pb.FetchServiceImageMetaDataResponse, error) {
-	dbdClient, closeConn, err := newDBDClient(ctx, s)
-	defer func() { _ = closeConn() }()
-	if err != nil {
-		return nil, fmt.Errorf("configagent/FetchServiceImageMetaData: failed to create database daemon client: %w", err)
-	}
-	metaData, err := dbdClient.FetchServiceImageMetaData(ctx, &dbdpb.FetchServiceImageMetaDataRequest{})
-	if err != nil {
-		return &pb.FetchServiceImageMetaDataResponse{}, nil
-	}
-	return &pb.FetchServiceImageMetaDataResponse{Version: metaData.Version, CdbName: metaData.CdbName, OracleHome: metaData.OracleHome, SeededImage: metaData.SeededImage}, nil
-}
-
 // AccessSecretVersionFunc accesses the payload for the given secret version if one
 // exists. The version can be a version number as a string (e.g. "5") or an
 // alias (e.g. "latest").

@@ -10,7 +10,7 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
@@ -40,8 +40,9 @@ func testInstanceRestore() {
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
 		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
-		fakeClientFactory.Caclient.SetMethodToResp(
-			"FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+
+		fakeDatabaseClient.SetMethodToResp(
+			"FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
 				Version:    "19.3",
 				CdbName:    "",
 				OracleHome: "/u01/app/oracle/product/19.3/db",
@@ -176,7 +177,8 @@ func testInstanceRestore() {
 
 		// reset method call counters used later
 		fakeConfigAgentClient.Reset()
-		fakeConfigAgentClient.SetMethodToResp("FetchServiceImageMetaData", &pb.FetchServiceImageMetaDataResponse{
+
+		fakeDatabaseClient.SetMethodToResp("FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
 			Version:    "12.2",
 			CdbName:    "GCLOUD",
 			OracleHome: "/u01/app/oracle/product/12.2/db",
