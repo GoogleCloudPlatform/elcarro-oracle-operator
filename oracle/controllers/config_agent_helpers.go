@@ -16,8 +16,10 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -123,4 +125,93 @@ func RecoverConfigFile(ctx context.Context, dbClientFactory DatabaseClientFactor
 	}
 	klog.InfoS("configagent/RecoverConfigFile: config file backup successful")
 	return err
+}
+
+// SetParameter sets database parameter as requested.
+func SetParameter(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, namespace, instName, key, value string) (bool, error) {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return false, err
+	}
+	defer closeConn()
+
+	// Fetch parameter type
+	// The possible values are IMMEDIATE FALSE DEFERRED
+	query := fmt.Sprintf("select issys_modifiable from v$parameter where name='%s'", sql.StringParam(key))
+	paramType, err := fetchAndParseSingleResultQuery(ctx, dbClient, query)
+	if err != nil {
+		return false, fmt.Errorf("configagent/SetParameter: error while inferring parameter type: %v", err)
+	}
+	query = fmt.Sprintf("select type from v$parameter where name='%s'", sql.StringParam(key))
+	paramDatatype, err := fetchAndParseSingleResultQuery(ctx, dbClient, query)
+	if err != nil {
+		return false, fmt.Errorf("configagent/SetParameter: error while inferring parameter data type: %v", err)
+	}
+	// string parameters need to be quoted,
+	// those have type 2, see the link for the parameter types description
+	// https://docs.oracle.com/database/121/REFRN/GUID-C86F3AB0-1191-447F-8EDF-4727D8693754.htm
+	isStringParam := paramDatatype == "2"
+	command, err := sql.QuerySetSystemParameterNoPanic(key, value, isStringParam)
+	if err != nil {
+		return false, fmt.Errorf("configagent/SetParameter: error constructing set parameter query: %v", err)
+	}
+
+	isStatic := false
+	if paramType == "FALSE" {
+		klog.InfoS("configagent/SetParameter", "parameter_type", "STATIC")
+		command = fmt.Sprintf("%s scope=spfile", command)
+		isStatic = true
+	}
+
+	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
+		Commands: []string{command},
+		Suppress: false,
+	})
+	if err != nil {
+		return false, fmt.Errorf("configagent/SetParameter: error while executing parameter command: %q", command)
+	}
+	return isStatic, nil
+}
+
+// fetchAndParseSingleResultQuery is a utility method intended for running single result queries.
+// It parses the single column JSON result-set (returned by runSQLPlus API) and returns a list.
+func fetchAndParseSingleResultQuery(ctx context.Context, client dbdpb.DatabaseDaemonClient, query string) (string, error) {
+
+	sqlRequest := &dbdpb.RunSQLPlusCMDRequest{
+		Commands: []string{query},
+		Suppress: false,
+	}
+	response, err := client.RunSQLPlusFormatted(ctx, sqlRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to run query %q; DSN: %q; error: %v", query, sqlRequest.GetDsn(), err)
+	}
+	result, err := parseSQLResponse(response)
+	if err != nil {
+		return "", fmt.Errorf("error while parsing query response: %q; error: %v", query, err)
+	}
+
+	var rows []string
+	for _, row := range result {
+		if len(row) != 1 {
+			return "", fmt.Errorf("fetchAndParseSingleColumnMultiRowQueriesFromEM: # of cols returned by query != 1: %v", row)
+		}
+		for _, v := range row {
+			rows = append(rows, v)
+		}
+	}
+	return rows[0], nil
+}
+
+// parseSQLResponse parses the JSON result-set (returned by runSQLPlus API) and
+// returns a list of rows with column-value mapping.
+func parseSQLResponse(resp *dbdpb.RunCMDResponse) ([]map[string]string, error) {
+	var rows []map[string]string
+	for _, msg := range resp.GetMsg() {
+		row := make(map[string]string)
+		if err := json.Unmarshal([]byte(msg), &row); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %v", msg, err)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }

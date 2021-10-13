@@ -137,16 +137,13 @@ func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.In
 	var keys []string
 
 	for k, v := range inst.Spec.Parameters {
-		response, err := caClient.SetParameter(ctx, &capb.SetParameterRequest{
-			Key:   k,
-			Value: v,
-		})
+		isStatic, err := controllers.SetParameter(ctx, r.DatabaseClientFactory, r.Client, inst.Namespace, inst.Name, k, v)
 		if err != nil {
 			log.Error(err, "setParameters: error while running SetParameter query")
 			return requireDatabaseRestart, err
 		}
 		keys = append(keys, k)
-		requireDatabaseRestart = requireDatabaseRestart || response.Static
+		requireDatabaseRestart = requireDatabaseRestart || isStatic
 		log.Info("setParameters: requireDatabaseRestart", "requireDatabaseRestart", requireDatabaseRestart)
 	}
 
@@ -290,10 +287,7 @@ func (r *InstanceReconciler) initiateRecovery(ctx context.Context, inst v1alpha1
 
 	// Rollback all the dynamic parameter updates after the database has recovered
 	for k, v := range dynamicParams {
-		_, err := caClient.SetParameter(ctx, &capb.SetParameterRequest{
-			Key:   k,
-			Value: v,
-		})
+		_, err := controllers.SetParameter(ctx, r.DatabaseClientFactory, r.Client, inst.Namespace, inst.Name, k, v)
 		if err != nil {
 			log.Error(err, "initiateRecovery: error while rolling back dynamic parameters")
 			return err

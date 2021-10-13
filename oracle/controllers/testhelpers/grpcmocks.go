@@ -498,12 +498,6 @@ func (cli *FakeDatabaseClient) GetOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.getOperationCalledCnt))
 }
 
-// SetParameter wrapper.
-func (cli *FakeConfigAgentClient) SetParameter(context.Context, *capb.SetParameterRequest, ...grpc.CallOption) (*capb.SetParameterResponse, error) {
-	atomic.AddInt32(&cli.setParameterCalledCnt, 1)
-	return nil, nil
-}
-
 // GetParameterTypeValue wrapper.
 func (cli *FakeConfigAgentClient) GetParameterTypeValue(context.Context, *capb.GetParameterTypeValueRequest, ...grpc.CallOption) (*capb.GetParameterTypeValueResponse, error) {
 	atomic.AddInt32(&cli.getParameterTypeValueCalledCnt, 1)
