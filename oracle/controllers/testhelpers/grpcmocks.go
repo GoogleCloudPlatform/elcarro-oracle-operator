@@ -94,6 +94,7 @@ type FakeDatabaseClient struct {
 	listOperationsCalledCnt      int32
 	fetchServiceImageMetaDataCnt int32
 	deleteOperationCalledCnt     int32
+	bounceDatabaseCalledCnt      int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -124,7 +125,8 @@ func (cli *FakeDatabaseClient) DeleteDir(ctx context.Context, in *dbdpb.DeleteDi
 
 // BounceDatabase RPC call to start/stop a database.
 func (cli *FakeDatabaseClient) BounceDatabase(ctx context.Context, in *dbdpb.BounceDatabaseRequest, opts ...grpc.CallOption) (*dbdpb.BounceDatabaseResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.bounceDatabaseCalledCnt, 1)
+	return nil, nil
 }
 
 // BounceListener RPC call to start/stop a listener.
@@ -457,12 +459,6 @@ func (cli *FakeConfigAgentClient) DataPumpImport(context.Context, *capb.DataPump
 // DataPumpExport wrapper.
 func (cli *FakeConfigAgentClient) DataPumpExport(context.Context, *capb.DataPumpExportRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
 	atomic.AddInt32(&cli.dataPumpExportCalledCnt, 1)
-	return nil, nil
-}
-
-// BounceDatabase wrapper.
-func (cli *FakeConfigAgentClient) BounceDatabase(context.Context, *capb.BounceDatabaseRequest, ...grpc.CallOption) (*capb.BounceDatabaseResponse, error) {
-	atomic.AddInt32(&cli.bounceDatabaseCalledCnt, 1)
 	return nil, nil
 }
 

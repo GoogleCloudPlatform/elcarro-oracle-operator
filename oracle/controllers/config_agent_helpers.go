@@ -19,7 +19,10 @@ import (
 	"fmt"
 
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
 // GetLROOperation returns LRO operation for the specified namespace instance and operation id.
@@ -66,4 +69,43 @@ func IsLROOperationDone(ctx context.Context, dbClientFactory DatabaseClientFacto
 	}
 
 	return true, nil
+}
+
+type BounceDatabaseRequest struct {
+	Sid string
+	// avoid_config_backup: by default we backup the config except for scenarios
+	// when it isn't possible (like bootstrapping)
+	AvoidConfigBackup bool
+}
+
+// BounceDatabase shutdown/startup the database as requested.
+func BounceDatabase(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req BounceDatabaseRequest) error {
+	klog.InfoS("BounceDatabase", "namespace", namespace, "instName", instName, "sid", req.Sid)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	klog.InfoS("BounceDatabase", "client", dbClient)
+	_, err = dbClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: req.Sid,
+		Option:       "immediate",
+	})
+	if err != nil {
+		return fmt.Errorf("BounceDatabase: error while shutting db: %v", err)
+	}
+	klog.InfoS("BounceDatabase: shutdown successful")
+
+	_, err = dbClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:         dbdpb.BounceDatabaseRequest_STARTUP,
+		DatabaseName:      req.Sid,
+		AvoidConfigBackup: req.AvoidConfigBackup,
+	})
+	if err != nil {
+		return fmt.Errorf("configagent/BounceDatabase: error while starting db: %v", err)
+	}
+	klog.InfoS("configagent/BounceDatabase: startup successful")
+	return err
 }
