@@ -1884,20 +1884,20 @@ spec:
               dbDomain:
                 description: DBDomain is an optional attribute to set a database domain.
                 type: string
-              dbNetworkServiceOptions:
+              dbLoadBalancerOptions:
                 description: DBNetworkServiceOptions allows to override some details
                   of kubernetes Service created to expose a connection to database.
                 properties:
                   gcp:
-                    description: GCP contains Google Cloud specific attributes of
-                      Service configuration.
+                    description: GCP contains Google Cloud specific attributes for
+                      the Kubernetes LoadBalancer.
                     properties:
                       loadBalancerIP:
                         description: LoadBalancerIP is a static IP address, see https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address
                         type: string
                       loadBalancerType:
-                        description: LoadBalancerType let's define a type of load
-                          balancer, see https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+                        description: A LoadBalancer can be internal or external. See
+                          https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
                         enum:
                         - ""
                         - Internal
