@@ -82,11 +82,6 @@ type InstanceSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	MemoryPercent int `json:"memoryPercent,omitempty"`
-
-	// DBNetworkServiceOptions allows to override some details of kubernetes
-	// Service created to expose a connection to database.
-	// +optional
-	DBNetworkServiceOptions *DBNetworkServiceOptions `json:"dbNetworkServiceOptions,omitempty"`
 }
 
 type BackupReference struct {
@@ -145,29 +140,6 @@ type RestoreSpec struct {
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Format=date-time
 	RequestTime metav1.Time `json:"requestTime"`
-}
-
-// DBNetworkServiceOptions contains customization options of kubernetes Service
-// exposing a database connection.
-type DBNetworkServiceOptions struct {
-	// GCP contains Google Cloud specific attributes of Service configuration.
-	// +optional
-	GCP DBNetworkServiceOptionsGCP `json:"gcp,omitempty"`
-}
-
-// DBNetworkServiceOptionsGCP contains customization options of kubernetes
-// Service created for database connection that are specific to GCP.
-type DBNetworkServiceOptionsGCP struct {
-	// LoadBalancerType let's define a type of load balancer, see
-	// https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
-	// +kubebuilder:validation:Enum="";Internal;External
-	// +optional
-	LoadBalancerType string `json:"loadBalancerType,omitempty"`
-
-	// LoadBalancerIP is a static IP address, see
-	// https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address
-	// +optional
-	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 }
 
 // InstanceStatus defines the observed state of Instance.

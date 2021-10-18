@@ -81,7 +81,7 @@ func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1
 		lbType = corev1.ServiceTypeNodePort
 		svcNameFull = svcNameFull + "-" + lb
 	} else {
-		networkOpts := inst.Spec.DBNetworkServiceOptions
+		networkOpts := inst.Spec.DBLoadBalancerOptions
 		if networkOpts != nil {
 			if networkOpts.GCP.LoadBalancerType == "Internal" {
 				svcAnnotations = map[string]string{

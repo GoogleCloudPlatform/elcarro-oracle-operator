@@ -94,6 +94,11 @@ type InstanceSpec struct {
 	// +optional
 	Images map[string]string `json:"images,omitempty"`
 
+	// DBNetworkServiceOptions allows to override some details of kubernetes
+	// Service created to expose a connection to database.
+	// +optional
+	DBLoadBalancerOptions *DBLoadBalancerOptions `json:"dbLoadBalancerOptions,omitempty"`
+
 	// Source IP CIDR ranges allowed for a client.
 	// +optional
 	SourceCidrRanges []string `json:"sourceCidrRanges,omitempty"`
@@ -125,6 +130,29 @@ type InstanceSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum=ManuallySetUpStandby
 	Mode InstanceMode `json:"mode,omitempty"`
+}
+
+// DBLoadBalancerOptions contains customization options for the Kubernetes
+// LoadBalancer exposing database connections.
+type DBLoadBalancerOptions struct {
+	// GCP contains Google Cloud specific attributes for the Kubernetes LoadBalancer.
+	// +optional
+	GCP DBLoadBalancerOptionsGCP `json:"gcp,omitempty"`
+}
+
+// DBLoadBalancerOptionsGCP contains GCP specific options for the Kubernetes
+// LoadBalancer created for database connections.
+type DBLoadBalancerOptionsGCP struct {
+	// A LoadBalancer can be internal or external.
+	// See https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer
+	// +kubebuilder:validation:Enum="";Internal;External
+	// +optional
+	LoadBalancerType string `json:"loadBalancerType,omitempty"`
+
+	// LoadBalancerIP is a static IP address, see
+	// https://cloud.google.com/compute/docs/ip-addresses/reserve-static-external-ip-address
+	// +optional
+	LoadBalancerIP string `json:"loadBalancerIP,omitempty"`
 }
 
 //+kubebuilder:object:generate=true

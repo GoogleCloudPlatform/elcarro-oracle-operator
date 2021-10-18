@@ -461,6 +461,11 @@ func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.DBLoadBalancerOptions != nil {
+		in, out := &in.DBLoadBalancerOptions, &out.DBLoadBalancerOptions
+		*out = new(DBLoadBalancerOptions)
+		**out = **in
+	}
 	if in.SourceCidrRanges != nil {
 		in, out := &in.SourceCidrRanges, &out.SourceCidrRanges
 		*out = make([]string, len(*in))
