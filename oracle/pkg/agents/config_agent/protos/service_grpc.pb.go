@@ -36,7 +36,6 @@ type ConfigAgentClient interface {
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	SetParameter(ctx context.Context, in *SetParameterRequest, opts ...grpc.CallOption) (*SetParameterResponse, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
-	RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error)
 }
 
 type configAgentClient struct {
@@ -200,15 +199,6 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 	return out, nil
 }
 
-func (c *configAgentClient) RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error) {
-	out := new(RecoverConfigFileResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/RecoverConfigFile", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ConfigAgentServer is the server API for ConfigAgent service.
 // All implementations must embed UnimplementedConfigAgentServer
 // for forward compatibility
@@ -230,7 +220,6 @@ type ConfigAgentServer interface {
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
 	SetParameter(context.Context, *SetParameterRequest) (*SetParameterResponse, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
-	RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
 }
 
@@ -288,9 +277,6 @@ func (UnimplementedConfigAgentServer) SetParameter(context.Context, *SetParamete
 }
 func (UnimplementedConfigAgentServer) GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetParameterTypeValue not implemented")
-}
-func (UnimplementedConfigAgentServer) RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RecoverConfigFile not implemented")
 }
 func (UnimplementedConfigAgentServer) mustEmbedUnimplementedConfigAgentServer() {}
 
@@ -611,24 +597,6 @@ func _ConfigAgent_GetParameterTypeValue_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_RecoverConfigFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RecoverConfigFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).RecoverConfigFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/RecoverConfigFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).RecoverConfigFile(ctx, req.(*RecoverConfigFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ConfigAgent_ServiceDesc is the grpc.ServiceDesc for ConfigAgent service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -703,10 +671,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetParameterTypeValue",
 			Handler:    _ConfigAgent_GetParameterTypeValue_Handler,
-		},
-		{
-			MethodName: "RecoverConfigFile",
-			Handler:    _ConfigAgent_RecoverConfigFile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

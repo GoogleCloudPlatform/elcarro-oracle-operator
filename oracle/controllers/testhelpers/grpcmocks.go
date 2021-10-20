@@ -73,7 +73,6 @@ type FakeConfigAgentClient struct {
 	dataPumpExportCalledCnt        int32
 	setParameterCalledCnt          int32
 	getParameterTypeValueCalledCnt int32
-	recoverConfigFileCalledCnt     int32
 	enableDnfsCalledCnt            int32
 
 	lock                         sync.Mutex
@@ -95,6 +94,7 @@ type FakeDatabaseClient struct {
 	fetchServiceImageMetaDataCnt int32
 	deleteOperationCalledCnt     int32
 	bounceDatabaseCalledCnt      int32
+	recoverConfigFileCalledCnt   int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -252,7 +252,8 @@ func (cli *FakeDatabaseClient) DeleteOperation(ctx context.Context, in *lropb.De
 
 // RecoverConfigFile creates a binary pfile from the backed up spfile
 func (cli *FakeDatabaseClient) RecoverConfigFile(ctx context.Context, in *dbdpb.RecoverConfigFileRequest, opts ...grpc.CallOption) (*dbdpb.RecoverConfigFileResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.recoverConfigFileCalledCnt, 1)
+	return nil, nil
 }
 
 // DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
@@ -506,12 +507,6 @@ func (cli *FakeConfigAgentClient) SetParameter(context.Context, *capb.SetParamet
 // GetParameterTypeValue wrapper.
 func (cli *FakeConfigAgentClient) GetParameterTypeValue(context.Context, *capb.GetParameterTypeValueRequest, ...grpc.CallOption) (*capb.GetParameterTypeValueResponse, error) {
 	atomic.AddInt32(&cli.getParameterTypeValueCalledCnt, 1)
-	return nil, nil
-}
-
-// RecoverConfigFile wrapper.
-func (cli *FakeConfigAgentClient) RecoverConfigFile(ctx context.Context, in *capb.RecoverConfigFileRequest, opts ...grpc.CallOption) (*capb.RecoverConfigFileResponse, error) {
-	atomic.AddInt32(&cli.recoverConfigFileCalledCnt, 1)
 	return nil, nil
 }
 

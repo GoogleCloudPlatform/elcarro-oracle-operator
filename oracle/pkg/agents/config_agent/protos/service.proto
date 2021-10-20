@@ -47,8 +47,6 @@ service ConfigAgent {
   rpc SetParameter(SetParameterRequest) returns (SetParameterResponse) {}
   rpc GetParameterTypeValue(GetParameterTypeValueRequest)
       returns (GetParameterTypeValueResponse) {}
-  rpc RecoverConfigFile(RecoverConfigFileRequest)
-      returns (RecoverConfigFileResponse) {}
 }
 
 message CreateCDBRequest {
@@ -315,9 +313,3 @@ message GetParameterTypeValueResponse {
   repeated string types = 1;
   repeated string values = 2;
 }
-
-message RecoverConfigFileRequest {
-  string cdb_name = 1;
-}
-
-message RecoverConfigFileResponse {}
