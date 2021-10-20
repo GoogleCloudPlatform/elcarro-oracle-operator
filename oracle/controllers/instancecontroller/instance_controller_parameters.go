@@ -275,9 +275,7 @@ func (r *InstanceReconciler) getConfigAgentClient(ctx context.Context, req ctrl.
 func (r *InstanceReconciler) initiateRecovery(ctx context.Context, inst v1alpha1.Instance, caClient capb.ConfigAgentClient, dynamicParams map[string]string, log logr.Logger) error {
 
 	log.Info("initiateRecovery: initiating recovery of config file")
-	if _, err := caClient.RecoverConfigFile(ctx, &capb.RecoverConfigFileRequest{
-		CdbName: inst.Spec.CDBName,
-	}); err != nil {
+	if err := controllers.RecoverConfigFile(ctx, r.DatabaseClientFactory, r.Client, inst.Namespace, inst.Name, inst.Spec.CDBName); err != nil {
 		msg := "initiateRecovery: error while recovering config file"
 		log.Info(msg, "err", err)
 		return err

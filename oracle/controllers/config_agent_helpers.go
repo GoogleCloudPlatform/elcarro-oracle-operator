@@ -19,7 +19,10 @@ import (
 	"fmt"
 
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
 // GetLROOperation returns LRO operation for the specified namespace instance and operation id.
@@ -66,4 +69,20 @@ func IsLROOperationDone(ctx context.Context, dbClientFactory DatabaseClientFacto
 	}
 
 	return true, nil
+}
+
+func RecoverConfigFile(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, namespace, instName, cdbName string) error {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	if _, err := dbClient.RecoverConfigFile(ctx, &dbdpb.RecoverConfigFileRequest{CdbName: cdbName}); err != nil {
+		klog.InfoS("configagent/RecoverConfigFile: error while recovering config file: err", "err", err)
+		return fmt.Errorf("configagent/RecoverConfigFile: failed to recover config file due to: %v", err)
+	}
+	klog.InfoS("configagent/RecoverConfigFile: config file backup successful")
+
+	return err
 }

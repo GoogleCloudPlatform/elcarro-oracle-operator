@@ -917,24 +917,6 @@ func (s *ConfigServer) BounceDatabase(ctx context.Context, req *pb.BounceDatabas
 	return &pb.BounceDatabaseResponse{}, err
 }
 
-// RecoverConfigFile generates the binary spfile from the human readable backup pfile.
-func (s *ConfigServer) RecoverConfigFile(ctx context.Context, req *pb.RecoverConfigFileRequest) (*pb.RecoverConfigFileResponse, error) {
-	klog.InfoS("configagent/RecoverConfigFile", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/RecoverConfigFile: failed to create dbdClient: %v", err)
-	}
-	defer closeConn()
-
-	if _, err := client.RecoverConfigFile(ctx, &dbdpb.RecoverConfigFileRequest{CdbName: req.CdbName}); err != nil {
-		klog.InfoS("configagent/RecoverConfigFile: error while recovering config file: err", "err", err)
-		return nil, fmt.Errorf("configagent/RecoverConfigFile: failed to recover config file due to: %v", err)
-	}
-	klog.InfoS("configagent/RecoverConfigFile: config file backup successful")
-
-	return &pb.RecoverConfigFileResponse{}, err
-}
-
 // fetchAndParseSingleResultQuery is a utility method intended for running single result queries.
 // It parses the single column JSON result-set (returned by runSQLPlus API) and returns a list.
 func fetchAndParseSingleResultQuery(ctx context.Context, client dbdpb.DatabaseDaemonClient, query string) (string, error) {

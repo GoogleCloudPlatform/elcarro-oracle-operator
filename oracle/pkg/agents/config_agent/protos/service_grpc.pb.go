@@ -42,7 +42,6 @@ type ConfigAgentClient interface {
 	SetParameter(ctx context.Context, in *SetParameterRequest, opts ...grpc.CallOption) (*SetParameterResponse, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
 	BounceDatabase(ctx context.Context, in *BounceDatabaseRequest, opts ...grpc.CallOption) (*BounceDatabaseResponse, error)
-	RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error)
 }
 
 type configAgentClient struct {
@@ -224,15 +223,6 @@ func (c *configAgentClient) BounceDatabase(ctx context.Context, in *BounceDataba
 	return out, nil
 }
 
-func (c *configAgentClient) RecoverConfigFile(ctx context.Context, in *RecoverConfigFileRequest, opts ...grpc.CallOption) (*RecoverConfigFileResponse, error) {
-	out := new(RecoverConfigFileResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/RecoverConfigFile", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ConfigAgentServer is the server API for ConfigAgent service.
 // All implementations must embed UnimplementedConfigAgentServer
 // for forward compatibility
@@ -259,7 +249,6 @@ type ConfigAgentServer interface {
 	SetParameter(context.Context, *SetParameterRequest) (*SetParameterResponse, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
 	BounceDatabase(context.Context, *BounceDatabaseRequest) (*BounceDatabaseResponse, error)
-	RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
 }
 
@@ -323,9 +312,6 @@ func (UnimplementedConfigAgentServer) GetParameterTypeValue(context.Context, *Ge
 }
 func (UnimplementedConfigAgentServer) BounceDatabase(context.Context, *BounceDatabaseRequest) (*BounceDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BounceDatabase not implemented")
-}
-func (UnimplementedConfigAgentServer) RecoverConfigFile(context.Context, *RecoverConfigFileRequest) (*RecoverConfigFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RecoverConfigFile not implemented")
 }
 func (UnimplementedConfigAgentServer) mustEmbedUnimplementedConfigAgentServer() {}
 
@@ -682,24 +668,6 @@ func _ConfigAgent_BounceDatabase_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_RecoverConfigFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RecoverConfigFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).RecoverConfigFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/RecoverConfigFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).RecoverConfigFile(ctx, req.(*RecoverConfigFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ConfigAgent_ServiceDesc is the grpc.ServiceDesc for ConfigAgent service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -782,10 +750,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BounceDatabase",
 			Handler:    _ConfigAgent_BounceDatabase_Handler,
-		},
-		{
-			MethodName: "RecoverConfigFile",
-			Handler:    _ConfigAgent_RecoverConfigFile_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
