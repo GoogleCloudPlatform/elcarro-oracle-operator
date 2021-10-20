@@ -109,3 +109,18 @@ func BounceDatabase(ctx context.Context, r client.Reader, dbClientFactory Databa
 	klog.InfoS("configagent/BounceDatabase: startup successful")
 	return err
 }
+
+func RecoverConfigFile(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, namespace, instName, cdbName string) error {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	if _, err := dbClient.RecoverConfigFile(ctx, &dbdpb.RecoverConfigFileRequest{CdbName: cdbName}); err != nil {
+		klog.InfoS("configagent/RecoverConfigFile: error while recovering config file: err", "err", err)
+		return fmt.Errorf("configagent/RecoverConfigFile: failed to recover config file due to: %v", err)
+	}
+	klog.InfoS("configagent/RecoverConfigFile: config file backup successful")
+	return err
+}
