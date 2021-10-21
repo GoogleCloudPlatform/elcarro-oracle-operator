@@ -293,7 +293,7 @@ func cleanupK8Cluster(namespace string, k8sClient client.Client) {
 
 // PrintEvents for all namespaces in the cluster.
 func PrintEvents() {
-	cmd := exec.Command("kubectl", "get", "events", "-A", "-o", "custom-columns=LastSeen:.lastTimestamp,From:.source.component,Type:.type,Reason:.reason,Message:.message", "--sort-by=.lastTimestamp")
+	cmd := exec.Command("kubectl", "get", "events", "-A", "-o", "custom-columns=LastSeen:.metadata.creationTimestamp,From:.source.component,Type:.type,Reason:.reason,Message:.message", "--sort-by=.metadata.creationTimestamp")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		logf.FromContext(nil).Error(err, "Failed to get events")
