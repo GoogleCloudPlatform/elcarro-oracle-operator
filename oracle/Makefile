@@ -206,8 +206,8 @@ operator-presubmit: prepare-prow
 	$(MAKE) -j8 buildah-push-all
 	# Remove stale resources from the project
 	scripts/integration_test_cluster/cleanup_integration_test_clusters.sh
-	# Create a new GKE cluster for int tests (can be flaky)
-	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Retrying cluster creation *** "; sleep 60; scripts/integration_test_cluster/create_integration_test_cluster.sh)
+	# Create a new GKE cluster for int tests (can be flaky, if failed retry this step once more)
+	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Deleting the cluster and trying to create once more *** "; scripts/integration_test_cluster/delete_integration_test_cluster.sh || true; scripts/integration_test_cluster/create_integration_test_cluster.sh)
 	# Run tests, remove temp cluster in case of failure
 	$(MAKE) test || (scripts/integration_test_cluster/delete_integration_test_cluster.sh; exit 100)
 	# Delete the GKE cluster
@@ -228,8 +228,8 @@ operator-oss-presubmit: prepare-prow
 louhi-operator-canary: prepare-prow
 	# Remove stale clusters from the project
 	scripts/integration_test_cluster/cleanup_integration_test_clusters.sh
-	# Create a new GKE cluster for int tests (can also be flaky, retry this step once more)
-	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Retrying cluster creation ***"; sleep 60; scripts/integration_test_cluster/create_integration_test_cluster.sh)
+	# Create a new GKE cluster for int tests (can be flaky, if failed retry this step once more)
+	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Deleting the cluster and trying to create once more ***"; scripts/integration_test_cluster/delete_integration_test_cluster.sh || true; scripts/integration_test_cluster/create_integration_test_cluster.sh)
 	# Run tests, remove temp cluster in case of failure
 	$(MAKE) test || (scripts/integration_test_cluster/delete_integration_test_cluster.sh; exit 100)
 	# Delete the GKE cluster
