@@ -23,9 +23,9 @@ set -o pipefail
 [[ -z "$PROW_CLUSTER" ]] && { echo "PROW_CLUSTER envvar was not set. Did you try to test without make?" ; exit 1; }
 [[ -z "$PROW_CLUSTER_ZONE" ]] && { echo "PROW_CLUSTER_ZONE envvar was not set. Did you try to test without make?" ; exit 1; }
 [[ -z "$PROW_PROJECT" ]] && { echo "PROW_PROJECT envvar was not set. Did you try to test without make?" ; exit 1; }
+[[ -z "$INT_TEST_CLUSTER_NODE_COUNT" ]] && { echo "INT_TEST_CLUSTER_NODE_COUNT envvar was not set. Did you try to test without make?" ; exit 1; }
 
 MACHINE="n1-standard-4"
-NODECOUNT="12"
 
 echo "Creating cluster '${PROW_CLUSTER}' (this may take a few minutes)..."
 echo "If this fails due to insufficient project quota, request more quota at GCP console"
@@ -35,7 +35,7 @@ set -x #echo on
 time gcloud beta container clusters create "${PROW_CLUSTER}" \
 --release-channel rapid \
 --machine-type="${MACHINE}" \
---num-nodes="${NODECOUNT}" \
+--num-nodes="${INT_TEST_CLUSTER_NODE_COUNT}" \
 --zone="${PROW_CLUSTER_ZONE}" \
 --project="${PROW_PROJECT}" \
 --scopes "gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging" \
