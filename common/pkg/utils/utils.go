@@ -18,8 +18,10 @@ package utils
 import (
 	"context"
 	"fmt"
+	"net"
 
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -211,4 +213,39 @@ func newSnapshot(owner v1.Object, scheme *runtime.Scheme, pvcName, snapName, vol
 	}
 
 	return snapshot, nil
+}
+
+// LoadBalancerAnnotations returns cloud provider specific annotations that must be attached to a LoadBalancer k8s service during creation
+func LoadBalancerAnnotations(options *commonv1alpha1.DBLoadBalancerOptions) map[string]string {
+	var annotations map[string]string
+	if options != nil {
+		if options.GCP.LoadBalancerType == "Internal" {
+			annotations = map[string]string{
+				"cloud.google.com/load-balancer-type": "Internal",
+			}
+		}
+	}
+	return annotations
+}
+
+// LoadBalancerIpAddress returns an IP address address for the Load Balancer if specified. Otherwise, the empty string is returned.
+func LoadBalancerIpAddress(options *commonv1alpha1.DBLoadBalancerOptions) string {
+	if options != nil {
+		return options.GCP.LoadBalancerIP
+	}
+	return ""
+}
+
+// LoadBalancerURL returns a URL that can be used to connect to a Load Balancer.
+func LoadBalancerURL(svc *corev1.Service, port int) string {
+	if svc == nil || len(svc.Status.LoadBalancer.Ingress) == 0 {
+		return ""
+	}
+
+	hostName := svc.Status.LoadBalancer.Ingress[0].Hostname
+	if hostName == "" {
+		hostName = svc.Status.LoadBalancer.Ingress[0].IP
+	}
+
+	return net.JoinHostPort(hostName, fmt.Sprintf("%d", port))
 }

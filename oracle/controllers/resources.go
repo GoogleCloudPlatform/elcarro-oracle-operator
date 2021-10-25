@@ -17,7 +17,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"net"
 	"strings"
 	"time"
 
@@ -74,22 +73,13 @@ func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1
 	var svcAnnotations map[string]string
 
 	lbType := corev1.ServiceTypeLoadBalancer
-	lbIP := ""
 	svcNameFull := fmt.Sprintf(SvcName, inst.Name)
 
 	if lb == "node" {
 		lbType = corev1.ServiceTypeNodePort
 		svcNameFull = svcNameFull + "-" + lb
 	} else {
-		networkOpts := inst.Spec.DBLoadBalancerOptions
-		if networkOpts != nil {
-			if networkOpts.GCP.LoadBalancerType == "Internal" {
-				svcAnnotations = map[string]string{
-					"cloud.google.com/load-balancer-type": "Internal",
-				}
-			}
-			lbIP = networkOpts.GCP.LoadBalancerIP
-		}
+		svcAnnotations = utils.LoadBalancerAnnotations(inst.Spec.DBLoadBalancerOptions)
 	}
 
 	svc := &corev1.Service{
@@ -112,7 +102,7 @@ func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1
 				},
 			},
 			Type:           lbType,
-			LoadBalancerIP: lbIP,
+			LoadBalancerIP: utils.LoadBalancerIpAddress(inst.Spec.DBLoadBalancerOptions),
 			// LoadBalancerSourceRanges: sourceCidrRanges,
 		},
 	}
@@ -194,21 +184,6 @@ func NewAgentSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme) (*corev1.Servi
 	}
 
 	return svc, nil
-}
-
-// SvcURL returns the URL for the database service.
-func SvcURL(svc *corev1.Service, port int32) string {
-	// Unset if not present: state to reflect what's observed.
-	if svc == nil || len(svc.Status.LoadBalancer.Ingress) == 0 {
-		return ""
-	}
-
-	hostName := svc.Status.LoadBalancer.Ingress[0].Hostname
-	if hostName == "" {
-		hostName = svc.Status.LoadBalancer.Ingress[0].IP
-	}
-
-	return net.JoinHostPort(hostName, fmt.Sprintf("%d", port))
 }
 
 // NewConfigMap returns the config map for database env variables.

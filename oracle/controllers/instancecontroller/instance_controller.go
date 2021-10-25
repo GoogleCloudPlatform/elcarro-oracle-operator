@@ -217,7 +217,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
-	inst.Status.URL = controllers.SvcURL(svcLB, consts.SecureListenerPort)
+	inst.Status.URL = commonutils.LoadBalancerURL(svcLB, consts.SecureListenerPort)
 
 	// RequeueAfter 30 seconds to avoid constantly reconcile errors before statefulSet is ready.
 	// Update status when the Service is ready (for the initial provisioning).
