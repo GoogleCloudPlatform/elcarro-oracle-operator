@@ -148,8 +148,6 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
-	services := []string{"lb", "node"}
-
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
 
 	cm, err := controllers.NewConfigMap(&inst, r.Scheme, fmt.Sprintf(controllers.CmName, inst.Name))
@@ -206,8 +204,12 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return result, err
 	}
 
-	// Create LB/NodePort Services if needed.
-	svcLB, svc, err := r.createServices(ctx, inst, services, applyOpts)
+	dbLoadBalancer, err := r.createDBLoadBalancer(ctx, &inst, applyOpts)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	_, agentSvc, err := r.createDataplaneServices(ctx, inst, applyOpts)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -217,7 +219,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	inst.Status.Endpoint = fmt.Sprintf(controllers.SvcEndpoint, fmt.Sprintf(controllers.SvcName, inst.Name), inst.Namespace)
-	inst.Status.URL = commonutils.LoadBalancerURL(svcLB, consts.SecureListenerPort)
+	inst.Status.URL = commonutils.LoadBalancerURL(dbLoadBalancer, consts.SecureListenerPort)
 
 	// RequeueAfter 30 seconds to avoid constantly reconcile errors before statefulSet is ready.
 	// Update status when the Service is ready (for the initial provisioning).
@@ -265,7 +267,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	if k8s.ConditionStatusEquals(k8s.FindCondition(inst.Status.Conditions, k8s.StandbyReady), v1.ConditionTrue) {
-		conn, err := grpc.Dial(fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
+		conn, err := grpc.Dial(fmt.Sprintf("%s:%d", agentSvc.Spec.ClusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
 		if err != nil {
 			log.Error(err, "failed to create a conn via gRPC.Dial")
 			return ctrl.Result{}, err

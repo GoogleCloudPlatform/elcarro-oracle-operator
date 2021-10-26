@@ -21,18 +21,22 @@ import (
 	"strings"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/databasecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -142,41 +146,74 @@ func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1a
 	return ctrl.Result{}, nil
 }
 
-func (r *InstanceReconciler) createServices(ctx context.Context, inst v1alpha1.Instance, services []string, applyOpts []client.PatchOption) (*corev1.Service, *corev1.Service, error) {
-	var svcLB *corev1.Service
-	for _, s := range services {
-		svc, err := controllers.NewSvc(&inst, r.Scheme, s)
-		if err != nil {
-			return nil, nil, err
-		}
+// CreateDBLoadBalancer returns the service for the database.
+func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1alpha1.Instance, applyOpts []client.PatchOption) (*corev1.Service, error) {
+	sourceCidrRanges := []string{"0.0.0.0/0"}
+	if len(inst.Spec.SourceCidrRanges) > 0 {
+		sourceCidrRanges = inst.Spec.SourceCidrRanges
+	}
+	var svcAnnotations map[string]string
 
-		if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
-			return nil, nil, err
-		}
+	lbType := corev1.ServiceTypeLoadBalancer
+	svcNameFull := fmt.Sprintf(controllers.SvcName, inst.Name)
+	svcAnnotations = utils.LoadBalancerAnnotations(inst.Spec.DBLoadBalancerOptions)
 
-		if s == "lb" {
-			svcLB = svc
-		}
+	svc := &corev1.Service{
+		TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
+		ObjectMeta: metav1.ObjectMeta{Name: svcNameFull, Namespace: inst.Namespace, Annotations: svcAnnotations},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{"instance": inst.Name},
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "secure-listener",
+					Protocol:   "TCP",
+					Port:       consts.SecureListenerPort,
+					TargetPort: intstr.FromInt(consts.SecureListenerPort),
+				},
+				{
+					Name:       "ssl-listener",
+					Protocol:   "TCP",
+					Port:       consts.SSLListenerPort,
+					TargetPort: intstr.FromInt(consts.SSLListenerPort),
+				},
+			},
+			Type:                     lbType,
+			LoadBalancerIP:           utils.LoadBalancerIpAddress(inst.Spec.DBLoadBalancerOptions),
+			LoadBalancerSourceRanges: sourceCidrRanges,
+		},
 	}
 
-	svc, err := controllers.NewDBDaemonSvc(&inst, r.Scheme)
+	// Set the Instance resource to own the Service resource.
+	if err := ctrl.SetControllerReference(inst, svc, r.Scheme); err != nil {
+		return nil, err
+	}
+
+	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+		return nil, err
+	}
+
+	return svc, nil
+}
+
+func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v1alpha1.Instance, applyOpts []client.PatchOption) (dbDaemonSvc *corev1.Service, agentSvc *corev1.Service, err error) {
+	dbDaemonSvc, err = controllers.NewDBDaemonSvc(&inst, r.Scheme)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+	if err := r.Patch(ctx, dbDaemonSvc, client.Apply, applyOpts...); err != nil {
 		return nil, nil, err
 	}
 
-	svc, err = controllers.NewAgentSvc(&inst, r.Scheme)
+	agentSvc, err = controllers.NewAgentSvc(&inst, r.Scheme)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err := r.Patch(ctx, svc, client.Apply, applyOpts...); err != nil {
+	if err := r.Patch(ctx, agentSvc, client.Apply, applyOpts...); err != nil {
 		return nil, nil, err
 	}
-	return svcLB, svc, nil
+	return dbDaemonSvc, agentSvc, nil
 }
 
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
