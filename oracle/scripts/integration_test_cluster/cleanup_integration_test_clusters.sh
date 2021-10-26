@@ -79,15 +79,13 @@ for c in "${STALE_FIREWALL_RULES[@]}"; do
   set +x #echo off
 done
 
-# Cleanup GCS bucket bindings for deleted accounts
+# Cleanup GCS bucket bindings for deleted service accounts
 STALE_GCS_SA=($(gsutil iam get gs://"${PROW_PROJECT}" | jq -r ".bindings[].members[]|select(startswith(\"deleted\"))"))
 
 for c in "${STALE_GCS_SA[@]}"; do
   echo " * Deleting GCS binding ${c}";
   set -x #echo on
   # Ignore errors as there might be concurrent jobs running
-  gsutil iam ch -d "${c}":objectCreator gs://"${PROW_PROJECT}" || true
-  gsutil iam ch -d "${c}":objectViewer gs://"${PROW_PROJECT}" || true
-  gsutil iam ch -d "${c}":legacyBucketReader gs://"${PROW_PROJECT}" || true
+  gsutil iam ch -d "${c}" gs://"${PROW_PROJECT}" || true
   set +x #echo off
 done

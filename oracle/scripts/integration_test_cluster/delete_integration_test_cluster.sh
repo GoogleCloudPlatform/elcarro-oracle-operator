@@ -31,7 +31,7 @@ sleep 100
 echo "Deleting cluster '${PROW_CLUSTER}' (this may take a few minutes)..."
 
 set -x #echo on
-time gcloud beta container clusters delete --async -q "${PROW_CLUSTER}" --zone="${PROW_CLUSTER_ZONE}" --project="${PROW_PROJECT}"
+time gcloud beta container clusters delete -q "${PROW_CLUSTER}" --zone="${PROW_CLUSTER_ZONE}" --project="${PROW_PROJECT}"
 
 # Delete service account
 scripts/integration_test_cluster/delete_service_account.sh
