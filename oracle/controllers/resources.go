@@ -49,11 +49,10 @@ const (
 )
 
 var (
-	sourceCidrRanges = []string{"0.0.0.0/0"}
-	defaultDiskSize  = resource.MustParse("100Gi")
-	dialTimeout      = 3 * time.Minute
-	configList       = []string{configAgentName, OperatorName}
-	defaultDisks     = []commonv1alpha1.DiskSpec{
+	defaultDiskSize = resource.MustParse("100Gi")
+	dialTimeout     = 3 * time.Minute
+	configList      = []string{configAgentName, OperatorName}
+	defaultDisks    = []commonv1alpha1.DiskSpec{
 		{
 			Name: "DataDisk",
 			Size: resource.MustParse("100Gi"),
@@ -64,56 +63,6 @@ var (
 		},
 	}
 )
-
-// NewSvc returns the service for the database.
-func NewSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme, lb string) (*corev1.Service, error) {
-	if len(inst.Spec.SourceCidrRanges) > 0 {
-		sourceCidrRanges = inst.Spec.SourceCidrRanges
-	}
-	var svcAnnotations map[string]string
-
-	lbType := corev1.ServiceTypeLoadBalancer
-	svcNameFull := fmt.Sprintf(SvcName, inst.Name)
-
-	if lb == "node" {
-		lbType = corev1.ServiceTypeNodePort
-		svcNameFull = svcNameFull + "-" + lb
-	} else {
-		svcAnnotations = utils.LoadBalancerAnnotations(inst.Spec.DBLoadBalancerOptions)
-	}
-
-	svc := &corev1.Service{
-		TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
-		ObjectMeta: metav1.ObjectMeta{Name: svcNameFull, Namespace: inst.Namespace, Annotations: svcAnnotations},
-		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{"instance": inst.Name},
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "secure-listener",
-					Protocol:   "TCP",
-					Port:       consts.SecureListenerPort,
-					TargetPort: intstr.FromInt(consts.SecureListenerPort),
-				},
-				{
-					Name:       "ssl-listener",
-					Protocol:   "TCP",
-					Port:       consts.SSLListenerPort,
-					TargetPort: intstr.FromInt(consts.SSLListenerPort),
-				},
-			},
-			Type:           lbType,
-			LoadBalancerIP: utils.LoadBalancerIpAddress(inst.Spec.DBLoadBalancerOptions),
-			// LoadBalancerSourceRanges: sourceCidrRanges,
-		},
-	}
-
-	// Set the Instance resource to own the Service resource.
-	if err := ctrl.SetControllerReference(inst, svc, scheme); err != nil {
-		return svc, err
-	}
-
-	return svc, nil
-}
 
 // NewDBDaemonSvc returns the service for the database daemon server.
 func NewDBDaemonSvc(inst *v1alpha1.Instance, scheme *runtime.Scheme) (*corev1.Service, error) {

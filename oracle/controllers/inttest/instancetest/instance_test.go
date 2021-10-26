@@ -107,7 +107,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 			var svc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(svc.Items)).Should(Equal(8))
+			Expect(len(svc.Items)).Should(Equal(6)) // 3 services (LB, DBDaemon, Agent) per instance
 		})
 	}
 

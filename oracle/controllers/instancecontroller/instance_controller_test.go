@@ -155,7 +155,6 @@ func testInstanceProvision() {
 		expectedNames := []string{
 			"kubernetes",
 			"test-instance-provision-svc",
-			"test-instance-provision-svc-node",
 			"test-instance-provision-dbdaemon-svc",
 			"test-instance-provision-agent-svc",
 		}
