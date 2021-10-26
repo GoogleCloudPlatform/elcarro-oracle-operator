@@ -96,6 +96,8 @@ type DatabaseDaemonClient interface {
 	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error)
 	// BootstrapDatabase bootstraps seeded database by executing init_oracle
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*BootstrapDatabaseResponse, error)
+	// EnableDnfs activates dNFS
+	EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error)
 }
 
 type databaseDaemonClient struct {
@@ -394,6 +396,15 @@ func (c *databaseDaemonClient) BootstrapDatabase(ctx context.Context, in *Bootst
 	return out, nil
 }
 
+func (c *databaseDaemonClient) EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error) {
+	out := new(EnableDnfsResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/EnableDnfs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DatabaseDaemonServer is the server API for DatabaseDaemon service.
 // All implementations must embed UnimplementedDatabaseDaemonServer
 // for forward compatibility
@@ -474,6 +485,8 @@ type DatabaseDaemonServer interface {
 	CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error)
 	// BootstrapDatabase bootstraps seeded database by executing init_oracle
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error)
+	// EnableDnfs activates dNFS
+	EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonServer()
 }
 
@@ -576,6 +589,9 @@ func (UnimplementedDatabaseDaemonServer) CreateFile(context.Context, *CreateFile
 }
 func (UnimplementedDatabaseDaemonServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnableDnfs not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) mustEmbedUnimplementedDatabaseDaemonServer() {}
 
@@ -1166,6 +1182,24 @@ func _DatabaseDaemon_BootstrapDatabase_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemon_EnableDnfs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnableDnfsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).EnableDnfs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/EnableDnfs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).EnableDnfs(ctx, req.(*EnableDnfsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DatabaseDaemon_ServiceDesc is the grpc.ServiceDesc for DatabaseDaemon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1300,6 +1334,10 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BootstrapDatabase",
 			Handler:    _DatabaseDaemon_BootstrapDatabase_Handler,
+		},
+		{
+			MethodName: "EnableDnfs",
+			Handler:    _DatabaseDaemon_EnableDnfs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

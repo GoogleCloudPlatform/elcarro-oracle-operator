@@ -75,6 +75,7 @@ type FakeConfigAgentClient struct {
 	setParameterCalledCnt          int32
 	getParameterTypeValueCalledCnt int32
 	recoverConfigFileCalledCnt     int32
+	enableDnfsCalledCnt            int32
 
 	lock                         sync.Mutex
 	fetchServiceImageMetaDataCnt int32
@@ -98,6 +99,10 @@ type FakeDatabaseClient struct {
 	nextGetOperationStatus FakeOperationStatus
 
 	methodToResp map[string](interface{})
+}
+
+func (cli *FakeDatabaseClient) EnableDnfs(ctx context.Context, in *dbdpb.EnableDnfsRequest, opts ...grpc.CallOption) (*dbdpb.EnableDnfsResponse, error) {
+	panic("implement me")
 }
 
 // CreateDir RPC call to create a directory named path, along with any

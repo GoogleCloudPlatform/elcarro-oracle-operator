@@ -32,6 +32,8 @@ type DatabaseDaemonProxyClient interface {
 	ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
 	ProxyFetchServiceImageMetaData(ctx context.Context, in *ProxyFetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*ProxyFetchServiceImageMetaDataResponse, error)
+	// EnableDnfs activates dNFS
+	EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error)
 }
 
 type databaseDaemonProxyClient struct {
@@ -105,6 +107,15 @@ func (c *databaseDaemonProxyClient) ProxyFetchServiceImageMetaData(ctx context.C
 	return out, nil
 }
 
+func (c *databaseDaemonProxyClient) EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error) {
+	out := new(EnableDnfsResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/EnableDnfs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DatabaseDaemonProxyServer is the server API for DatabaseDaemonProxy service.
 // All implementations must embed UnimplementedDatabaseDaemonProxyServer
 // for forward compatibility
@@ -123,6 +134,8 @@ type DatabaseDaemonProxyServer interface {
 	ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
 	ProxyFetchServiceImageMetaData(context.Context, *ProxyFetchServiceImageMetaDataRequest) (*ProxyFetchServiceImageMetaDataResponse, error)
+	// EnableDnfs activates dNFS
+	EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonProxyServer()
 }
 
@@ -150,6 +163,9 @@ func (UnimplementedDatabaseDaemonProxyServer) ProxyRunInitOracle(context.Context
 }
 func (UnimplementedDatabaseDaemonProxyServer) ProxyFetchServiceImageMetaData(context.Context, *ProxyFetchServiceImageMetaDataRequest) (*ProxyFetchServiceImageMetaDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProxyFetchServiceImageMetaData not implemented")
+}
+func (UnimplementedDatabaseDaemonProxyServer) EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EnableDnfs not implemented")
 }
 func (UnimplementedDatabaseDaemonProxyServer) mustEmbedUnimplementedDatabaseDaemonProxyServer() {}
 
@@ -290,6 +306,24 @@ func _DatabaseDaemonProxy_ProxyFetchServiceImageMetaData_Handler(srv interface{}
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemonProxy_EnableDnfs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EnableDnfsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonProxyServer).EnableDnfs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemonProxy/EnableDnfs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonProxyServer).EnableDnfs(ctx, req.(*EnableDnfsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DatabaseDaemonProxy_ServiceDesc is the grpc.ServiceDesc for DatabaseDaemonProxy service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -324,6 +358,10 @@ var DatabaseDaemonProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProxyFetchServiceImageMetaData",
 			Handler:    _DatabaseDaemonProxy_ProxyFetchServiceImageMetaData_Handler,
+		},
+		{
+			MethodName: "EnableDnfs",
+			Handler:    _DatabaseDaemonProxy_EnableDnfs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

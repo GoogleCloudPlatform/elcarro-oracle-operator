@@ -3513,7 +3513,7 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proto_rawDesc = []byte{
 	0x65, 0x2e, 0x4c, 0x52, 0x4f, 0x49, 0x6e, 0x70, 0x75, 0x74, 0x52, 0x08, 0x6c, 0x72, 0x6f, 0x49,
 	0x6e, 0x70, 0x75, 0x74, 0x22, 0x1b, 0x0a, 0x19, 0x42, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61,
 	0x70, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x32, 0xd5, 0x17, 0x0a, 0x0e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x44, 0x61,
+	0x65, 0x32, 0xaa, 0x18, 0x0a, 0x0e, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x44, 0x61,
 	0x65, 0x6d, 0x6f, 0x6e, 0x12, 0x51, 0x0a, 0x0a, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x69,
 	0x72, 0x73, 0x12, 0x20, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63,
 	0x6c, 0x65, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x69, 0x72, 0x73, 0x52, 0x65, 0x71,
@@ -3702,13 +3702,18 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proto_rawDesc = []byte{
 	0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x28, 0x2e,
 	0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x42, 0x6f,
 	0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x52,
-	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x58, 0x5a, 0x56, 0x67, 0x69, 0x74,
-	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c,
-	0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x65, 0x6c, 0x63, 0x61,
-	0x72, 0x72, 0x6f, 0x2d, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2d, 0x6f, 0x70, 0x65, 0x72, 0x61,
-	0x74, 0x6f, 0x72, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61,
-	0x67, 0x65, 0x6e, 0x74, 0x73, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x3b, 0x6f, 0x72, 0x61,
-	0x63, 0x6c, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x53, 0x0a, 0x0a, 0x45, 0x6e, 0x61,
+	0x62, 0x6c, 0x65, 0x44, 0x6e, 0x66, 0x73, 0x12, 0x20, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73,
+	0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x45, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x44, 0x6e,
+	0x66, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x61, 0x67, 0x65, 0x6e,
+	0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x45, 0x6e, 0x61, 0x62, 0x6c, 0x65,
+	0x44, 0x6e, 0x66, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x58,
+	0x5a, 0x56, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d,
+	0x2f, 0x65, 0x6c, 0x63, 0x61, 0x72, 0x72, 0x6f, 0x2d, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2d,
+	0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c,
+	0x65, 0x3b, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -3789,11 +3794,13 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proto_goTypes = []interface{}{
 	(*longrunning.ListOperationsRequest)(nil),  // 60: google.longrunning.ListOperationsRequest
 	(*longrunning.GetOperationRequest)(nil),    // 61: google.longrunning.GetOperationRequest
 	(*longrunning.DeleteOperationRequest)(nil), // 62: google.longrunning.DeleteOperationRequest
-	(*BounceDatabaseResponse)(nil),             // 63: agents.oracle.BounceDatabaseResponse
-	(*BounceListenerResponse)(nil),             // 64: agents.oracle.BounceListenerResponse
-	(*longrunning.Operation)(nil),              // 65: google.longrunning.Operation
-	(*longrunning.ListOperationsResponse)(nil), // 66: google.longrunning.ListOperationsResponse
-	(*emptypb.Empty)(nil),                      // 67: google.protobuf.Empty
+	(*EnableDnfsRequest)(nil),                  // 63: agents.oracle.EnableDnfsRequest
+	(*BounceDatabaseResponse)(nil),             // 64: agents.oracle.BounceDatabaseResponse
+	(*BounceListenerResponse)(nil),             // 65: agents.oracle.BounceListenerResponse
+	(*longrunning.Operation)(nil),              // 66: google.longrunning.Operation
+	(*longrunning.ListOperationsResponse)(nil), // 67: google.longrunning.ListOperationsResponse
+	(*emptypb.Empty)(nil),                      // 68: google.protobuf.Empty
+	(*EnableDnfsResponse)(nil),                 // 69: agents.oracle.EnableDnfsResponse
 }
 var file_oracle_pkg_agents_oracle_dbdaemon_proto_depIdxs = []int32{
 	55, // 0: agents.oracle.CreateDirsRequest.dirs:type_name -> agents.oracle.CreateDirsRequest.DirInfo
@@ -3846,40 +3853,42 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proto_depIdxs = []int32{
 	48, // 47: agents.oracle.DatabaseDaemon.FetchServiceImageMetaData:input_type -> agents.oracle.FetchServiceImageMetaDataRequest
 	50, // 48: agents.oracle.DatabaseDaemon.CreateFile:input_type -> agents.oracle.CreateFileRequest
 	52, // 49: agents.oracle.DatabaseDaemon.BootstrapDatabase:input_type -> agents.oracle.BootstrapDatabaseRequest
-	2,  // 50: agents.oracle.DatabaseDaemon.CreateDirs:output_type -> agents.oracle.CreateDirsResponse
-	4,  // 51: agents.oracle.DatabaseDaemon.ReadDir:output_type -> agents.oracle.ReadDirResponse
-	6,  // 52: agents.oracle.DatabaseDaemon.DeleteDir:output_type -> agents.oracle.DeleteDirResponse
-	63, // 53: agents.oracle.DatabaseDaemon.BounceDatabase:output_type -> agents.oracle.BounceDatabaseResponse
-	64, // 54: agents.oracle.DatabaseDaemon.BounceListener:output_type -> agents.oracle.BounceListenerResponse
-	11, // 55: agents.oracle.DatabaseDaemon.CheckDatabaseState:output_type -> agents.oracle.CheckDatabaseStateResponse
-	7,  // 56: agents.oracle.DatabaseDaemon.RunSQLPlus:output_type -> agents.oracle.RunCMDResponse
-	7,  // 57: agents.oracle.DatabaseDaemon.RunSQLPlusFormatted:output_type -> agents.oracle.RunCMDResponse
-	15, // 58: agents.oracle.DatabaseDaemon.KnownPDBs:output_type -> agents.oracle.KnownPDBsResponse
-	19, // 59: agents.oracle.DatabaseDaemon.RunRMAN:output_type -> agents.oracle.RunRMANResponse
-	65, // 60: agents.oracle.DatabaseDaemon.RunRMANAsync:output_type -> google.longrunning.Operation
-	21, // 61: agents.oracle.DatabaseDaemon.NID:output_type -> agents.oracle.NIDResponse
-	23, // 62: agents.oracle.DatabaseDaemon.GetDatabaseType:output_type -> agents.oracle.GetDatabaseTypeResponse
-	25, // 63: agents.oracle.DatabaseDaemon.GetDatabaseName:output_type -> agents.oracle.GetDatabaseNameResponse
-	13, // 64: agents.oracle.DatabaseDaemon.CreatePasswordFile:output_type -> agents.oracle.CreatePasswordFileResponse
-	64, // 65: agents.oracle.DatabaseDaemon.SetListenerRegistration:output_type -> agents.oracle.BounceListenerResponse
-	28, // 66: agents.oracle.DatabaseDaemon.BootstrapStandby:output_type -> agents.oracle.BootstrapStandbyResponse
-	65, // 67: agents.oracle.DatabaseDaemon.CreateCDBAsync:output_type -> google.longrunning.Operation
-	65, // 68: agents.oracle.DatabaseDaemon.BootstrapDatabaseAsync:output_type -> google.longrunning.Operation
-	33, // 69: agents.oracle.DatabaseDaemon.CreateListener:output_type -> agents.oracle.CreateListenerResponse
-	35, // 70: agents.oracle.DatabaseDaemon.FileExists:output_type -> agents.oracle.FileExistsResponse
-	65, // 71: agents.oracle.DatabaseDaemon.PhysicalRestoreAsync:output_type -> google.longrunning.Operation
-	65, // 72: agents.oracle.DatabaseDaemon.DataPumpImportAsync:output_type -> google.longrunning.Operation
-	65, // 73: agents.oracle.DatabaseDaemon.DataPumpExportAsync:output_type -> google.longrunning.Operation
-	66, // 74: agents.oracle.DatabaseDaemon.ListOperations:output_type -> google.longrunning.ListOperationsResponse
-	65, // 75: agents.oracle.DatabaseDaemon.GetOperation:output_type -> google.longrunning.Operation
-	67, // 76: agents.oracle.DatabaseDaemon.DeleteOperation:output_type -> google.protobuf.Empty
-	45, // 77: agents.oracle.DatabaseDaemon.RecoverConfigFile:output_type -> agents.oracle.RecoverConfigFileResponse
-	47, // 78: agents.oracle.DatabaseDaemon.DownloadDirectoryFromGCS:output_type -> agents.oracle.DownloadDirectoryFromGCSResponse
-	49, // 79: agents.oracle.DatabaseDaemon.FetchServiceImageMetaData:output_type -> agents.oracle.FetchServiceImageMetaDataResponse
-	51, // 80: agents.oracle.DatabaseDaemon.CreateFile:output_type -> agents.oracle.CreateFileResponse
-	54, // 81: agents.oracle.DatabaseDaemon.BootstrapDatabase:output_type -> agents.oracle.BootstrapDatabaseResponse
-	50, // [50:82] is the sub-list for method output_type
-	18, // [18:50] is the sub-list for method input_type
+	63, // 50: agents.oracle.DatabaseDaemon.EnableDnfs:input_type -> agents.oracle.EnableDnfsRequest
+	2,  // 51: agents.oracle.DatabaseDaemon.CreateDirs:output_type -> agents.oracle.CreateDirsResponse
+	4,  // 52: agents.oracle.DatabaseDaemon.ReadDir:output_type -> agents.oracle.ReadDirResponse
+	6,  // 53: agents.oracle.DatabaseDaemon.DeleteDir:output_type -> agents.oracle.DeleteDirResponse
+	64, // 54: agents.oracle.DatabaseDaemon.BounceDatabase:output_type -> agents.oracle.BounceDatabaseResponse
+	65, // 55: agents.oracle.DatabaseDaemon.BounceListener:output_type -> agents.oracle.BounceListenerResponse
+	11, // 56: agents.oracle.DatabaseDaemon.CheckDatabaseState:output_type -> agents.oracle.CheckDatabaseStateResponse
+	7,  // 57: agents.oracle.DatabaseDaemon.RunSQLPlus:output_type -> agents.oracle.RunCMDResponse
+	7,  // 58: agents.oracle.DatabaseDaemon.RunSQLPlusFormatted:output_type -> agents.oracle.RunCMDResponse
+	15, // 59: agents.oracle.DatabaseDaemon.KnownPDBs:output_type -> agents.oracle.KnownPDBsResponse
+	19, // 60: agents.oracle.DatabaseDaemon.RunRMAN:output_type -> agents.oracle.RunRMANResponse
+	66, // 61: agents.oracle.DatabaseDaemon.RunRMANAsync:output_type -> google.longrunning.Operation
+	21, // 62: agents.oracle.DatabaseDaemon.NID:output_type -> agents.oracle.NIDResponse
+	23, // 63: agents.oracle.DatabaseDaemon.GetDatabaseType:output_type -> agents.oracle.GetDatabaseTypeResponse
+	25, // 64: agents.oracle.DatabaseDaemon.GetDatabaseName:output_type -> agents.oracle.GetDatabaseNameResponse
+	13, // 65: agents.oracle.DatabaseDaemon.CreatePasswordFile:output_type -> agents.oracle.CreatePasswordFileResponse
+	65, // 66: agents.oracle.DatabaseDaemon.SetListenerRegistration:output_type -> agents.oracle.BounceListenerResponse
+	28, // 67: agents.oracle.DatabaseDaemon.BootstrapStandby:output_type -> agents.oracle.BootstrapStandbyResponse
+	66, // 68: agents.oracle.DatabaseDaemon.CreateCDBAsync:output_type -> google.longrunning.Operation
+	66, // 69: agents.oracle.DatabaseDaemon.BootstrapDatabaseAsync:output_type -> google.longrunning.Operation
+	33, // 70: agents.oracle.DatabaseDaemon.CreateListener:output_type -> agents.oracle.CreateListenerResponse
+	35, // 71: agents.oracle.DatabaseDaemon.FileExists:output_type -> agents.oracle.FileExistsResponse
+	66, // 72: agents.oracle.DatabaseDaemon.PhysicalRestoreAsync:output_type -> google.longrunning.Operation
+	66, // 73: agents.oracle.DatabaseDaemon.DataPumpImportAsync:output_type -> google.longrunning.Operation
+	66, // 74: agents.oracle.DatabaseDaemon.DataPumpExportAsync:output_type -> google.longrunning.Operation
+	67, // 75: agents.oracle.DatabaseDaemon.ListOperations:output_type -> google.longrunning.ListOperationsResponse
+	66, // 76: agents.oracle.DatabaseDaemon.GetOperation:output_type -> google.longrunning.Operation
+	68, // 77: agents.oracle.DatabaseDaemon.DeleteOperation:output_type -> google.protobuf.Empty
+	45, // 78: agents.oracle.DatabaseDaemon.RecoverConfigFile:output_type -> agents.oracle.RecoverConfigFileResponse
+	47, // 79: agents.oracle.DatabaseDaemon.DownloadDirectoryFromGCS:output_type -> agents.oracle.DownloadDirectoryFromGCSResponse
+	49, // 80: agents.oracle.DatabaseDaemon.FetchServiceImageMetaData:output_type -> agents.oracle.FetchServiceImageMetaDataResponse
+	51, // 81: agents.oracle.DatabaseDaemon.CreateFile:output_type -> agents.oracle.CreateFileResponse
+	54, // 82: agents.oracle.DatabaseDaemon.BootstrapDatabase:output_type -> agents.oracle.BootstrapDatabaseResponse
+	69, // 83: agents.oracle.DatabaseDaemon.EnableDnfs:output_type -> agents.oracle.EnableDnfsResponse
+	51, // [51:84] is the sub-list for method output_type
+	18, // [18:51] is the sub-list for method input_type
 	18, // [18:18] is the sub-list for extension type_name
 	18, // [18:18] is the sub-list for extension extendee
 	0,  // [0:18] is the sub-list for field type_name

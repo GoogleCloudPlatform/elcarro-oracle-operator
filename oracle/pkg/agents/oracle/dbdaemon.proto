@@ -152,6 +152,9 @@ service DatabaseDaemon {
   // BootstrapDatabase bootstraps seeded database by executing init_oracle
   rpc BootstrapDatabase(BootstrapDatabaseRequest)
       returns (BootstrapDatabaseResponse) {}
+
+  // EnableDnfs activates dNFS
+  rpc EnableDnfs(EnableDnfsRequest) returns (EnableDnfsResponse) {}
 }
 
 message CreateDirsRequest {

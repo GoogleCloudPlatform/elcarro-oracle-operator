@@ -66,6 +66,7 @@ var (
 	godrorDriverConn = func(ctx context.Context, ex godror.Execer) (conn, error) {
 		return godror.DriverConn(ctx, ex)
 	}
+	makecmd = "/usr/bin/make"
 )
 
 // osUtil was defined for tests.
@@ -80,7 +81,7 @@ func (o *osUtilImpl) runCommand(bin string, params []string) error {
 	ohome := os.Getenv("ORACLE_HOME")
 	klog.InfoS("executing command with args", "cmd", bin, "params", params, "ORACLE_SID", os.Getenv("ORACLE_SID"), "ORACLE_HOME", ohome, "TNS_ADMIN", os.Getenv("TNS_ADMIN"))
 	switch bin {
-	case lsnrctl(ohome), rman(ohome), orapwd(ohome), dbca(ohome), nid(ohome):
+	case lsnrctl(ohome), rman(ohome), orapwd(ohome), dbca(ohome), nid(ohome), makecmd:
 	default:
 		return fmt.Errorf("command %q is not supported", bin)
 	}
@@ -448,6 +449,23 @@ func (s *Server) ProxyFetchServiceImageMetaData(ctx context.Context, req *dbdpb.
 	}
 
 	return &dbdpb.ProxyFetchServiceImageMetaDataResponse{Version: version, CdbName: cdbName, OracleHome: oracleHome, SeededImage: seededImage}, nil
+}
+
+func (s *Server) EnableDnfs(ctx context.Context, req *dbdpb.EnableDnfsRequest) (*dbdpb.EnableDnfsResponse, error) {
+	oracleHome := os.Getenv("ORACLE_HOME")
+	params := []string{
+		"-f",
+		fmt.Sprintf("%s/rdbms/lib/%s", oracleHome, "ins_rdbms.mk"),
+		"dnfs_on",
+	}
+
+	if err := s.runCommand("/usr/bin/make", params); err != nil {
+		msg := "dbdaemon/EnableDnfs error while running dNFS turning on command"
+		klog.ErrorS(err, msg, "request", req)
+		return nil, fmt.Errorf(msg)
+	}
+
+	return &dbdpb.EnableDnfsResponse{}, nil
 }
 
 //Sets Oracle specific environment variables and creates the .env file
