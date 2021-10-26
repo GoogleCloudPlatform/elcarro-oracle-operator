@@ -69,6 +69,13 @@ export PROW_INT_TEST_SA=$(shell\
 	fi \
 )
 
+# Define number of bazel test jobs for integration tests
+# Chosen arbitrarily, up to total number of jobs
+export INT_TEST_PARALLEL_JOBS=10
+# Define number of integration test cluster nodes = INT_TEST_PARALLEL_JOBS x 2
+# as each job can use up to 2 nodes
+export INT_TEST_CLUSTER_NODE_COUNT=20
+
 env:
 	@echo "export PROW_IMAGE_REPO=${PROW_IMAGE_REPO}"
 	@echo "export PROW_IMAGE_TAG=${PROW_IMAGE_TAG}"
@@ -103,8 +110,8 @@ test:
 	bazel \
 		--bazelrc=controllers/inttest/.bazelrc \
 		test \
-		--jobs=10 \
-		--local_cpu_resources=10 \
+		--jobs=${INT_TEST_PARALLEL_JOBS} \
+		--local_cpu_resources=${INT_TEST_PARALLEL_JOBS} \
 		--test_tag_filters="integration" \
 		--@io_bazel_rules_go//go/config:race \
 		--test_timeout=60,300,900,7200 \
