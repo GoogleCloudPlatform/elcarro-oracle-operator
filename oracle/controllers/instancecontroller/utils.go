@@ -81,9 +81,9 @@ func (r *InstanceReconciler) updateProgressCondition(ctx context.Context, inst v
 // TODO: add logic to handle restore/recovery
 func (r *InstanceReconciler) updateIsChangeApplied(inst *v1alpha1.Instance, log logr.Logger) {
 	if inst.Status.ObservedGeneration < inst.Generation {
+		log.Info("change detected", "observedGeneration", inst.Status.ObservedGeneration, "generation", inst.Generation)
 		inst.Status.IsChangeApplied = v1.ConditionFalse
 		inst.Status.ObservedGeneration = inst.Generation
-		log.Info("change detected", "observedGeneration", inst.Status.ObservedGeneration, "generation", inst.Generation)
 	}
 	if inst.Status.IsChangeApplied == v1.ConditionTrue {
 		return
