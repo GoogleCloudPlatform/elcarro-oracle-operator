@@ -199,6 +199,37 @@ deploy: generate-config
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${PROW_IMAGE_REPO}/${PROW_PROJECT}/oracle.db.anthosapis.com/operator:${PROW_IMAGE_TAG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
+# In case your native environment's abi is incompatible with OEL8 (GLIBC errors)
+# this will take you into a build environment similar to our CI
+# where you can build with abi compatibility. With podman we could use --env-host
+dev-container:
+	env | grep -v '^HOME\|^XDG\|^TMP\|^PATH\|^USER' > /tmp/env_host
+	docker run --rm -it --entrypoint="" \
+		--env-file=/tmp/env_host \
+		--env PATH="/go/bin:/usr/local/go/bin:/google-cloud-sdk/bin:/workspace:${PATH}" \
+		--mount=type=bind,src=$(shell readlink -f ../),dst=/workspace/code \
+		--mount=type=bind,src=$(shell readlink -f ~/.cache/bazel),dst=/root/.cache/bazel \
+		--mount=type=bind,src=$(shell readlink -f ~/.config/),dst=/root/.config/ \
+		gcr.io/k8s-testimages/kubekins-e2e:latest-master \
+		/bin/sh -c "/workspace/code/oracle/scripts/install_prow_deps.sh && gcloud container clusters get-credentials --zone=${PROW_CLUSTER_ZONE} ${PROW_CLUSTER} && cd /workspace/code/oracle && /bin/bash"
+
+# Instead of entering the dev-container just build and push containers.  We
+# only call gcloud auth configure-docker instead of the full install steps
+# since we wont be running formatting and verification here and it makes the
+# container startup much faster.  This must also cleanup the bazel-* symlinks
+# which will get overwritten in the host.
+buildah-push-all-containerized:
+	env | grep -v '^HOME\|^XDG\|^TMP\|^PATH\|^USER' > /tmp/env_host
+	docker run --rm -it --entrypoint="" \
+		--env-file=/tmp/env_host \
+		--env PATH="/go/bin:/usr/local/go/bin:/google-cloud-sdk/bin:/workspace:${PATH}" \
+		--mount=type=bind,src=$(shell readlink -f ../),dst=/workspace/code \
+		--mount=type=bind,src=$(shell readlink -f ~/.cache/bazel),dst=/root/.cache/bazel \
+		--mount=type=bind,src=$(shell readlink -f ~/.config/),dst=/root/.config/ \
+		gcr.io/k8s-testimages/kubekins-e2e:latest-master \
+		/bin/sh -c "gcloud auth configure-docker --quiet && cd /workspace/code/oracle && make buildah-push-all && rm /workspace/code/bazel-*"
+
+
 # Install all the required dependencies for prow.
 prepare-prow:
 	scripts/install_prow_deps.sh || (echo "*** Retrying install prow deps*** "; scripts/install_prow_deps.sh)

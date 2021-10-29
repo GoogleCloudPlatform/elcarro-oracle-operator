@@ -35,36 +35,14 @@ EOF
 INSTALL_TMP_DIR=$(mktemp -d)
 cd $INSTALL_TMP_DIR
 
-# add debian 10 buildah repo from https://github.com/containers/buildah/blob/master/install.md
-echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_10/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
-wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/Debian_10/Release.key -O Release.key
-apt-key add - < Release.key
-
 # everything we can get from debian packages.
 apt-get update -qq
 apt-get install -y \
-  clang-format buildah fuse-overlayfs gettext-base jq
-
-# Use fuse-overlayfs to run buildah within k8s container.
-sed -i -e 's|#mount_program = "/usr/bin/fuse-overlayfs"|mount_program = "/usr/bin/fuse-overlayfs"|' /etc/containers/storage.conf
+  clang-format gettext-base jq
 
 # Link the kubekins install to the typical debian location to match Dev
 # machines.
 ln -s /google-cloud-sdk /usr/lib/google-cloud-sdk
-
-# install binaries for testing
-KUBEBUILDER_VER="2.3.1"
-HOST_OS=$(go env GOOS)
-HOST_ARCH=$(go env GOARCH)
-
-# Get kubebuilder (includes kubectl, kube-apiserver, etcd)
-curl -sSL https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_${HOST_OS}_${HOST_ARCH}.tar.gz \
-  -o kubebuilder.tar.gz
-mkdir kubebuilder
-tar xvf kubebuilder.tar.gz --strip-components=1 -C kubebuilder
-# Typical install location /usr/local/kubebuilder/bin/
-rm -fr /usr/local/kubebuilder
-mv kubebuilder /usr/local/
 
 # If we need a specific kubectl from gcr.io/k8s-testimages/kubekins-e2e
 # rm /usr/local/bin/kubectl
