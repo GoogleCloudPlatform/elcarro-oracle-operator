@@ -330,12 +330,6 @@ func (s *Server) CreatePasswordFile(ctx context.Context, req *dbdpb.CreatePasswo
 	return &dbdpb.CreatePasswordFileResponse{}, nil
 }
 
-// CreateReplicaInitOraFile creates init.ora file using the template and the provided parameters.
-func (s *Server) CreateReplicaInitOraFile(ctx context.Context, req *dbdpb.CreateReplicaInitOraFileRequest) (*dbdpb.CreateReplicaInitOraFileResponse, error) {
-	klog.InfoS("dbdaemon/CreateReplicaInitOraFile: not implemented in current release", "req", req)
-	return &dbdpb.CreateReplicaInitOraFileResponse{InitOraFileContent: ""}, nil
-}
-
 // SetListenerRegistration is a Database Daemon method to create a static listener registration.
 func (s *Server) SetListenerRegistration(ctx context.Context, req *dbdpb.SetListenerRegistrationRequest) (*dbdpb.BounceListenerResponse, error) {
 	return nil, fmt.Errorf("not implemented")
@@ -1552,12 +1546,15 @@ func (s *Server) FileExists(ctx context.Context, req *dbdpb.FileExistsRequest) (
 	return &dbdpb.FileExistsResponse{}, err
 }
 
-// CreateDir RPC call to create a directory named path, along with any necessary parents.
-func (s *Server) CreateDir(ctx context.Context, req *dbdpb.CreateDirRequest) (*dbdpb.CreateDirResponse, error) {
-	if err := os.MkdirAll(req.GetPath(), os.FileMode(req.GetPerm())); err != nil {
-		return nil, fmt.Errorf("dbdaemon/CreateDir failed: %v", err)
+// CreateDirs RPC call to create directories along with any necessary parents.
+func (s *Server) CreateDirs(ctx context.Context, req *dbdpb.CreateDirsRequest) (*dbdpb.CreateDirsResponse, error) {
+	for _, dirInfo := range req.GetDirs() {
+		if err := os.MkdirAll(dirInfo.GetPath(), os.FileMode(dirInfo.GetPerm())); err != nil {
+			return nil, fmt.Errorf("dbdaemon/CreateDirs failed on dir %s: %v", dirInfo.GetPath(), err)
+		}
 	}
-	return &dbdpb.CreateDirResponse{}, nil
+
+	return &dbdpb.CreateDirsResponse{}, nil
 }
 
 // ReadDir RPC call to read the directory named by path and returns Fileinfos for the path and children.

@@ -107,10 +107,16 @@ func PhysicalBackup(ctx context.Context, params *Params) (*lropb.Operation, erro
 	}
 	klog.InfoS("oracle/PhysicalBackup", "backupDir", backupDir)
 
+	dirInfo := []*dbdpb.CreateDirsRequest_DirInfo{
+		{
+			Path: backupDir,
+			Perm: 0760,
+		},
+	}
+
 	// Check/create the destination dir if it's different from the default.
-	if _, err := params.Client.CreateDir(ctx, &dbdpb.CreateDirRequest{
-		Path: backupDir,
-		Perm: 0760,
+	if _, err := params.Client.CreateDirs(ctx, &dbdpb.CreateDirsRequest{
+		Dirs: dirInfo,
 	}); err != nil {
 		return nil, fmt.Errorf("failed to create a backup dir %q: %v", backupDir, err)
 	}

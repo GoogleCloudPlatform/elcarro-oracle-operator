@@ -347,13 +347,17 @@ func (s *ConfigServer) CreateDatabase(ctx context.Context, req *pb.CreateDatabas
 		fmt.Sprintf("%s/%s", pdbDir, consts.DpdumpDir.Linux),
 		fmt.Sprintf("%s/rman", consts.OracleBase),
 	}
+
+	var dirs []*dbdpb.CreateDirsRequest_DirInfo
 	for _, d := range toCreate {
-		if _, err := client.CreateDir(ctx, &dbdpb.CreateDirRequest{
+		dirs = append(dirs, &dbdpb.CreateDirsRequest_DirInfo{
 			Path: d,
 			Perm: 0760,
-		}); err != nil {
-			return nil, fmt.Errorf("failed to create a PDB dir %q: %v", d, err)
-		}
+		})
+	}
+
+	if _, err := client.CreateDirs(ctx, &dbdpb.CreateDirsRequest{Dirs: dirs}); err != nil {
+		return nil, fmt.Errorf("failed to create PDB dirs: %v", err)
 	}
 
 	pdbCmd := []string{sql.QueryCreatePDB(p.pluggableDatabaseName, pdbAdmin, p.pluggableAdminPasswd, p.dataFilesDir, p.defaultTablespace, p.defaultTablespaceDatafile, p.fileConvertFrom, p.fileConvertTo)}

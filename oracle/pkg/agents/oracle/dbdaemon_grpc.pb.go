@@ -20,9 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DatabaseDaemonClient interface {
-	// CreateDir RPC call to create a directory named path, along with any
-	// necessary parents.
-	CreateDir(ctx context.Context, in *CreateDirRequest, opts ...grpc.CallOption) (*CreateDirResponse, error)
+	// CreateDirs RPC call to create directories along with any necessary parents.
+	CreateDirs(ctx context.Context, in *CreateDirsRequest, opts ...grpc.CallOption) (*CreateDirsResponse, error)
 	// ReadDir RPC call to read the directory named by path and returns Fileinfos
 	// for the path and children.
 	ReadDir(ctx context.Context, in *ReadDirRequest, opts ...grpc.CallOption) (*ReadDirResponse, error)
@@ -52,9 +51,6 @@ type DatabaseDaemonClient interface {
 	GetDatabaseName(ctx context.Context, in *GetDatabaseNameRequest, opts ...grpc.CallOption) (*GetDatabaseNameResponse, error)
 	// CreatePasswordFile creates a password file for the database.
 	CreatePasswordFile(ctx context.Context, in *CreatePasswordFileRequest, opts ...grpc.CallOption) (*CreatePasswordFileResponse, error)
-	// CreateReplicaInitOraFile creates init.ora file using the template and the
-	// provided parameters.
-	CreateReplicaInitOraFile(ctx context.Context, in *CreateReplicaInitOraFileRequest, opts ...grpc.CallOption) (*CreateReplicaInitOraFileResponse, error)
 	// SetListenerRegistration sets a static listener registration and restarts
 	// the listener.
 	SetListenerRegistration(ctx context.Context, in *SetListenerRegistrationRequest, opts ...grpc.CallOption) (*BounceListenerResponse, error)
@@ -110,9 +106,9 @@ func NewDatabaseDaemonClient(cc grpc.ClientConnInterface) DatabaseDaemonClient {
 	return &databaseDaemonClient{cc}
 }
 
-func (c *databaseDaemonClient) CreateDir(ctx context.Context, in *CreateDirRequest, opts ...grpc.CallOption) (*CreateDirResponse, error) {
-	out := new(CreateDirResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateDir", in, out, opts...)
+func (c *databaseDaemonClient) CreateDirs(ctx context.Context, in *CreateDirsRequest, opts ...grpc.CallOption) (*CreateDirsResponse, error) {
+	out := new(CreateDirsResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateDirs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -239,15 +235,6 @@ func (c *databaseDaemonClient) GetDatabaseName(ctx context.Context, in *GetDatab
 func (c *databaseDaemonClient) CreatePasswordFile(ctx context.Context, in *CreatePasswordFileRequest, opts ...grpc.CallOption) (*CreatePasswordFileResponse, error) {
 	out := new(CreatePasswordFileResponse)
 	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreatePasswordFile", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *databaseDaemonClient) CreateReplicaInitOraFile(ctx context.Context, in *CreateReplicaInitOraFileRequest, opts ...grpc.CallOption) (*CreateReplicaInitOraFileResponse, error) {
-	out := new(CreateReplicaInitOraFileResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/CreateReplicaInitOraFile", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -411,9 +398,8 @@ func (c *databaseDaemonClient) BootstrapDatabase(ctx context.Context, in *Bootst
 // All implementations must embed UnimplementedDatabaseDaemonServer
 // for forward compatibility
 type DatabaseDaemonServer interface {
-	// CreateDir RPC call to create a directory named path, along with any
-	// necessary parents.
-	CreateDir(context.Context, *CreateDirRequest) (*CreateDirResponse, error)
+	// CreateDirs RPC call to create directories along with any necessary parents.
+	CreateDirs(context.Context, *CreateDirsRequest) (*CreateDirsResponse, error)
 	// ReadDir RPC call to read the directory named by path and returns Fileinfos
 	// for the path and children.
 	ReadDir(context.Context, *ReadDirRequest) (*ReadDirResponse, error)
@@ -443,9 +429,6 @@ type DatabaseDaemonServer interface {
 	GetDatabaseName(context.Context, *GetDatabaseNameRequest) (*GetDatabaseNameResponse, error)
 	// CreatePasswordFile creates a password file for the database.
 	CreatePasswordFile(context.Context, *CreatePasswordFileRequest) (*CreatePasswordFileResponse, error)
-	// CreateReplicaInitOraFile creates init.ora file using the template and the
-	// provided parameters.
-	CreateReplicaInitOraFile(context.Context, *CreateReplicaInitOraFileRequest) (*CreateReplicaInitOraFileResponse, error)
 	// SetListenerRegistration sets a static listener registration and restarts
 	// the listener.
 	SetListenerRegistration(context.Context, *SetListenerRegistrationRequest) (*BounceListenerResponse, error)
@@ -498,8 +481,8 @@ type DatabaseDaemonServer interface {
 type UnimplementedDatabaseDaemonServer struct {
 }
 
-func (UnimplementedDatabaseDaemonServer) CreateDir(context.Context, *CreateDirRequest) (*CreateDirResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateDir not implemented")
+func (UnimplementedDatabaseDaemonServer) CreateDirs(context.Context, *CreateDirsRequest) (*CreateDirsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateDirs not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) ReadDir(context.Context, *ReadDirRequest) (*ReadDirResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadDir not implemented")
@@ -542,9 +525,6 @@ func (UnimplementedDatabaseDaemonServer) GetDatabaseName(context.Context, *GetDa
 }
 func (UnimplementedDatabaseDaemonServer) CreatePasswordFile(context.Context, *CreatePasswordFileRequest) (*CreatePasswordFileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreatePasswordFile not implemented")
-}
-func (UnimplementedDatabaseDaemonServer) CreateReplicaInitOraFile(context.Context, *CreateReplicaInitOraFileRequest) (*CreateReplicaInitOraFileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateReplicaInitOraFile not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) SetListenerRegistration(context.Context, *SetListenerRegistrationRequest) (*BounceListenerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetListenerRegistration not implemented")
@@ -610,20 +590,20 @@ func RegisterDatabaseDaemonServer(s grpc.ServiceRegistrar, srv DatabaseDaemonSer
 	s.RegisterService(&DatabaseDaemon_ServiceDesc, srv)
 }
 
-func _DatabaseDaemon_CreateDir_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateDirRequest)
+func _DatabaseDaemon_CreateDirs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateDirsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DatabaseDaemonServer).CreateDir(ctx, in)
+		return srv.(DatabaseDaemonServer).CreateDirs(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemon/CreateDir",
+		FullMethod: "/agents.oracle.DatabaseDaemon/CreateDirs",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonServer).CreateDir(ctx, req.(*CreateDirRequest))
+		return srv.(DatabaseDaemonServer).CreateDirs(ctx, req.(*CreateDirsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -876,24 +856,6 @@ func _DatabaseDaemon_CreatePasswordFile_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DatabaseDaemonServer).CreatePasswordFile(ctx, req.(*CreatePasswordFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DatabaseDaemon_CreateReplicaInitOraFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateReplicaInitOraFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DatabaseDaemonServer).CreateReplicaInitOraFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemon/CreateReplicaInitOraFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonServer).CreateReplicaInitOraFile(ctx, req.(*CreateReplicaInitOraFileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1212,8 +1174,8 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*DatabaseDaemonServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateDir",
-			Handler:    _DatabaseDaemon_CreateDir_Handler,
+			MethodName: "CreateDirs",
+			Handler:    _DatabaseDaemon_CreateDirs_Handler,
 		},
 		{
 			MethodName: "ReadDir",
@@ -1270,10 +1232,6 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreatePasswordFile",
 			Handler:    _DatabaseDaemon_CreatePasswordFile_Handler,
-		},
-		{
-			MethodName: "CreateReplicaInitOraFile",
-			Handler:    _DatabaseDaemon_CreateReplicaInitOraFile_Handler,
 		},
 		{
 			MethodName: "SetListenerRegistration",

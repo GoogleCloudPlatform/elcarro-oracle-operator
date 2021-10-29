@@ -102,7 +102,7 @@ type FakeDatabaseClient struct {
 
 // CreateDir RPC call to create a directory named path, along with any
 // necessary parents.
-func (cli *FakeDatabaseClient) CreateDir(ctx context.Context, in *dbdpb.CreateDirRequest, opts ...grpc.CallOption) (*dbdpb.CreateDirResponse, error) {
+func (cli *FakeDatabaseClient) CreateDirs(ctx context.Context, in *dbdpb.CreateDirsRequest, opts ...grpc.CallOption) (*dbdpb.CreateDirsResponse, error) {
 	panic("implement me")
 }
 
@@ -174,12 +174,6 @@ func (cli *FakeDatabaseClient) GetDatabaseName(ctx context.Context, in *dbdpb.Ge
 
 // CreatePasswordFile creates a password file for the database.
 func (cli *FakeDatabaseClient) CreatePasswordFile(ctx context.Context, in *dbdpb.CreatePasswordFileRequest, opts ...grpc.CallOption) (*dbdpb.CreatePasswordFileResponse, error) {
-	panic("implement me")
-}
-
-// CreateReplicaInitOraFile creates init.ora file using the template and the
-// provided parameters.
-func (cli *FakeDatabaseClient) CreateReplicaInitOraFile(ctx context.Context, in *dbdpb.CreateReplicaInitOraFileRequest, opts ...grpc.CallOption) (*dbdpb.CreateReplicaInitOraFileResponse, error) {
 	panic("implement me")
 }
 

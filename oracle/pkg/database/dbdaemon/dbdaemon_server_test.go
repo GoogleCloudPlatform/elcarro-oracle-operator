@@ -34,7 +34,7 @@ import (
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
-func TestServerCreateDir(t *testing.T) {
+func TestServerCreateDirs(t *testing.T) {
 	ctx := context.Background()
 	client, cleanup := newFakeDatabaseDaemonClient(t)
 	defer cleanup()
@@ -69,9 +69,13 @@ func TestServerCreateDir(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := client.CreateDir(ctx, &dbdpb.CreateDirRequest{
-				Path: tc.path,
-				Perm: tc.perm,
+			if _, err := client.CreateDirs(ctx, &dbdpb.CreateDirsRequest{
+				Dirs: []*dbdpb.CreateDirsRequest_DirInfo{
+					{
+						Path: tc.path,
+						Perm: tc.perm,
+					},
+				},
 			}); err != nil {
 				t.Fatalf("dbdaemon.CreateDir failed: %v", err)
 			}
