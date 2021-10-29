@@ -23,8 +23,8 @@ import (
 )
 
 // GetLROOperation returns LRO operation for the specified namespace instance and operation id.
-func GetLROOperation(ctx context.Context, dbClientFactory DatabaseClientFactory, id, instName string) (*lropb.Operation, error) {
-	dbClient, closeConn, err := dbClientFactory.New(ctx, instName)
+func GetLROOperation(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, id, namespace, instName string) (*lropb.Operation, error) {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +51,8 @@ func DeleteLROOperation(caClientFactory ConfigAgentClientFactory, ctx context.Co
 // Return (true, err) if LRO is done with an error.
 // Return (false, nil) if LRO still in progress.
 // Return (false, err) if other error occurred.
-func IsLROOperationDone(ctx context.Context, dbClientFactory DatabaseClientFactory, id, instName string) (bool, error) {
-	operation, err := GetLROOperation(ctx, dbClientFactory, id, instName)
+func IsLROOperationDone(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, id, namespace, instName string) (bool, error) {
+	operation, err := GetLROOperation(ctx, dbClientFactory, r, id, namespace, instName)
 	if err != nil {
 		return false, err
 	}

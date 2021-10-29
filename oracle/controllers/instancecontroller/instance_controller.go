@@ -415,7 +415,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.CreateInProgress:
 		id := lroCreateCDBOperationID(*inst)
-		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, id, inst.Name)
+		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, r.Client, id, inst.GetNamespace(), inst.GetName())
 		if !done {
 			log.Info("CreateCDB still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
@@ -468,7 +468,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.BootstrapInProgress:
 		id := lroBootstrapCDBOperationID(*inst)
-		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, id, inst.Name)
+		done, err := controllers.IsLROOperationDone(ctx, r.DatabaseClientFactory, r.Client, id, inst.GetNamespace(), inst.GetName())
 		if !done {
 			log.Info("BootstrapDatabase still in progress, waiting")
 			return ctrl.Result{RequeueAfter: 15 * time.Second}, nil

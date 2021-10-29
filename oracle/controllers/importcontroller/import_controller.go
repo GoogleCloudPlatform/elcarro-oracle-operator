@@ -211,7 +211,7 @@ func (r *ImportReconciler) handleRunningImport(ctx context.Context, log logr.Log
 	operationID := lroOperationID(imp)
 
 	// check import LRO status
-	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, operationID, imp.Spec.Instance)
+	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, r.Client, operationID, imp.GetNamespace(), imp.Spec.Instance)
 	if err != nil {
 		log.Error(err, "GetLROOperation returned an error")
 		return ctrl.Result{}, err

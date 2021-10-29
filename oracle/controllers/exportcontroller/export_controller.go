@@ -218,7 +218,7 @@ func (r *ExportReconciler) handleRunningExport(ctx context.Context, log logr.Log
 	operationID := lroOperationID(exp)
 
 	// check export LRO status
-	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, operationID, exp.Spec.Instance)
+	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, r.Client, operationID, exp.GetNamespace(), exp.Spec.Instance)
 	if err != nil {
 		log.Error(err, "GetLROOperation returned an error")
 		return ctrl.Result{}, err

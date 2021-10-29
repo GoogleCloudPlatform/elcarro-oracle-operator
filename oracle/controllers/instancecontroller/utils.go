@@ -219,7 +219,7 @@ func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
 func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
 	log.Info("isImageSeeded: requesting image metadata...", inst.GetName())
-	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, inst.Name)
+	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.GetName())
 
 	if err != nil {
 		log.Error(err, "failed to create database client")
