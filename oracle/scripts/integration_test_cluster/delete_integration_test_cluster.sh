@@ -33,7 +33,10 @@ echo "Deleting cluster '${PROW_CLUSTER}' (this may take a few minutes)..."
 set -x #echo on
 time gcloud beta container clusters delete -q "${PROW_CLUSTER}" --zone="${PROW_CLUSTER_ZONE}" --project="${PROW_PROJECT}"
 
+# Resolve the script's location to locate other scripts in the same dir.
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+
 # Delete service account
-scripts/integration_test_cluster/delete_service_account.sh
+${SCRIPT_DIR}/delete_service_account.sh
 
 set +x #echo off
