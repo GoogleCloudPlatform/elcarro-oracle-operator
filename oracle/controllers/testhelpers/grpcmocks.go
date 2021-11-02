@@ -286,7 +286,7 @@ type FakeClientFactory struct {
 	Caclient *FakeConfigAgentClient
 }
 
-// FakeClientFactory is a simple factory to create our FakeConfigAgentClient.
+// FakeDatabaseClientFactory is a simple factory to create our FakeConfigAgentClient.
 type FakeDatabaseClientFactory struct {
 	Dbclient *FakeDatabaseClient
 }
@@ -299,8 +299,8 @@ func (g *FakeClientFactory) New(context.Context, client.Reader, string, string) 
 	return g.Caclient, emptyConnCloseFunc, nil
 }
 
-// New returns a new fake ConfigAgent.
-func (g *FakeDatabaseClientFactory) New(context.Context, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
+// New returns a new fake database client.
+func (g *FakeDatabaseClientFactory) New(context.Context, client.Reader, string, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
 	if g.Dbclient == nil {
 		g.Reset()
 	}

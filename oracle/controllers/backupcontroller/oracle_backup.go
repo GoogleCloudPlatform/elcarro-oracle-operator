@@ -210,7 +210,7 @@ func (b *physicalBackup) create(ctx context.Context) error {
 
 func (b *physicalBackup) status(ctx context.Context) (done bool, err error) {
 	id := lroOperationID(b.backup)
-	operation, err := controllers.GetLROOperation(ctx, b.r.DatabaseClientFactory, id, b.backup.Spec.Instance)
+	operation, err := controllers.GetLROOperation(ctx, b.r.DatabaseClientFactory, b.r.Client, id, b.backup.GetNamespace(), b.backup.Spec.Instance)
 	if err != nil {
 		b.log.Error(err, "GetLROOperation error")
 		return false, err

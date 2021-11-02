@@ -140,7 +140,7 @@ type DatabaseClientFactory interface {
 	// New returns new Client.
 	// connection close function should be invoked by the caller if
 	// error is nil.
-	New(ctx context.Context, instName string) (dbdpb.DatabaseDaemonClient, func() error, error)
+	New(ctx context.Context, r client.Reader, namespace, instName string) (dbdpb.DatabaseDaemonClient, func() error, error)
 }
 
 // GetPVCNameAndMount returns PVC names and their corresponding mount.
@@ -165,11 +165,14 @@ func (g *GrpcConfigAgentClientFactory) New(ctx context.Context, r client.Reader,
 }
 
 // New returns a new database daemon client
-func (d *GRPCDatabaseClientFactory) New(ctx context.Context, instName string) (dbdpb.DatabaseDaemonClient, func() error, error) {
+func (d *GRPCDatabaseClientFactory) New(ctx context.Context, r client.Reader, namespace, instName string) (dbdpb.DatabaseDaemonClient, func() error, error) {
 	var dbservice = fmt.Sprintf(DbdaemonSvcName, instName)
-	var dbport = consts.DefaultDBDaemonPort
+	svc := &corev1.Service{}
+	if err := r.Get(ctx, types.NamespacedName{Name: dbservice, Namespace: namespace}, svc); err != nil {
+		return nil, nil, err
+	}
 
-	conn, err := common.DatabaseDaemonDialService(ctx, fmt.Sprintf("%s:%d", dbservice, dbport), grpc.WithBlock())
+	conn, err := common.DatabaseDaemonDialService(ctx, fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, consts.DefaultDBDaemonPort), grpc.WithBlock())
 	if err != nil {
 		return nil, func() error { return nil }, err
 	}
