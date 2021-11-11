@@ -2015,6 +2015,9 @@ spec:
               edition:
                 description: Edition of a database.
                 type: string
+              enableDnfs:
+                description: EnableDnfs enables configuration of Oracle's dNFS functionality.
+                type: boolean
               hostingType:
                 description: HostingType conveys whether an Instance is meant to be
                   hosted on a cloud (single or multiple), on-prem, on Bare Metal,
@@ -2163,6 +2166,10 @@ spec:
           status:
             description: InstanceStatus defines the observed state of Instance.
             properties:
+              DnfsEnabled:
+                description: DnfsEnabled stores whether dNFS has already been enabled
+                  or not.
+                type: boolean
               backupid:
                 description: Last backup ID.
                 type: string

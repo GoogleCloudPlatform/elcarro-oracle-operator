@@ -82,6 +82,10 @@ type InstanceSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	MemoryPercent int `json:"memoryPercent,omitempty"`
+
+	// EnableDnfs enables configuration of Oracle's dNFS functionality.
+	// +optional
+	EnableDnfs bool `json:"enableDnfs,omitempty"`
 }
 
 type BackupReference struct {
@@ -175,6 +179,9 @@ type InstanceStatus struct {
 	// Non-empty value contains the name of the owning controller.
 	// +optional
 	LockedByController string `json:"lockedBy,omitempty"`
+
+	// DnfsEnabled stores whether dNFS has already been enabled or not.
+	DnfsEnabled bool `json:"DnfsEnabled,omitempty"`
 }
 
 // +kubebuilder:object:root=true
