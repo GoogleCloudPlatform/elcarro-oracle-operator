@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/go-logr/logr"
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
@@ -131,6 +132,16 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		if result, err := r.setInstanceParameterStateMachine(ctx, req, inst, log); err != nil {
 			return result, err
 		}
+	}
+	// If the instance and database is ready, we can set the instance parameters
+	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) &&
+		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && inst.Spec.EnableDnfs && !inst.Status.DnfsEnabled {
+		log.Info("instance and db is ready, setting dNFS")
+		if err := r.enableDnfs(ctx, inst); err != nil {
+			return ctrl.Result{}, err
+		}
+		inst.Status.DnfsEnabled = true
+		log.Info("dNFS successfully enabled")
 	}
 
 	instanceReadyCond = k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
@@ -493,6 +504,41 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// enableDnfs enables dNFS protocol in Oracle database.
+func (r *InstanceReconciler) enableDnfs(ctx context.Context, inst v1alpha1.Instance) error {
+	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.Name)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	if _, err := dbClient.EnableDnfs(ctx, &dbdpb.EnableDnfsRequest{
+		Enable: true,
+	}); err != nil {
+		return fmt.Errorf("error while enabling dNFS: %v", err)
+	}
+
+	_, err = dbClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: inst.Spec.CDBName,
+		Option:       "immediate",
+	})
+	if err != nil {
+		return fmt.Errorf("BounceDatabase: error while shutting db: %v", err)
+	}
+
+	_, err = dbClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:         dbdpb.BounceDatabaseRequest_STARTUP,
+		DatabaseName:      inst.Spec.CDBName,
+		AvoidConfigBackup: false,
+	})
+	if err != nil {
+		return fmt.Errorf("configagent/BounceDatabase: error while starting db: %v", err)
+	}
+
+	return nil
 }
 
 func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
