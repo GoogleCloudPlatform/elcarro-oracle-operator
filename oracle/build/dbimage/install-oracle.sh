@@ -326,6 +326,14 @@ run_sql() {
   echo "${1}" | sudo -E -u oracle "${OHOME}/bin/sqlplus" -S / as sysdba
 }
 
+patch_log4j(){
+  # Delete Jndi classes from log4j jars as part of CVE-2021-44228
+  # While waiting for oracle patches.
+  for f in $(find "${OHOME}" -type f -name "log4j-core*.jar"); do
+    sudo -u oracle zip -q -d "$f" org/apache/logging/log4j/core/lookup/JndiLookup.class || true
+  done
+}
+
 main() {
   setup_patching
   setup_installers
@@ -347,6 +355,7 @@ main() {
   fi
   chown "${USER}:${GROUP}" /etc/oratab
   cleanup_post_success
+  patch_log4j
   echo "Oracle installation success"
 }
 main

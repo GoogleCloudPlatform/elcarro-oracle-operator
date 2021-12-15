@@ -23,7 +23,7 @@ readonly USER='oracle'
 readonly GROUP='dba'
 
 install_packages() {
-  yum install -y shadow-utils openssl sudo
+  yum install -y shadow-utils openssl sudo zip
   yum install -y nmap-ncat.x86_64
   yum install -y strace.x86_64
   yum install -y net-tools.x86_64
