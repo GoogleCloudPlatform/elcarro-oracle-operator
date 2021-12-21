@@ -135,13 +135,17 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 	// If the instance and database is ready, we can set the instance parameters
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) &&
-		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && inst.Spec.EnableDnfs && !inst.Status.DnfsEnabled {
-		log.Info("instance and db is ready, setting dNFS")
-		if err := r.enableDnfs(ctx, inst); err != nil {
+		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && (inst.Spec.EnableDnfs != inst.Status.DnfsEnabled) {
+		log.Info("instance and db is ready, modifying dNFS")
+		if err := r.enableDnfs(ctx, inst, inst.Spec.EnableDnfs); err != nil {
 			return ctrl.Result{}, err
 		}
-		inst.Status.DnfsEnabled = true
-		log.Info("dNFS successfully enabled")
+		inst.Status.DnfsEnabled = inst.Spec.EnableDnfs
+		if inst.Status.DnfsEnabled {
+			log.Info("dNFS successfully enabled")
+		} else {
+			log.Info("dNFS successfully disabled")
+		}
 	}
 
 	instanceReadyCond = k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
@@ -507,15 +511,15 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 }
 
 // enableDnfs enables dNFS protocol in Oracle database.
-func (r *InstanceReconciler) enableDnfs(ctx context.Context, inst v1alpha1.Instance) error {
+func (r *InstanceReconciler) enableDnfs(ctx context.Context, inst v1alpha1.Instance, enable bool) error {
 	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.Name)
 	if err != nil {
 		return err
 	}
 	defer closeConn()
 
-	if _, err := dbClient.EnableDnfs(ctx, &dbdpb.EnableDnfsRequest{
-		Enable: true,
+	if _, err := dbClient.SetDnfsState(ctx, &dbdpb.SetDnfsStateRequest{
+		Enable: enable,
 	}); err != nil {
 		return fmt.Errorf("error while enabling dNFS: %v", err)
 	}

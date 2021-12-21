@@ -153,8 +153,8 @@ service DatabaseDaemon {
   rpc BootstrapDatabase(BootstrapDatabaseRequest)
       returns (BootstrapDatabaseResponse) {}
 
-  // EnableDnfs activates dNFS
-  rpc EnableDnfs(EnableDnfsRequest) returns (EnableDnfsResponse) {}
+  // SetDnfsState set dNFS state
+  rpc SetDnfsState(SetDnfsStateRequest) returns (SetDnfsStateResponse) {}
 }
 
 message CreateDirsRequest {

@@ -73,7 +73,7 @@ type FakeConfigAgentClient struct {
 	dataPumpExportCalledCnt        int32
 	setParameterCalledCnt          int32
 	getParameterTypeValueCalledCnt int32
-	enableDnfsCalledCnt            int32
+	SetDnfsStateCalledCnt          int32
 
 	lock                         sync.Mutex
 	fetchServiceImageMetaDataCnt int32
@@ -102,7 +102,7 @@ type FakeDatabaseClient struct {
 	methodToResp map[string](interface{})
 }
 
-func (cli *FakeDatabaseClient) EnableDnfs(ctx context.Context, in *dbdpb.EnableDnfsRequest, opts ...grpc.CallOption) (*dbdpb.EnableDnfsResponse, error) {
+func (cli *FakeDatabaseClient) SetDnfsState(ctx context.Context, in *dbdpb.SetDnfsStateRequest, opts ...grpc.CallOption) (*dbdpb.SetDnfsStateResponse, error) {
 	panic("implement me")
 }
 

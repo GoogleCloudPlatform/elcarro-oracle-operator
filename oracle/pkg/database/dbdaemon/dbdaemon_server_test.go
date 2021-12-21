@@ -458,7 +458,7 @@ func (m *mockDatabaseDaemonProxyClient) ProxyFetchServiceImageMetaData(ctx conte
 	return &dbdpb.ProxyFetchServiceImageMetaDataResponse{Version: "12.2", OracleHome: "/u01/app/oracle/product/12.2/db", CdbName: "MYDB"}, nil
 }
 
-func (m *mockDatabaseDaemonProxyClient) EnableDnfs(ctx context.Context, in *dbdpb.EnableDnfsRequest, opts ...grpc.CallOption) (*dbdpb.EnableDnfsResponse, error) {
+func (m *mockDatabaseDaemonProxyClient) SetDnfsState(ctx context.Context, in *dbdpb.SetDnfsStateRequest, opts ...grpc.CallOption) (*dbdpb.SetDnfsStateResponse, error) {
 	panic("implement me")
 }
 

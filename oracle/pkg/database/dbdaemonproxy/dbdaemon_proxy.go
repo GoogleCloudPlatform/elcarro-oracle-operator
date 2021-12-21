@@ -451,21 +451,26 @@ func (s *Server) ProxyFetchServiceImageMetaData(ctx context.Context, req *dbdpb.
 	return &dbdpb.ProxyFetchServiceImageMetaDataResponse{Version: version, CdbName: cdbName, OracleHome: oracleHome, SeededImage: seededImage}, nil
 }
 
-func (s *Server) EnableDnfs(ctx context.Context, req *dbdpb.EnableDnfsRequest) (*dbdpb.EnableDnfsResponse, error) {
+func (s *Server) SetDnfsState(ctx context.Context, req *dbdpb.SetDnfsStateRequest) (*dbdpb.SetDnfsStateResponse, error) {
 	oracleHome := os.Getenv("ORACLE_HOME")
+
+	enable := "dnfs_on"
+	if !req.Enable {
+		enable = "dnfs_off"
+	}
 	params := []string{
 		"-f",
 		fmt.Sprintf("%s/rdbms/lib/%s", oracleHome, "ins_rdbms.mk"),
-		"dnfs_on",
+		enable,
 	}
 
 	if err := s.runCommand("/usr/bin/make", params); err != nil {
-		msg := "dbdaemon/EnableDnfs error while running dNFS turning on command"
+		msg := "dbdaemon/SetDnfsState error while running dNFS turning on command"
 		klog.ErrorS(err, msg, "request", req)
 		return nil, fmt.Errorf(msg)
 	}
 
-	return &dbdpb.EnableDnfsResponse{}, nil
+	return &dbdpb.SetDnfsStateResponse{}, nil
 }
 
 //Sets Oracle specific environment variables and creates the .env file
