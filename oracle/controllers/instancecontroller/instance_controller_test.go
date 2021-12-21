@@ -27,6 +27,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -61,23 +62,27 @@ func TestInstanceController(t *testing.T) {
 
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
+	testhelpers.CdToRoot(t)
+	testhelpers.RunFunctionalTestSuite(t,
+		&k8sClient,
+		&k8sManager,
+		[]*runtime.SchemeBuilder{&v1alpha1.SchemeBuilder.SchemeBuilder},
+		"Instance controller", func() []testhelpers.Reconciler {
+			reconciler = &InstanceReconciler{
+				Client: k8sManager.GetClient(),
+				Log:    ctrl.Log.WithName("controllers").WithName("Instance"),
+				Scheme: k8sManager.GetScheme(),
+				// We need a clone of 'images' to avoid race conditions between reconciler
+				// goroutine and the test goroutine.
+				Images:        CloneMap(images),
+				ClientFactory: fakeClientFactory,
+				Recorder:      k8sManager.GetEventRecorderFor("instance-controller"),
 
-	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Instance controller", func() []testhelpers.Reconciler {
-		reconciler = &InstanceReconciler{
-			Client: k8sManager.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("Instance"),
-			Scheme: k8sManager.GetScheme(),
-			// We need a clone of 'images' to avoid race conditions between reconciler
-			// goroutine and the test goroutine.
-			Images:        CloneMap(images),
-			ClientFactory: fakeClientFactory,
-			Recorder:      k8sManager.GetEventRecorderFor("instance-controller"),
+				DatabaseClientFactory: fakeDatabaseClientFactory,
+			}
 
-			DatabaseClientFactory: fakeDatabaseClientFactory,
-		}
-
-		return []testhelpers.Reconciler{reconciler}
-	})
+			return []testhelpers.Reconciler{reconciler}
+		})
 }
 
 var _ = Describe("Instance controller", func() {

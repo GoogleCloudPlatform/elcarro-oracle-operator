@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,16 +54,22 @@ func TestDatabaseController(t *testing.T) {
 	}
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	// Run test suite for database reconciler.
-	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Database controller", func() []testhelpers.Reconciler {
-		reconciler = &DatabaseReconciler{
-			Client:        k8sManager.GetClient(),
-			Log:           ctrl.Log.WithName("controllers").WithName("Database"),
-			Scheme:        k8sManager.GetScheme(),
-			ClientFactory: fakeClientFactory,
-			Recorder:      k8sManager.GetEventRecorderFor("database-controller"),
-		}
-		return []testhelpers.Reconciler{reconciler}
-	})
+	testhelpers.CdToRoot(t)
+	testhelpers.RunFunctionalTestSuite(t,
+		&k8sClient,
+		&k8sManager,
+		[]*runtime.SchemeBuilder{&v1alpha1.SchemeBuilder.SchemeBuilder},
+		"Database controller",
+		func() []testhelpers.Reconciler {
+			reconciler = &DatabaseReconciler{
+				Client:        k8sManager.GetClient(),
+				Log:           ctrl.Log.WithName("controllers").WithName("Database"),
+				Scheme:        k8sManager.GetScheme(),
+				ClientFactory: fakeClientFactory,
+				Recorder:      k8sManager.GetEventRecorderFor("database-controller"),
+			}
+			return []testhelpers.Reconciler{reconciler}
+		})
 }
 
 var _ = Describe("Database controller", func() {
