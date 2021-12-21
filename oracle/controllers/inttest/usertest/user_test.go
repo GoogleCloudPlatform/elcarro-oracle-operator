@@ -257,9 +257,6 @@ var _ = Describe("User operations", func() {
 		})
 	}
 
-	Context("Oracle 12.2 EE", func() {
-		testUpdateUser("12.2", "EE")
-	})
 	Context("Oracle 19.3 EE", func() {
 		testUpdateUser("19.3", "EE")
 	})

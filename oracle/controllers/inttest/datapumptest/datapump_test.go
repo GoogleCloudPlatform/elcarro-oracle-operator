@@ -186,10 +186,6 @@ drop table test_table;`
 		})
 	}
 
-	Context("Oracle 12c", func() {
-		testDataPump("12.2", "EE")
-	})
-
 	Context("Oracle 19c", func() {
 		testDataPump("19.3", "EE")
 	})

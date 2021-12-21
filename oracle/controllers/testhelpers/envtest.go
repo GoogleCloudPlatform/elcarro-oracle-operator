@@ -737,23 +737,6 @@ func TestImageForVersion(version string, edition string, extra string) string {
 						}
 					}
 				}
-			case "12.2":
-				{
-					switch extra {
-					case "31741641-unseeded":
-						{
-							return os.Getenv("TEST_IMAGE_ORACLE_12_2_EE_UNSEEDED_31741641")
-						}
-					case "seeded-gcloud-buggy":
-						{
-							return os.Getenv("TEST_IMAGE_ORACLE_12_2_EE_SEEDED_BUGGY")
-						}
-					default:
-						{
-							return os.Getenv("TEST_IMAGE_ORACLE_12_2_EE_SEEDED")
-						}
-					}
-				}
 			}
 		}
 	}
