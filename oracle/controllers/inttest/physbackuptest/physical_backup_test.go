@@ -185,13 +185,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 
-		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.Version = "12.2"
-			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
-			}
-			BackupTest(testCase)
-		})
 		Context("Oracle 18c XE", func() {
 			testCase.instanceSpec.Version = "18c"
 			testCase.instanceSpec.Images = map[string]string{
@@ -236,13 +229,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 				LocalPath: "/u04/app/oracle/rman",
 			},
 		}
-		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.Version = "12.2"
-			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
-			}
-			BackupTest(testCase)
-		})
 		Context("Oracle 18c XE", func() {
 			testCase.instanceSpec.Version = "18c"
 			testCase.instanceSpec.Images = map[string]string{
@@ -284,13 +270,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 
-		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.Version = "12.2"
-			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
-			}
-			BackupTest(testCase)
-		})
 		Context("Oracle 18c XE", func() {
 			testCase.instanceSpec.Version = "18c"
 			testCase.instanceSpec.Images = map[string]string{
@@ -338,14 +317,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 				SectionSize: sectionSize,
 			},
 		}
-
-		Context("Oracle 12.2 EE", func() {
-			testCase.instanceSpec.Version = "12.2"
-			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("12.2", "EE", ""),
-			}
-			BackupTest(testCase)
-		})
 
 		Context("Oracle 18c XE", func() {
 			testCase.instanceSpec.Version = "18c"

@@ -112,9 +112,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 	}
 
 	// Images built using El Carro scripts
-	Context("Oracle 12.2 EE", func() {
-		TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "", true)
-	})
 
 	Context("Oracle 19.3 EE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "", true)
@@ -126,10 +123,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 	// Slow tests, only run in Canary
 	if testhelpers.IsCanaryJob() {
-		Context("Oracle 12.2 EE unseeded", func() {
-			TestInstanceCreationAndDatabaseProvisioning("12.2", "EE", "31741641-unseeded", false)
-		})
-
 		Context("Oracle 19.3 EE unseeded", func() {
 			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
 		})
