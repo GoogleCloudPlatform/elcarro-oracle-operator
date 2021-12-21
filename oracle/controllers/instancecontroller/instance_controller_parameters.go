@@ -51,11 +51,7 @@ var reservedParameters = map[string]bool{
 	"enable_pluggable_database":  true,
 	"filesystemio_options":       true,
 	"local_listener":             true,
-	"open_cursors":               true,
-	"pga_aggregate_target":       true,
-	"processes":                  true,
 	"remote_login_passwordfile":  true,
-	"sga_target":                 true,
 	"undo_tablespace":            true,
 	"log_archive_dest_1":         true,
 	"log_archive_dest_state_1":   true,
@@ -163,7 +159,10 @@ func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.In
 			strings.ToUpper(inst.Spec.Parameters[keys[i]]) != paramValues[i] {
 			msg := fmt.Sprintf("setParameters: parameter update for %s with value %s was rejected by database and instead set to %s", keys[i], inst.Spec.Parameters[keys[i]], paramValues[i])
 			log.Error(err, msg)
-			return false, errors.New(msg)
+			//Oracle does unit conversion while storing certain memory parameters like sga_target, pga_aggregate_target.
+			//Thereby there is no foolproof to confirm if the parameter update silently failed. Thereby we just log the
+			//parameters (whose values don't match the exact user provided values) instead of throwing an error.
+			//return false, errors.New(msg)
 		}
 	}
 
