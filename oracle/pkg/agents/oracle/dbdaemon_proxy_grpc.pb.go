@@ -32,8 +32,8 @@ type DatabaseDaemonProxyClient interface {
 	ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
 	ProxyFetchServiceImageMetaData(ctx context.Context, in *ProxyFetchServiceImageMetaDataRequest, opts ...grpc.CallOption) (*ProxyFetchServiceImageMetaDataResponse, error)
-	// EnableDnfs activates dNFS
-	EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error)
+	// SetDnfsState set dNFS state
+	SetDnfsState(ctx context.Context, in *SetDnfsStateRequest, opts ...grpc.CallOption) (*SetDnfsStateResponse, error)
 }
 
 type databaseDaemonProxyClient struct {
@@ -107,9 +107,9 @@ func (c *databaseDaemonProxyClient) ProxyFetchServiceImageMetaData(ctx context.C
 	return out, nil
 }
 
-func (c *databaseDaemonProxyClient) EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error) {
-	out := new(EnableDnfsResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/EnableDnfs", in, out, opts...)
+func (c *databaseDaemonProxyClient) SetDnfsState(ctx context.Context, in *SetDnfsStateRequest, opts ...grpc.CallOption) (*SetDnfsStateResponse, error) {
+	out := new(SetDnfsStateResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/SetDnfsState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +134,8 @@ type DatabaseDaemonProxyServer interface {
 	ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
 	ProxyFetchServiceImageMetaData(context.Context, *ProxyFetchServiceImageMetaDataRequest) (*ProxyFetchServiceImageMetaDataResponse, error)
-	// EnableDnfs activates dNFS
-	EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error)
+	// SetDnfsState set dNFS state
+	SetDnfsState(context.Context, *SetDnfsStateRequest) (*SetDnfsStateResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonProxyServer()
 }
 
@@ -164,8 +164,8 @@ func (UnimplementedDatabaseDaemonProxyServer) ProxyRunInitOracle(context.Context
 func (UnimplementedDatabaseDaemonProxyServer) ProxyFetchServiceImageMetaData(context.Context, *ProxyFetchServiceImageMetaDataRequest) (*ProxyFetchServiceImageMetaDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProxyFetchServiceImageMetaData not implemented")
 }
-func (UnimplementedDatabaseDaemonProxyServer) EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnableDnfs not implemented")
+func (UnimplementedDatabaseDaemonProxyServer) SetDnfsState(context.Context, *SetDnfsStateRequest) (*SetDnfsStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDnfsState not implemented")
 }
 func (UnimplementedDatabaseDaemonProxyServer) mustEmbedUnimplementedDatabaseDaemonProxyServer() {}
 
@@ -306,20 +306,20 @@ func _DatabaseDaemonProxy_ProxyFetchServiceImageMetaData_Handler(srv interface{}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DatabaseDaemonProxy_EnableDnfs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnableDnfsRequest)
+func _DatabaseDaemonProxy_SetDnfsState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDnfsStateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DatabaseDaemonProxyServer).EnableDnfs(ctx, in)
+		return srv.(DatabaseDaemonProxyServer).SetDnfsState(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemonProxy/EnableDnfs",
+		FullMethod: "/agents.oracle.DatabaseDaemonProxy/SetDnfsState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonProxyServer).EnableDnfs(ctx, req.(*EnableDnfsRequest))
+		return srv.(DatabaseDaemonProxyServer).SetDnfsState(ctx, req.(*SetDnfsStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -360,8 +360,8 @@ var DatabaseDaemonProxy_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DatabaseDaemonProxy_ProxyFetchServiceImageMetaData_Handler,
 		},
 		{
-			MethodName: "EnableDnfs",
-			Handler:    _DatabaseDaemonProxy_EnableDnfs_Handler,
+			MethodName: "SetDnfsState",
+			Handler:    _DatabaseDaemonProxy_SetDnfsState_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

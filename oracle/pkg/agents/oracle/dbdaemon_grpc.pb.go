@@ -96,8 +96,8 @@ type DatabaseDaemonClient interface {
 	CreateFile(ctx context.Context, in *CreateFileRequest, opts ...grpc.CallOption) (*CreateFileResponse, error)
 	// BootstrapDatabase bootstraps seeded database by executing init_oracle
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*BootstrapDatabaseResponse, error)
-	// EnableDnfs activates dNFS
-	EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error)
+	// SetDnfsState sets dNFS state
+	SetDnfsState(ctx context.Context, in *SetDnfsStateRequest, opts ...grpc.CallOption) (*SetDnfsStateResponse, error)
 }
 
 type databaseDaemonClient struct {
@@ -396,9 +396,9 @@ func (c *databaseDaemonClient) BootstrapDatabase(ctx context.Context, in *Bootst
 	return out, nil
 }
 
-func (c *databaseDaemonClient) EnableDnfs(ctx context.Context, in *EnableDnfsRequest, opts ...grpc.CallOption) (*EnableDnfsResponse, error) {
-	out := new(EnableDnfsResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/EnableDnfs", in, out, opts...)
+func (c *databaseDaemonClient) SetDnfsState(ctx context.Context, in *SetDnfsStateRequest, opts ...grpc.CallOption) (*SetDnfsStateResponse, error) {
+	out := new(SetDnfsStateResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/SetDnfsState", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -485,8 +485,8 @@ type DatabaseDaemonServer interface {
 	CreateFile(context.Context, *CreateFileRequest) (*CreateFileResponse, error)
 	// BootstrapDatabase bootstraps seeded database by executing init_oracle
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error)
-	// EnableDnfs activates dNFS
-	EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error)
+	// SetDnfsState sets dNFS state
+	SetDnfsState(context.Context, *SetDnfsStateRequest) (*SetDnfsStateResponse, error)
 	mustEmbedUnimplementedDatabaseDaemonServer()
 }
 
@@ -590,8 +590,8 @@ func (UnimplementedDatabaseDaemonServer) CreateFile(context.Context, *CreateFile
 func (UnimplementedDatabaseDaemonServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*BootstrapDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
 }
-func (UnimplementedDatabaseDaemonServer) EnableDnfs(context.Context, *EnableDnfsRequest) (*EnableDnfsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnableDnfs not implemented")
+func (UnimplementedDatabaseDaemonServer) SetDnfsState(context.Context, *SetDnfsStateRequest) (*SetDnfsStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetDnfsState not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) mustEmbedUnimplementedDatabaseDaemonServer() {}
 
@@ -1182,20 +1182,20 @@ func _DatabaseDaemon_BootstrapDatabase_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DatabaseDaemon_EnableDnfs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnableDnfsRequest)
+func _DatabaseDaemon_SetDnfsState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetDnfsStateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DatabaseDaemonServer).EnableDnfs(ctx, in)
+		return srv.(DatabaseDaemonServer).SetDnfsState(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemon/EnableDnfs",
+		FullMethod: "/agents.oracle.DatabaseDaemon/SetDnfsState",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonServer).EnableDnfs(ctx, req.(*EnableDnfsRequest))
+		return srv.(DatabaseDaemonServer).SetDnfsState(ctx, req.(*SetDnfsStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1336,8 +1336,8 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DatabaseDaemon_BootstrapDatabase_Handler,
 		},
 		{
-			MethodName: "EnableDnfs",
-			Handler:    _DatabaseDaemon_EnableDnfs_Handler,
+			MethodName: "SetDnfsState",
+			Handler:    _DatabaseDaemon_SetDnfsState_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
