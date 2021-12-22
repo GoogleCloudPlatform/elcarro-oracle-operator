@@ -25,6 +25,7 @@ import (
 	"github.com/onsi/gomega/types"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,9 +40,13 @@ var (
 )
 
 func TestValidations(t *testing.T) {
-	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Validations test", func() []testhelpers.Reconciler {
-		return []testhelpers.Reconciler{}
-	})
+	testhelpers.CdToRoot(t)
+	testhelpers.RunFunctionalTestSuite(t, &k8sClient, &k8sManager,
+		[]*runtime.SchemeBuilder{&v1alpha1.SchemeBuilder.SchemeBuilder},
+		"Validations test",
+		func() []testhelpers.Reconciler {
+			return []testhelpers.Reconciler{}
+		})
 }
 
 var _ = Describe("Instance CRD Validation rules", func() {

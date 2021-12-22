@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -46,23 +47,30 @@ var (
 func TestBackupController(t *testing.T) {
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
+	testhelpers.CdToRoot(t)
+	testhelpers.RunFunctionalTestSuite(t, &k8sClient, &k8sManager,
+		[]*runtime.SchemeBuilder{
+			&v1alpha1.SchemeBuilder.SchemeBuilder,
+			// snapv1 uses runtime.SchemeBuilder
+			&snapv1.SchemeBuilder,
+		},
+		"Backup controller",
+		func() []testhelpers.Reconciler {
+			client := k8sManager.GetClient()
+			reconciler = &BackupReconciler{
+				Client:              client,
+				Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
+				Scheme:              k8sManager.GetScheme(),
+				ClientFactory:       fakeClientFactory,
+				Recorder:            k8sManager.GetEventRecorderFor("backup-controller"),
+				BackupCtrl:          &RealBackupControl{Client: k8sClient},
+				OracleBackupFactory: &RealOracleBackupFactory{},
 
-	testhelpers.RunReconcilerTestSuite(t, &k8sClient, &k8sManager, "Backup controller", func() []testhelpers.Reconciler {
-		client := k8sManager.GetClient()
-		reconciler = &BackupReconciler{
-			Client:              client,
-			Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
-			Scheme:              k8sManager.GetScheme(),
-			ClientFactory:       fakeClientFactory,
-			Recorder:            k8sManager.GetEventRecorderFor("backup-controller"),
-			BackupCtrl:          &RealBackupControl{Client: k8sClient},
-			OracleBackupFactory: &RealOracleBackupFactory{},
+				DatabaseClientFactory: fakeDatabaseClientFactory,
+			}
 
-			DatabaseClientFactory: fakeDatabaseClientFactory,
-		}
-
-		return []testhelpers.Reconciler{reconciler}
-	})
+			return []testhelpers.Reconciler{reconciler}
+		})
 }
 
 var _ = Describe("Backup controller", func() {

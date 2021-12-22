@@ -43,6 +43,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -70,7 +71,7 @@ type Reconciler interface {
 }
 
 // cdToRoot change to the repo root directory.
-func cdToRoot(t *testing.T) {
+func CdToRoot(t *testing.T) {
 	for {
 		if _, err := os.Stat("config/crd/bases/oracle.db.anthosapis.com_instances.yaml"); err == nil {
 			break
@@ -94,20 +95,24 @@ func RandName(base string) string {
 	return base + "-" + str[:4]
 }
 
-// RunReconcilerTestSuite runs all specs in the current package against a
+// RunFunctionalTestSuite runs all specs in the current package against a
 // specialized testing environment. Before running the suite, this function
 // configures the test environment by taking the following actions:
 //
 // * Starting a control plane consisting of an etcd process and a Kubernetes API
 //   server process.
-// * Installing CRDs into the control plane
+// * Installing CRDs into the control plane (using provided 'schemeBuilders')
 // * Starting an in-process manager in a dedicated goroutine with the given
 //   reconcilers installed in it.
 //
 // These components will be torn down after the suite runs.
-func RunReconcilerTestSuite(t *testing.T, k8sClient *client.Client, k8sManager *ctrl.Manager, description string, controllers func() []Reconciler) {
-	cdToRoot(t)
-
+func RunFunctionalTestSuite(
+	t *testing.T,
+	k8sClient *client.Client,
+	k8sManager *ctrl.Manager,
+	schemeBuilders []*runtime.SchemeBuilder,
+	description string,
+	controllers func() []Reconciler) {
 	// Define the test environment.
 	testEnv := envtest.Environment{
 		CRDDirectoryPaths: []string{
@@ -131,13 +136,9 @@ func RunReconcilerTestSuite(t *testing.T, k8sClient *client.Client, k8sManager *
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cfg).ToNot(BeNil())
 
-		err = v1alpha1.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
-		err = snapv1.AddToScheme(scheme.Scheme)
-		Expect(err).NotTo(HaveOccurred())
-
-		// +kubebuilder:scaffold:scheme
+		for _, sb := range schemeBuilders {
+			utilruntime.Must(sb.AddToScheme(scheme.Scheme))
+		}
 
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 			Scheme:             scheme.Scheme,
@@ -188,7 +189,7 @@ var (
 // Install CRDs
 // Create a new 'namespace'
 func initK8sCluster(namespace *string) (envtest.Environment, context.Context, client.Client) {
-	cdToRoot(nil)
+	CdToRoot(nil)
 	klog.SetOutput(GinkgoWriter)
 	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 
@@ -992,15 +993,15 @@ EOF
 // Helper functions for functional and integration tests.
 // Uses ginkgo asserts.
 
-const retryTimeout = time.Second * 5
-const retryInterval = time.Second * 1
+const RetryTimeout = time.Second * 5
+const RetryInterval = time.Second * 1
 
 // K8sCreateWithRetry calls k8s Create() with retry as k8s might require this in some cases (e.g. conflicts).
 func K8sCreateWithRetry(k8sClient client.Client, ctx context.Context, obj client.Object) {
 	Eventually(
 		func() error {
 			return k8sClient.Create(ctx, obj)
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
 }
 
 // K8sGetWithRetry calls k8s Get() with retry as k8s might require this in some cases (e.g. conflicts).
@@ -1008,7 +1009,7 @@ func K8sGetWithRetry(k8sClient client.Client, ctx context.Context, objKey client
 	Eventually(
 		func() error {
 			return k8sClient.Get(ctx, objKey, obj)
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
 }
 
 // K8sDeleteWithRetryNoWait calls k8s Delete() with retry as k8s might require
@@ -1017,7 +1018,7 @@ func K8sDeleteWithRetryNoWait(k8sClient client.Client, ctx context.Context, objK
 	Eventually(
 		func() error {
 			return k8sClient.Delete(ctx, obj)
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
 }
 
 // K8sDeleteWithRetry calls k8s Delete() with retry as k8s might require
@@ -1030,12 +1031,12 @@ func K8sDeleteWithRetry(k8sClient client.Client, ctx context.Context, objKey cli
 	Eventually(
 		func() error {
 			return k8sClient.Delete(ctx, obj)
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
 
 	Eventually(
 		func() error {
 			return k8sClient.Get(ctx, objKey, obj)
-		}, retryTimeout, retryInterval).Should(Not(Succeed()))
+		}, RetryTimeout, RetryInterval).Should(Not(Succeed()))
 }
 
 // Get a fresh version of the object into 'emptyObj' using 'objKey'.
@@ -1071,7 +1072,7 @@ func k8sUpdateWithRetryHelper(k8sClient client.Client,
 				}
 			}
 			return nil
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
 
 	// Wait until RV has changed
 	Eventually(
@@ -1079,7 +1080,7 @@ func k8sUpdateWithRetryHelper(k8sClient client.Client,
 			// Get a fresh version of the object
 			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
 			return emptyObj.GetResourceVersion()
-		}, retryTimeout, retryInterval).Should(Not(Equal(originalRV)))
+		}, RetryTimeout, RetryInterval).Should(Not(Equal(originalRV)))
 }
 
 // K8sUpdate makes the Get-Modify-Update-Retry cycle easier.
@@ -1115,7 +1116,22 @@ func K8sCreateAndGet(k8sClient client.Client, ctx context.Context, objKey client
 	Eventually(
 		func() error {
 			return k8sClient.Get(ctx, objKey, createdObj)
-		}, retryTimeout, retryInterval).Should(Succeed())
+		}, RetryTimeout, RetryInterval).Should(Succeed())
+}
+
+// K8sWaitForUpdate waits until GetResourceVersion changes
+// compared to 'originalRV'. Updates 'emptyObj' with the new object.
+func K8sWaitForUpdate(k8sClient client.Client,
+	ctx context.Context,
+	objKey client.ObjectKey,
+	emptyObj client.Object,
+	originalRV string) {
+	Eventually(
+		func() string {
+			// Get a fresh version of the object
+			K8sGetWithRetry(k8sClient, ctx, objKey, emptyObj)
+			return emptyObj.GetResourceVersion()
+		}, RetryTimeout, RetryInterval).Should(Not(Equal(originalRV)))
 }
 
 // SetupServiceAccountBindingBetweenGcpAndK8s creates IAM policy binding between

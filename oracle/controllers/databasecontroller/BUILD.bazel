@@ -50,6 +50,7 @@ go_test(
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_client_go//plugin/pkg/client/auth/gcp",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
