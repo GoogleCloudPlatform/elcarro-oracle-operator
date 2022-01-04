@@ -42,8 +42,8 @@ service DatabaseDaemonProxy {
   // ProxyFetchServiceImageMetaData returns metadata from the oracledb container
   rpc ProxyFetchServiceImageMetaData(ProxyFetchServiceImageMetaDataRequest)
       returns (ProxyFetchServiceImageMetaDataResponse) {}
-  // EnableDnfs activates dNFS
-  rpc EnableDnfs(EnableDnfsRequest) returns (EnableDnfsResponse) {}
+  // SetDnfsState set dNFS state
+  rpc SetDnfsState(SetDnfsStateRequest) returns (SetDnfsStateResponse) {}
 }
 
 message SetEnvRequest {

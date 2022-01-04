@@ -1839,10 +1839,10 @@ func (s *Server) BootstrapDatabaseAsync(ctx context.Context, req *dbdpb.Bootstra
 	return &lropb.Operation{Name: job.ID(), Done: false}, nil
 }
 
-func (s *Server) EnableDnfs(ctx context.Context, req *dbdpb.EnableDnfsRequest) (*dbdpb.EnableDnfsResponse, error) {
-	if _, err := s.dbdClient.EnableDnfs(ctx, &dbdpb.EnableDnfsRequest{Enable: req.Enable}); err != nil {
+func (s *Server) SetDnfsState(ctx context.Context, req *dbdpb.SetDnfsStateRequest) (*dbdpb.SetDnfsStateResponse, error) {
+	if _, err := s.dbdClient.SetDnfsState(ctx, &dbdpb.SetDnfsStateRequest{Enable: req.Enable}); err != nil {
 		return nil, err
 	}
 
-	return &dbdpb.EnableDnfsResponse{}, nil
+	return &dbdpb.SetDnfsStateResponse{}, nil
 }
