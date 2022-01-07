@@ -20,12 +20,15 @@ set -o pipefail
 set -x
 
 export DBNAME=MYDB
-export GCS_BUCKET=graybox-preview-bugbash
+export GCS_BUCKET=graybox-canary-build
 export PROJECT_ID=prow-build-graybox
 export PROJECT_NUMBER=1068261481923
 export TIME_TAG=$(date +%Y%m%dT%H%M%S)
-export IMAGE_TAG_TIME="gcr.io/prow-build-graybox/oracle-database-images/oracle-12.2-ee-seeded-mydb:${TIME_TAG}"
-export IMAGE_TAG_LATEST="gcr.io/prow-build-graybox/oracle-database-images/oracle-12.2-ee-seeded-mydb:latest"
+
+export DB_VERSION=19.3
+export IMG="gcr.io/prow-build-graybox/oracle-database-images/oracle-${DB_VERSION}-ee-seeded-mydb"
+export IMAGE_TAG_TIME="${IMG}:${TIME_TAG}"
+export IMAGE_TAG_LATEST="${IMG}:latest"
 
 # # TODO: cover more images in this process
 # # echo $TEST_IMAGE_ORACLE_18_XE_SEEDED
@@ -41,14 +44,15 @@ export IMAGE_TAG_LATEST="gcr.io/prow-build-graybox/oracle-database-images/oracle
 cd build/dbimage
 ./image_build.sh \
 --install_path=gs://$GCS_BUCKET/install \
---db_version=12.2 \
+--db_version=$DB_VERSION \
 --create_cdb=true \
 --cdb_name=$DBNAME \
 --mem_pct=45 \
 --no_dry_run \
---patch_version=31741641 \
+--patch_version=33192793 \
 --project_id=$PROJECT_ID \
 --tag=$IMAGE_TAG_TIME
 
 # Tag the image with latest, if we can tag it, then that implies the image succeeded in build/push
-gcloud container images add-tag $IMAGE_TAG_TIME $IMAGE_TAG_LATEST
+gcloud container images add-tag $IMAGE_TAG_TIME $IMAGE_TAG_LATEST -q
+
