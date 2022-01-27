@@ -11,6 +11,7 @@ filegroup(
         ":package-srcs",
         "//oracle/controllers/inttest/datapumptest:all-srcs",
         "//oracle/controllers/inttest/instancetest:all-srcs",
+        "//oracle/controllers/inttest/namespacetest:all-srcs",
         "//oracle/controllers/inttest/parameterupdatetest:all-srcs",
         "//oracle/controllers/inttest/physbackuptest:all-srcs",
         "//oracle/controllers/inttest/releasetest:all-srcs",

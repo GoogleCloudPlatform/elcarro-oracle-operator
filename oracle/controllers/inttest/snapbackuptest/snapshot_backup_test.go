@@ -49,7 +49,7 @@ var _ = Describe("Backup through snapshot", func() {
 		defer GinkgoRecover()
 		namespace = testhelpers.RandName("backup-snap-crd-test")
 		instanceName = "mydb"
-		k8sEnv.Init(namespace)
+		k8sEnv.Init(namespace, namespace)
 	})
 
 	AfterEach(func() {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package instancetest
+package namespacetest
 
 import (
 	"context"
@@ -47,25 +47,24 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Instance and Database provisioning", func() {
-	var namespace string
-	var firstInstanceName string
-	var secondInstanceName string
+	var operatorNamespace string
+	var instanceNamespace string
+	var instanceName string
 	var cdbName string
 
-	//Call Init with 'namespace' as both the namespace to install the operator, and the namespace for the operator to monitor.
 	BeforeEach(func() {
 		defer GinkgoRecover()
-		namespace = testhelpers.RandName("instance-crd-test")
-		firstInstanceName = "mydb-1"
-		secondInstanceName = "mydb-2"
+		operatorNamespace = testhelpers.RandName("namespace-test-op")
+		instanceNamespace = testhelpers.RandName("namespace-test-inst")
+		instanceName = "mydb-1"
 		cdbName = "MYDB"
-		k8sEnv.Init(namespace, namespace)
+
+		k8sEnv.Init(operatorNamespace, instanceNamespace)
 	})
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintSimpleDebugInfo(k8sEnv, firstInstanceName, cdbName)
-			testhelpers.PrintSimpleDebugInfo(k8sEnv, secondInstanceName, cdbName)
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, instanceName, cdbName)
 		}
 		k8sEnv.Close()
 	})
@@ -83,37 +82,32 @@ var _ = Describe("Instance and Database provisioning", func() {
 			}
 			dbTimeout += 5 * time.Minute // Add some buffer time given that this test runs in a different process space than the instance
 
-			By("By creating two new Instances")
-			createInstance(firstInstanceName, cdbName, namespace, version, edition, extra)
-			instKey1 := client.ObjectKey{Namespace: namespace, Name: firstInstanceName}
-			createInstance(secondInstanceName, cdbName, namespace, version, edition, extra)
-			instKey2 := client.ObjectKey{Namespace: namespace, Name: secondInstanceName}
+			By("By creating a new Instance")
+			createInstance(instanceName, cdbName, instanceNamespace, version, edition, extra)
+			instKey := client.ObjectKey{Namespace: instanceNamespace, Name: instanceName}
 
 			By("By checking that Instance is created")
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
 
 			By("By checking that Database is provisioned")
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
 
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
-			Expect(k8sClient.List(ctx, &sts, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(sts.Items)).Should(Equal(2))
+			Expect(k8sClient.List(ctx, &sts, client.InNamespace(instanceNamespace))).Should(Succeed())
+			Expect(len(sts.Items)).Should(Equal(1))
 
-			var deployment appsv1.DeploymentList
-			Expect(k8sClient.List(ctx, &deployment, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(deployment.Items)).Should(Equal(3)) //1 deployment for the operator manager, 1 deployment for each instance
+			var instanceDeployment appsv1.DeploymentList
+			Expect(k8sClient.List(ctx, &instanceDeployment, client.InNamespace(instanceNamespace))).Should(Succeed())
+			Expect(len(instanceDeployment.Items)).Should(Equal(1)) //1 deployment for the instance
 
-			var svc corev1.ServiceList
-			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
-			Expect(len(svc.Items)).Should(Equal(6)) // 3 services (LB, DBDaemon, Agent) per instance
+			var instanceSvc corev1.ServiceList
+			Expect(k8sClient.List(ctx, &instanceSvc, client.InNamespace(instanceNamespace))).Should(Succeed())
+			Expect(len(instanceSvc.Items)).Should(Equal(3)) // 3 services (LB, DBDaemon, Agent) per (1) instance
 		})
 	}
 
 	// Images built using El Carro scripts
-
 	Context("Oracle 19.3 EE", func() {
 		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "", true)
 	})
