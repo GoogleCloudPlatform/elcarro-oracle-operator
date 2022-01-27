@@ -103,13 +103,13 @@ var _ = Describe("User operations", func() {
 			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
 
 			// Wait until DatabaseInstanceReady = True
-			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
+			instKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: instanceName}
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			// Create PDB
 			testhelpers.CreateSimplePdbWithDbObj(k8sEnv, &v1alpha1.Database{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: k8sEnv.Namespace,
+					Namespace: k8sEnv.CPNamespace,
 					Name:      databaseName,
 				},
 				Spec: v1alpha1.DatabaseSpec{
@@ -172,11 +172,11 @@ var _ = Describe("User operations", func() {
 			// Resolve password sync latency between Config Server and Oracle DB.
 			// Even after we checked PDB status is ready.
 			time.Sleep(5 * time.Second)
-			testhelpers.K8sVerifyUserConnectivity(pod, k8sEnv.Namespace, databaseName, userPwdBefore)
+			testhelpers.K8sVerifyUserConnectivity(pod, k8sEnv.CPNamespace, databaseName, userPwdBefore)
 
 			By("DB is ready, updating user secret version")
 			createdDatabase := &v1alpha1.Database{}
-			objKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: databaseName}
+			objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}
 
 			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				objKey,
@@ -233,7 +233,7 @@ var _ = Describe("User operations", func() {
 
 			// Verify if both PDB ready and user ready status are expected.
 			Eventually(func() metav1.ConditionStatus {
-				Expect(k8sEnv.K8sClient.Get(k8sEnv.Ctx, client.ObjectKey{Namespace: k8sEnv.Namespace, Name: databaseName}, createdDatabase)).Should(Succeed())
+				Expect(k8sEnv.K8sClient.Get(k8sEnv.Ctx, client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}, createdDatabase)).Should(Succeed())
 				cond := k8s.FindCondition(createdDatabase.Status.Conditions, k8s.Ready)
 				syncUserCompleted := k8s.ConditionStatusEquals(&metav1.Condition{
 					Type:    k8s.UserReady,
@@ -253,7 +253,7 @@ var _ = Describe("User operations", func() {
 			time.Sleep(5 * time.Second)
 
 			By("Verify PDB user connectivity with new passwords")
-			testhelpers.K8sVerifyUserConnectivity(pod, k8sEnv.Namespace, databaseName, userPwdAfter)
+			testhelpers.K8sVerifyUserConnectivity(pod, k8sEnv.CPNamespace, databaseName, userPwdAfter)
 		})
 	}
 
@@ -343,7 +343,8 @@ func enableWiWithNodePool() {
 }
 
 func initEnvBeforeEachTest() {
-	k8sEnv.Init(testhelpers.RandName("user-test"))
+	namespace := testhelpers.RandName("user-test")
+	k8sEnv.Init(namespace, namespace)
 	// Allow the k8s [namespace/default] service account access to GCS buckets
 	testhelpers.SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv)
 }

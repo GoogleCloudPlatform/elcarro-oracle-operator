@@ -43,12 +43,12 @@ var _ = Describe("New deployment", func() {
 	BeforeEach(func() {
 		defer GinkgoRecover()
 		namespace = testhelpers.RandName("release-crd-test")
-		k8sEnv.Init(namespace)
+		k8sEnv.Init(namespace, namespace)
 	})
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintLogs(k8sEnv.Namespace, k8sEnv.Env, []string{}, []string{})
+			testhelpers.PrintLogs(k8sEnv.CPNamespace, k8sEnv.DPNamespace, k8sEnv.Env, []string{}, []string{})
 			testhelpers.PrintClusterObjects()
 		}
 		k8sEnv.Close()
