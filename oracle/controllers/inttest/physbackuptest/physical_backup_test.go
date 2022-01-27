@@ -64,7 +64,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	BeforeEach(func() {
 		defer GinkgoRecover()
 		namespace = testhelpers.RandName("physical-backup-test")
-		k8sEnv.Init(namespace)
+		k8sEnv.Init(namespace, namespace)
 
 		// Allow the k8s [namespace/default] service account access to GCS buckets
 		testhelpers.SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv)

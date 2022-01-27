@@ -57,7 +57,7 @@ var _ = Describe("ParameterUpdate", func() {
 	BeforeEach(func() {
 		defer GinkgoRecover()
 		nameSpace := testhelpers.RandName("parameter-update-test")
-		k8sEnv.Init(nameSpace)
+		k8sEnv.Init(nameSpace, nameSpace)
 	})
 
 	AfterEach(func() {
@@ -72,7 +72,7 @@ var _ = Describe("ParameterUpdate", func() {
 			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
 
 			// Wait until DatabaseInstanceReady = True
-			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
+			instKey := client.ObjectKey{Namespace: k8sEnv.DPNamespace, Name: instanceName}
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
 
 			// Create PDB
@@ -116,7 +116,7 @@ var _ = Describe("ParameterUpdate", func() {
 			testhelpers.CreateSimpleInstance(k8sEnv, instanceName, version, edition)
 
 			// Wait until DatabaseInstanceReady = True
-			instKey := client.ObjectKey{Namespace: k8sEnv.Namespace, Name: instanceName}
+			instKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: instanceName}
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
 
 			// Create PDB
@@ -173,13 +173,13 @@ var _ = Describe("ParameterUpdate", func() {
 })
 
 func fetchParameterValue(pod string, parameter string) string {
-	out := testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.Namespace, fmt.Sprintf("SHOW PARAMETERS %s;", parameter))
+	out := testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.CPNamespace, fmt.Sprintf("SHOW PARAMETERS %s;", parameter))
 	// The output of the above query is
 	// parallel_threads_per_cpu\t     integer\t 1000
 	// The following command extract the required last column
 	// The alternate approach to query system parameter(shown below) doesn't seem to work with bash due the dollar symbol
 	// SELECT value from v$parameter where name='parallel_servers_target'
 	shellCmd := "echo '%s' | sed 's/ //g' | tr -s '\\t' | tr '\\t' '|' |  cut -d '|' -f3"
-	out, _ = testhelpers.K8sExec(pod, k8sEnv.Namespace, "oracledb", fmt.Sprintf(shellCmd, out))
+	out, _ = testhelpers.K8sExec(pod, k8sEnv.CPNamespace, "oracledb", fmt.Sprintf(shellCmd, out))
 	return out
 }
