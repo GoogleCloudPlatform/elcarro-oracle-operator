@@ -62,14 +62,14 @@ container_image(
         "@distroless//image:002.tar.gz",
         "@busybox//image:000.tar.gz",  # duplicated files will be retained from the lowest layer.
     ],
-    user = "nonroot:nonroot",
+    user = "65532:65532",  # nonroot:nonroot. Container admission tools require ids to guarentee nonroot.
     visibility = ["//visibility:public"],
 )
 
 container_image(
     name = "base_image",
     base = "@distroless//image",
-    user = "nonroot:nonroot",
+    user = "65532:65532",  # nonroot:nonroot. Container admission tools require ids to guarentee nonroot.
     visibility = ["//visibility:public"],
 )
 
