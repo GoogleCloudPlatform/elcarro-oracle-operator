@@ -47,6 +47,12 @@ GOROOT=$(dirname "$(dirname "$go")")
 export GOROOT
 controller_gen_version=$("$go" list -m sigs.k8s.io/controller-tools | awk '{print $2}')
 
+# Generate .pb.go and _grpc.pb.go
+find . -path './third_party' -prune -false -o -type f -name '*.proto' -exec \
+  "$protoc" -I "$googleapis_path" -I "$wkt_path" -I . \
+  --go_out=. --go_opt=paths=source_relative \
+  --go-grpc_out=. --go-grpc_opt=paths=source_relative {} +
+
 for dir in "${kubebuilder_dirs[@]}"; do
   "$controllergen" paths="$dir/..." \
     object:headerFile="$headerfile" \
@@ -64,12 +70,6 @@ done
 
 # TODO(yfcheng) Do we really need this file?
 "$kustomize" build oracle/config/default > oracle/operator.yaml
-
-# Generate .pb.go and _grpc.pb.go
-find . -path './third_party' -prune -false -o -type f -name '*.proto' -exec \
-  "$protoc" -I "$googleapis_path" -I "$wkt_path" -I . \
-  --go_out=. --go_opt=paths=source_relative \
-  --go-grpc_out=. --go-grpc_opt=paths=source_relative {} +
 
 # Run go generate
 go generate ./...
