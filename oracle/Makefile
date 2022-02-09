@@ -195,7 +195,7 @@ uninstall: generate-config
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: generate-config
-	$(MAKE) buildah-push-all -j8
+	$(MAKE) buildah-push-all-containerized -j8
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${PROW_IMAGE_REPO}/${PROW_PROJECT}/oracle.db.anthosapis.com/operator:${PROW_IMAGE_TAG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
