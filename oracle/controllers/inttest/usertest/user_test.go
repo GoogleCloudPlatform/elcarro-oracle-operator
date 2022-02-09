@@ -25,6 +25,8 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/klogr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	// Enable GCP auth for k8s client
@@ -67,6 +69,10 @@ var (
 
 // Initial setup before test suite.
 var _ = BeforeSuite(func() {
+	klog.SetOutput(GinkgoWriter)
+	logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
+
+	log = logf.FromContext(nil)
 	// Note that these GSM + WI setup steps are re-runnable.
 	// If the env fulfills, no error should occur.
 
