@@ -27,7 +27,7 @@ ARG CREATE_CDB
 ARG CDB_NAME
 ENV STAGE_DIR=/tmp/stage/
 COPY oracle-preinstall.sh $STAGE_DIR
-RUN /bin/bash -c $STAGE_DIR/oracle-preinstall.sh
+RUN /bin/bash $STAGE_DIR/oracle-preinstall.sh
 
 FROM base as installer
 
