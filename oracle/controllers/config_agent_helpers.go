@@ -18,13 +18,34 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
+)
+
+const (
+	version      = "12.2"
+	pdbAdmin     = "GPDB_ADMIN"
+	gsmSecretStr = "projects/%s/secrets/%s/versions/%s"
+)
+
+var (
+	newGsmClient = func(ctx context.Context) (*secretmanager.Client, func() error, error) {
+		client, err := secretmanager.NewClient(ctx)
+		if err != nil {
+			return nil, func() error { return nil }, err
+		}
+		return client, client.Close, nil
+	}
 )
 
 // GetLROOperation returns LRO operation for the specified namespace instance and operation id.
@@ -214,4 +235,159 @@ func parseSQLResponse(resp *dbdpb.RunCMDResponse) ([]map[string]string, error) {
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+type CreateUsersRequest struct {
+	CdbName        string
+	PdbName        string
+	CreateUsersCmd []string
+	GrantPrivsCmd  []string
+	DbDomain       string
+	User           []*User
+}
+
+type User struct {
+	Name string
+	// only being used for plaintext password scenario.
+	// GSM doesn't use this field.
+	Password             string
+	Privileges           []string
+	PasswordGsmSecretRef *GsmSecretReference
+	// only being used for plaintext password scenario.
+	// GSM doesn't use this field.
+	LastPassword string
+}
+
+type GsmSecretReference struct {
+	ProjectId   string
+	SecretId    string
+	Version     string
+	LastVersion string
+}
+
+// pdb represents a PDB database.
+type pdb struct {
+	containerDatabaseName     string
+	dataFilesDir              string
+	defaultTablespace         string
+	defaultTablespaceDatafile string
+	fileConvertFrom           string
+	fileConvertTo             string
+	hostName                  string
+	listenerDir               string
+	listeners                 map[string]*consts.Listener
+	pathPrefix                string
+	pluggableAdminPasswd      string
+	pluggableDatabaseName     string
+	skipUserCheck             bool
+	version                   string
+}
+
+func buildPDB(cdbName, pdbName, pdbAdminPass, version string, listeners map[string]*consts.Listener, skipUserCheck bool) (*pdb, error) {
+	// For consistency sake, keeping all PDB names uppercase.
+	pdbName = strings.ToUpper(pdbName)
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	return &pdb{
+		pluggableDatabaseName:     pdbName,
+		pluggableAdminPasswd:      pdbAdminPass,
+		containerDatabaseName:     cdbName,
+		dataFilesDir:              fmt.Sprintf(consts.PDBDataDir, consts.DataMount, cdbName, pdbName),
+		defaultTablespace:         fmt.Sprintf("%s_USERS", pdbName),
+		defaultTablespaceDatafile: fmt.Sprintf(consts.PDBDataDir+"/%s_users.dbf", consts.DataMount, cdbName, pdbName, strings.ToLower(pdbName)),
+		pathPrefix:                fmt.Sprintf(consts.PDBPathPrefix, consts.DataMount, cdbName, pdbName),
+		fileConvertFrom:           fmt.Sprintf(consts.PDBSeedDir, consts.DataMount, cdbName),
+		fileConvertTo:             fmt.Sprintf(consts.PDBDataDir, consts.DataMount, cdbName, pdbName),
+		listenerDir:               fmt.Sprintf(consts.ListenerDir, consts.DataMount),
+		listeners:                 listeners,
+		version:                   version,
+		hostName:                  host,
+		skipUserCheck:             skipUserCheck,
+	}, nil
+}
+
+// CreateUsers creates users as requested.
+func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req CreateUsersRequest) (string, error) {
+	// UsersChanged is called before this function by caller (db controller) to check if
+	// the users requested are already existing.
+	// Thus no duplicated list user check is performed here.
+	klog.InfoS("CreateUsers", "namespace", namespace, "CdbName", req.CdbName, "PdbName", req.PdbName)
+
+	p, err := buildPDB(req.CdbName, req.PdbName, "", version, consts.ListenerNames, true)
+	if err != nil {
+		return "", err
+	}
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return "", err
+	}
+	defer closeConn()
+	klog.InfoS("CreateUsers", "client", dbClient)
+
+	_, err = dbClient.CheckDatabaseState(ctx, &dbdpb.CheckDatabaseStateRequest{IsCdb: true, DatabaseName: req.CdbName, DbDomain: req.DbDomain})
+	if err != nil {
+		return "", err
+	}
+	klog.InfoS("CreateUsers: pre-flight check#: CDB is up and running")
+
+	// Separate create users from grants to make troubleshooting easier.
+	usersCmd := []string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}
+	usersCmd = append(usersCmd, req.CreateUsersCmd...)
+	for _, u := range req.User {
+		if u.PasswordGsmSecretRef != nil && u.Name != "" {
+			var pwd string
+			pwd, err = AccessSecretVersionFunc(ctx, fmt.Sprintf(gsmSecretStr, u.PasswordGsmSecretRef.ProjectId, u.PasswordGsmSecretRef.SecretId, u.PasswordGsmSecretRef.Version))
+			if err != nil {
+				return "", err
+			}
+			if _, err = sql.Identifier(pwd); err != nil {
+				return "", err
+			}
+
+			usersCmd = append(usersCmd, sql.QueryCreateUser(u.Name, pwd))
+		}
+	}
+	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: usersCmd, Suppress: false})
+	if err != nil {
+		return "", err
+	}
+	klog.InfoS("CreateUsers: create users in PDB DONE", "pdb", p.pluggableDatabaseName)
+
+	privsCmd := []string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}
+	privsCmd = append(privsCmd, req.GrantPrivsCmd...)
+	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: privsCmd, Suppress: false})
+	if err != nil {
+		return "", err
+	}
+	klog.InfoS("CreateUsers: DONE", "pdb", p.pluggableDatabaseName)
+
+	return "Ready", nil
+}
+
+// AccessSecretVersionFunc accesses the payload for the given secret version if one
+// exists. The version can be a version number as a string (e.g. "5") or an
+// alias (e.g. "latest").
+var AccessSecretVersionFunc = func(ctx context.Context, name string) (string, error) {
+	// Create the GSM client.
+	client, closeConn, err := newGsmClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("configagent/AccessSecretVersionFunc: failed to create secretmanager client: %v", err)
+	}
+	defer closeConn()
+
+	// Build the request.
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: name,
+	}
+
+	// Call the API.
+	result, err := client.AccessSecretVersion(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("configagent/AccessSecretVersionFunc: failed to access secret version: %v", err)
+	}
+
+	return string(result.Payload.Data[:]), nil
 }

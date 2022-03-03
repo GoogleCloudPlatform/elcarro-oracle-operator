@@ -20,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigAgentClient interface {
 	CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error)
-	CreateUsers(ctx context.Context, in *CreateUsersRequest, opts ...grpc.CallOption) (*CreateUsersResponse, error)
 	CreateCDBUser(ctx context.Context, in *CreateCDBUserRequest, opts ...grpc.CallOption) (*CreateCDBUserResponse, error)
 	UsersChanged(ctx context.Context, in *UsersChangedRequest, opts ...grpc.CallOption) (*UsersChangedResponse, error)
 	UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error)
@@ -48,15 +47,6 @@ func NewConfigAgentClient(cc grpc.ClientConnInterface) ConfigAgentClient {
 func (c *configAgentClient) CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error) {
 	out := new(CreateDatabaseResponse)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) CreateUsers(ctx context.Context, in *CreateUsersRequest, opts ...grpc.CallOption) (*CreateUsersResponse, error) {
-	out := new(CreateUsersResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateUsers", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +184,6 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 // for forward compatibility
 type ConfigAgentServer interface {
 	CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error)
-	CreateUsers(context.Context, *CreateUsersRequest) (*CreateUsersResponse, error)
 	CreateCDBUser(context.Context, *CreateCDBUserRequest) (*CreateCDBUserResponse, error)
 	UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error)
 	UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error)
@@ -218,9 +207,6 @@ type UnimplementedConfigAgentServer struct {
 
 func (UnimplementedConfigAgentServer) CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateDatabase not implemented")
-}
-func (UnimplementedConfigAgentServer) CreateUsers(context.Context, *CreateUsersRequest) (*CreateUsersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateUsers not implemented")
 }
 func (UnimplementedConfigAgentServer) CreateCDBUser(context.Context, *CreateCDBUserRequest) (*CreateCDBUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCDBUser not implemented")
@@ -291,24 +277,6 @@ func _ConfigAgent_CreateDatabase_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigAgentServer).CreateDatabase(ctx, req.(*CreateDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_CreateUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateUsersRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CreateUsers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CreateUsers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CreateUsers(ctx, req.(*CreateUsersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -575,10 +543,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateDatabase",
 			Handler:    _ConfigAgent_CreateDatabase_Handler,
-		},
-		{
-			MethodName: "CreateUsers",
-			Handler:    _ConfigAgent_CreateUsers_Handler,
 		},
 		{
 			MethodName: "CreateCDBUser",

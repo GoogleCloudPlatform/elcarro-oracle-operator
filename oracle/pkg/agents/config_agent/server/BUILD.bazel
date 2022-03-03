@@ -31,7 +31,6 @@ go_test(
     srcs = ["configserver_test.go"],
     embed = [":server"],
     deps = [
-        "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/agents/oracle",
         "@com_github_google_go_cmp//cmp",

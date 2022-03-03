@@ -23,7 +23,6 @@ option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/orac
 
 service ConfigAgent {
   rpc CreateDatabase(CreateDatabaseRequest) returns (CreateDatabaseResponse) {}
-  rpc CreateUsers(CreateUsersRequest) returns (CreateUsersResponse) {}
   rpc CreateCDBUser(CreateCDBUserRequest) returns (CreateCDBUserResponse) {}
   rpc UsersChanged(UsersChangedRequest) returns (UsersChangedResponse) {}
   rpc UpdateUsers(UpdateUsersRequest) returns (UpdateUsersResponse) {}
@@ -93,19 +92,6 @@ message CreateDatabaseRequest {
 message CreateDatabaseResponse {
   string status = 1;
   string error_message = 2;
-}
-
-message CreateUsersRequest {
-  string cdb_name = 1;
-  string pdb_name = 2;
-  repeated string create_users_cmd = 3;
-  repeated string grant_privs_cmd = 4;
-  string db_domain = 5;
-  repeated User user = 6;
-}
-
-message CreateUsersResponse {
-  string status = 1;
 }
 
 message CreateCDBUserRequest {
