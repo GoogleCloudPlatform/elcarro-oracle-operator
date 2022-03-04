@@ -95,6 +95,8 @@ type FakeDatabaseClient struct {
 	deleteOperationCalledCnt     int32
 	bounceDatabaseCalledCnt      int32
 	recoverConfigFileCalledCnt   int32
+	checkDatabaseStateCalledCnt  int32
+	runSQLPlusCalledCnt          int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -136,12 +138,14 @@ func (cli *FakeDatabaseClient) BounceListener(ctx context.Context, in *dbdpb.Bou
 
 // CheckDatabaseState RPC call verifies the database is running.
 func (cli *FakeDatabaseClient) CheckDatabaseState(ctx context.Context, in *dbdpb.CheckDatabaseStateRequest, opts ...grpc.CallOption) (*dbdpb.CheckDatabaseStateResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.checkDatabaseStateCalledCnt, 1)
+	return nil, nil
 }
 
 // RunSQLPlus RPC call executes Oracle's sqlplus utility.
 func (cli *FakeDatabaseClient) RunSQLPlus(ctx context.Context, in *dbdpb.RunSQLPlusCMDRequest, opts ...grpc.CallOption) (*dbdpb.RunCMDResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.runSQLPlusCalledCnt, 1)
+	return nil, nil
 }
 
 // RunSQLPlusFormatted RPC is similar to RunSQLPlus, but for queries.
@@ -334,12 +338,6 @@ func (cli *FakeConfigAgentClient) Reset() {
 // CreateDatabase wrapper.
 func (cli *FakeConfigAgentClient) CreateDatabase(context.Context, *capb.CreateDatabaseRequest, ...grpc.CallOption) (*capb.CreateDatabaseResponse, error) {
 	atomic.AddInt32(&cli.createCDBCalledCnt, 1)
-	return nil, nil
-}
-
-// CreateUsers wrapper.
-func (cli *FakeConfigAgentClient) CreateUsers(context.Context, *capb.CreateUsersRequest, ...grpc.CallOption) (*capb.CreateUsersResponse, error) {
-	atomic.AddInt32(&cli.createUsersCalledCnt, 1)
 	return nil, nil
 }
 

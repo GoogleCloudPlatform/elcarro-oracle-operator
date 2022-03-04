@@ -398,65 +398,6 @@ func (s *ConfigServer) CreateDatabase(ctx context.Context, req *pb.CreateDatabas
 	return &pb.CreateDatabaseResponse{Status: "Ready"}, nil
 }
 
-// CreateUsers creates users as requested.
-func (s *ConfigServer) CreateUsers(ctx context.Context, req *pb.CreateUsersRequest) (*pb.CreateUsersResponse, error) {
-	// UsersChanged is called before this function by caller (db controller) to check if
-	// the users requested are already existing.
-	// Thus no duplicated list user check is performed here.
-	klog.InfoS("configagent/CreateUsers", "req", req)
-
-	p, err := buildPDB(req.GetCdbName(), req.GetPdbName(), "", version, consts.ListenerNames, true)
-	if err != nil {
-		return nil, err
-	}
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateUsers: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/CreateUsers", "client", client)
-
-	_, err = client.CheckDatabaseState(ctx, &dbdpb.CheckDatabaseStateRequest{IsCdb: true, DatabaseName: req.GetCdbName(), DbDomain: req.GetDbDomain()})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateUsers: failed to check a CDB state: %v", err)
-	}
-	klog.InfoS("configagent/CreateUsers: pre-flight check#: CDB is up and running")
-
-	// Separate create users from grants to make troubleshooting easier.
-	usersCmd := []string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}
-	usersCmd = append(usersCmd, req.CreateUsersCmd...)
-	for _, u := range req.GetUser() {
-		if u.PasswordGsmSecretRef != nil && u.Name != "" {
-			var pwd string
-			pwd, err = AccessSecretVersionFunc(ctx, fmt.Sprintf(gsmSecretStr, u.PasswordGsmSecretRef.ProjectId, u.PasswordGsmSecretRef.SecretId, u.PasswordGsmSecretRef.Version))
-			if err != nil {
-				return nil, fmt.Errorf("configagent/CreateUsers: failed to retrieve secret from Google Secret Manager: %v", err)
-			}
-			if _, err = sql.Identifier(pwd); err != nil {
-				return nil, fmt.Errorf("configagent/CreateUsers: Google Secret Manager contains an invalid password for user %q: %v", u.Name, err)
-			}
-
-			usersCmd = append(usersCmd, sql.QueryCreateUser(u.Name, pwd))
-		}
-	}
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: usersCmd, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateUsers: failed to create users in a PDB %s: %v", p.pluggableDatabaseName, err)
-	}
-	klog.InfoS("configagent/CreateUsers: create users in PDB DONE", "pdb", p.pluggableDatabaseName)
-
-	privsCmd := []string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}
-	privsCmd = append(privsCmd, req.GrantPrivsCmd...)
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: privsCmd, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateUsers: failed to grant privileges in a PDB %s: %v", p.pluggableDatabaseName, err)
-	}
-	klog.InfoS("configagent/CreateUsers: DONE", "pdb", p.pluggableDatabaseName)
-
-	return &pb.CreateUsersResponse{Status: "Ready"}, nil
-}
-
 // UsersChanged determines whether there is change on users (update/delete/create).
 func (s *ConfigServer) UsersChanged(ctx context.Context, req *pb.UsersChangedRequest) (*pb.UsersChangedResponse, error) {
 	klog.InfoS("configagent/UsersChanged", "req", req)

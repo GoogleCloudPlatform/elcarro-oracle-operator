@@ -29,6 +29,7 @@ import (
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
@@ -138,7 +139,7 @@ func NewDatabase(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Databa
 func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, clusterIP, dbDomain, cdbName string, log logr.Logger) error {
 	log.Info("resources/NewUsers: new database users requested", "dbName", db.Spec.Name, "clusterIP", clusterIP, "requestedUsers", db.Spec.Users)
 	var usernames, usersCmds, grantsCmds []string
-	var userSpecs []*capb.User
+	var userSpecs []*controllers.User
 	userVerMap := make(map[string]string)
 	// Copy pdb admin user version into local map to sync later.
 	if v, ok := db.Status.UserResourceVersions[pdbAdminUserName]; ok {
@@ -158,9 +159,9 @@ func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database,
 			userVerMap[u.Name] = u.Password
 		}
 		if u.GsmSecretRef != nil {
-			userSpecs = append(userSpecs, &capb.User{
+			userSpecs = append(userSpecs, &controllers.User{
 				Name: u.Name,
-				PasswordGsmSecretRef: &capb.GsmSecretReference{
+				PasswordGsmSecretRef: &controllers.GsmSecretReference{
 					ProjectId: u.GsmSecretRef.ProjectId,
 					SecretId:  u.GsmSecretRef.SecretId,
 					Version:   u.GsmSecretRef.Version,
@@ -179,14 +180,7 @@ func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database,
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, db.Namespace, db.Spec.Instance)
-	if err != nil {
-		log.Error(err, "resources/NewUsers: failed to create config agent client")
-		return err
-	}
-	defer closeConn()
-
-	req := &capb.CreateUsersRequest{
+	req := &controllers.CreateUsersRequest{
 		CdbName:       cdbName,
 		PdbName:       db.Spec.Name,
 		GrantPrivsCmd: grantsCmds,
@@ -198,7 +192,7 @@ func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database,
 	if userSpecs != nil {
 		req.User = userSpecs
 	}
-	cdOut, err := caClient.CreateUsers(ctx, req)
+	cdOut, err := controllers.CreateUsers(ctx, r, r.DatabaseClientFactory, db.Namespace, db.Spec.Instance, *req)
 	if err != nil {
 		log.Error(err, "resources/NewUsers: failed on CreateUsers gRPC call")
 	}

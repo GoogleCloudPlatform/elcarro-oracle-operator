@@ -115,11 +115,12 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&databasecontroller.DatabaseReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Database"),
-		Scheme:        mgr.GetScheme(),
-		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
-		Recorder:      mgr.GetEventRecorderFor("database-controller"),
+		Client:                mgr.GetClient(),
+		Log:                   ctrl.Log.WithName("controllers").WithName("Database"),
+		Scheme:                mgr.GetScheme(),
+		ClientFactory:         &controllers.GrpcConfigAgentClientFactory{},
+		Recorder:              mgr.GetEventRecorderFor("database-controller"),
+		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Database")
 		os.Exit(1)
