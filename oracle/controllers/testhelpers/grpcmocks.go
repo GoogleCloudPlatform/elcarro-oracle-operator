@@ -66,7 +66,6 @@ type FakeConfigAgentClient struct {
 	bootstrapDatabaseCalledCnt     int32
 	bootstrapStandbyCalledCnt      int32
 	bounceDatabaseCalledCnt        int32
-	createListenerCalledCnt        int32
 	getOperationCalledCnt          int32
 	deleteOperationCalledCnt       int32
 	dataPumpImportCalledCnt        int32
@@ -97,6 +96,8 @@ type FakeDatabaseClient struct {
 	recoverConfigFileCalledCnt   int32
 	checkDatabaseStateCalledCnt  int32
 	runSQLPlusCalledCnt          int32
+	bootstrapStandbyCalledCnt    int32
+	createCDBAsyncCalledCnt      int32
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
@@ -196,12 +197,14 @@ func (cli *FakeDatabaseClient) SetListenerRegistration(ctx context.Context, in *
 
 // BootstrapStandby performs bootstrap tasks that have to be done by dbdaemon.
 func (cli *FakeDatabaseClient) BootstrapStandby(ctx context.Context, in *dbdpb.BootstrapStandbyRequest, opts ...grpc.CallOption) (*dbdpb.BootstrapStandbyResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.bootstrapStandbyCalledCnt, 1)
+	return nil, nil
 }
 
 // CreateCDBAsync creates a database instance asynchronously.
 func (cli *FakeDatabaseClient) CreateCDBAsync(ctx context.Context, in *dbdpb.CreateCDBAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.createCDBAsyncCalledCnt, 1)
+	return nil, nil
 }
 
 // BootstrapDatabaseAsync bootstraps seeded database asynchronously.
@@ -383,18 +386,6 @@ func (cli *FakeConfigAgentClient) CheckStatus(context.Context, *capb.CheckStatus
 	return nil, nil
 }
 
-// CreateCDB wrapper.
-func (cli *FakeConfigAgentClient) CreateCDB(context.Context, *capb.CreateCDBRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	atomic.AddInt32(&cli.createCDBCalledCnt, 1)
-	return nil, nil
-}
-
-// CreateListener wrapper.
-func (cli *FakeConfigAgentClient) CreateListener(context.Context, *capb.CreateListenerRequest, ...grpc.CallOption) (*capb.CreateListenerResponse, error) {
-	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
-	return nil, nil
-}
-
 // GetOperation gets the latest state of a long-running operation. Clients can
 // use this method to poll the operation result.
 func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOperationRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
@@ -426,12 +417,6 @@ func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOpe
 	}
 }
 
-// CreateCDBUser wrapper.
-func (cli *FakeConfigAgentClient) CreateCDBUser(context.Context, *capb.CreateCDBUserRequest, ...grpc.CallOption) (*capb.CreateCDBUserResponse, error) {
-	atomic.AddInt32(&cli.createListenerCalledCnt, 1)
-	return nil, nil
-}
-
 // BootstrapDatabase wrapper.
 func (cli *FakeConfigAgentClient) BootstrapDatabase(context.Context, *capb.BootstrapDatabaseRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
 	atomic.AddInt32(&cli.bootstrapDatabaseCalledCnt, 1)
@@ -441,12 +426,6 @@ func (cli *FakeConfigAgentClient) BootstrapDatabase(context.Context, *capb.Boots
 // BootstrapDatabaseCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) BootstrapDatabaseCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.bootstrapDatabaseCalledCnt))
-}
-
-// BootstrapStandby wrapper.
-func (cli *FakeConfigAgentClient) BootstrapStandby(context.Context, *capb.BootstrapStandbyRequest, ...grpc.CallOption) (*capb.BootstrapStandbyResponse, error) {
-	atomic.AddInt32(&cli.bootstrapStandbyCalledCnt, 1)
-	return nil, nil
 }
 
 // DataPumpImport wrapper.

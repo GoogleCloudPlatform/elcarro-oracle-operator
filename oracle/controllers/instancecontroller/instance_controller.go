@@ -288,10 +288,9 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 			return ctrl.Result{}, err
 		}
 		defer conn.Close()
-		caClient := capb.NewConfigAgentClient(conn)
 		// promote the standby instance, bootstrap is part of promotion.
 		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.PromoteStandbyInProgress, "")
-		if err := r.bootstrapStandby(ctx, &inst, caClient, log); err != nil {
+		if err := r.bootstrapStandby(ctx, &inst, log); err != nil {
 			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, k8s.PromoteStandbyFailed, fmt.Sprintf("Error promoting standby: %v", err))
 			return ctrl.Result{}, err
 		}
@@ -401,13 +400,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 	switch dbInstanceCond.Reason {
 	case k8s.CreatePending:
 		// Launch the CreateCDB LRO
-		caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
-		if err != nil {
-			log.Error(err, "failed to create config agent client")
-			return ctrl.Result{}, err
-		}
-		defer closeConn()
-		_, err = caClient.CreateCDB(ctx, &capb.CreateCDBRequest{
+		req := &controllers.CreateCDBRequest{
 			Sid:           inst.Spec.CDBName,
 			DbUniqueName:  inst.Spec.DBUniqueName,
 			DbDomain:      controllers.GetDBDomain(inst),
@@ -416,8 +409,9 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 			//DBCA expects the parameters in the following string array format
 			// ["key1=val1", "key2=val2","key3=val3"]
 			AdditionalParams: mapsToStringArray(inst.Spec.Parameters),
-			LroInput:         &capb.LROInput{OperationId: lroCreateCDBOperationID(*inst)},
-		})
+			LroInput:         &controllers.LROInput{OperationId: lroCreateCDBOperationID(*inst)},
+		}
+		_, err = controllers.CreateCDB(ctx, r, r.DatabaseClientFactory, inst.GetNamespace(), inst.GetName(), *req)
 		if err != nil {
 			if !controllers.IsAlreadyExistsError(err) {
 				log.Error(err, "CreateCDB failed")

@@ -23,7 +23,6 @@ option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/orac
 
 service ConfigAgent {
   rpc CreateDatabase(CreateDatabaseRequest) returns (CreateDatabaseResponse) {}
-  rpc CreateCDBUser(CreateCDBUserRequest) returns (CreateCDBUserResponse) {}
   rpc UsersChanged(UsersChangedRequest) returns (UsersChangedResponse) {}
   rpc UpdateUsers(UpdateUsersRequest) returns (UpdateUsersResponse) {}
   rpc VerifyPhysicalBackup(VerifyPhysicalBackupRequest)
@@ -33,41 +32,15 @@ service ConfigAgent {
   rpc PhysicalRestore(PhysicalRestoreRequest)
       returns (google.longrunning.Operation) {}
   rpc CheckStatus(CheckStatusRequest) returns (CheckStatusResponse) {}
-  rpc CreateCDB(CreateCDBRequest) returns (google.longrunning.Operation) {}
-  rpc CreateListener(CreateListenerRequest) returns (CreateListenerResponse) {}
   rpc DataPumpImport(DataPumpImportRequest)
       returns (google.longrunning.Operation);
   rpc BootstrapDatabase(BootstrapDatabaseRequest)
       returns (google.longrunning.Operation) {};
-  rpc BootstrapStandby(BootstrapStandbyRequest)
-      returns (BootstrapStandbyResponse) {};
   rpc DataPumpExport(DataPumpExportRequest)
       returns (google.longrunning.Operation);
   rpc GetParameterTypeValue(GetParameterTypeValueRequest)
       returns (GetParameterTypeValueResponse) {}
 }
-
-message CreateCDBRequest {
-  string oracle_home = 1;
-  string sid = 2;
-  string db_unique_name = 3;
-  string character_set = 4;
-  int32 memory_percent = 5;
-  repeated string additional_params = 6;
-  string version = 7;
-  string db_domain = 8;
-  LROInput lro_input = 9;
-}
-
-message CreateListenerRequest {
-  string name = 1;
-  int32 port = 2;
-  string protocol = 3;
-  string oracle_home = 4;
-  string db_domain = 5;
-}
-
-message CreateListenerResponse {}
 
 message GsmSecretReference {
   string project_id = 1;
@@ -90,17 +63,6 @@ message CreateDatabaseRequest {
 }
 
 message CreateDatabaseResponse {
-  string status = 1;
-  string error_message = 2;
-}
-
-message CreateCDBUserRequest {
-  string cdb_name = 1;
-  repeated string create_users_cmd = 3;
-  repeated string grant_privs_cmd = 4;
-}
-
-message CreateCDBUserResponse {
   string status = 1;
   string error_message = 2;
 }
@@ -256,24 +218,6 @@ message BootstrapDatabaseRequest {
 }
 
 message BootstrapDatabaseResponse {}
-
-message BootstrapStandbyRequest {
-  string cdb_name = 1;
-  string version = 2;
-  string dbdomain = 3;
-}
-
-message BootstrapStandbyResponse {
-  message User {
-    string user_name = 1;
-    repeated string privs = 2;
-  }
-  message PDB {
-    string pdb_name = 1;
-    repeated User users = 2;
-  }
-  repeated PDB pdbs = 1;
-}
 
 message GetParameterTypeValueRequest {
   repeated string keys = 1;

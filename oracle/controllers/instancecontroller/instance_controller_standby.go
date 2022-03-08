@@ -24,21 +24,21 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 )
 
-func (r *InstanceReconciler) bootstrapStandby(ctx context.Context, inst *v1alpha1.Instance, caClient capb.ConfigAgentClient, log logr.Logger) error {
-	bootstrapResp, err := caClient.BootstrapStandby(ctx, &capb.BootstrapStandbyRequest{
+func (r *InstanceReconciler) bootstrapStandby(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) error {
+	req := &controllers.BootstrapStandbyRequest{
 		CdbName:  inst.Spec.CDBName,
 		Version:  inst.Spec.Version,
 		Dbdomain: controllers.GetDBDomain(inst),
-	})
+	}
+	migratedPDBs, err := controllers.BootstrapStandby(ctx, r, r.DatabaseClientFactory, inst.GetNamespace(), inst.GetName(), *req)
 	if err != nil {
 		return fmt.Errorf("failed to bootstrap the standby instance: %v", err)
 	}
 
 	// Create missing resources for migrated database.
-	for _, pdb := range bootstrapResp.GetPdbs() {
+	for _, pdb := range migratedPDBs {
 		var users []v1alpha1.UserSpec
 		for _, u := range pdb.Users {
 			var privs []v1alpha1.PrivilegeSpec
@@ -55,11 +55,11 @@ func (r *InstanceReconciler) bootstrapStandby(ctx context.Context, inst *v1alpha
 		database := &v1alpha1.Database{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: inst.GetNamespace(),
-				Name:      pdb.GetPdbName(),
+				Name:      pdb.PdbName,
 			},
 			Spec: v1alpha1.DatabaseSpec{
 				DatabaseSpec: commonv1alpha1.DatabaseSpec{
-					Name:     pdb.GetPdbName(),
+					Name:     pdb.PdbName,
 					Instance: inst.GetName(),
 				},
 				Users: users,

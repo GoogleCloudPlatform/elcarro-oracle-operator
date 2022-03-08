@@ -24,6 +24,7 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"k8s.io/klog/v2"
@@ -92,6 +93,52 @@ func IsLROOperationDone(ctx context.Context, dbClientFactory DatabaseClientFacto
 	}
 
 	return true, nil
+}
+
+type CreateCDBRequest struct {
+	OracleHome       string
+	Sid              string
+	DbUniqueName     string
+	CharacterSet     string
+	MemoryPercent    int32
+	AdditionalParams []string
+	Version          string
+	DbDomain         string
+	LroInput         *LROInput
+}
+
+type LROInput struct {
+	OperationId string
+}
+
+// CreateCDB creates a CDB using dbca.
+func CreateCDB(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req CreateCDBRequest) (*lropb.Operation, error) {
+	klog.InfoS("CreateCDB", "namespace", namespace, "instName", instName, "sid", req.Sid)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("CreateCDB: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	lro, err := dbClient.CreateCDBAsync(ctx, &dbdpb.CreateCDBAsyncRequest{
+		SyncRequest: &dbdpb.CreateCDBRequest{
+			OracleHome:       req.OracleHome,
+			DatabaseName:     req.Sid,
+			Version:          req.Version,
+			DbUniqueName:     req.DbUniqueName,
+			CharacterSet:     req.CharacterSet,
+			MemoryPercent:    req.MemoryPercent,
+			AdditionalParams: req.AdditionalParams,
+			DbDomain:         req.DbDomain,
+		},
+		LroInput: &dbdpb.LROInput{OperationId: req.LroInput.OperationId},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("CreateCDB: failed to create CDB: %v", err)
+	}
+
+	klog.InfoS("CreateCDB successfully completed")
+	return lro, nil
 }
 
 type BounceDatabaseRequest struct {
@@ -313,7 +360,7 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 	// UsersChanged is called before this function by caller (db controller) to check if
 	// the users requested are already existing.
 	// Thus no duplicated list user check is performed here.
-	klog.InfoS("CreateUsers", "namespace", namespace, "CdbName", req.CdbName, "PdbName", req.PdbName)
+	klog.InfoS("CreateUsers", "namespace", namespace, "cdbName", req.CdbName, "pdbName", req.PdbName)
 
 	p, err := buildPDB(req.CdbName, req.PdbName, "", version, consts.ListenerNames, true)
 	if err != nil {
@@ -322,14 +369,14 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 
 	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("CreateUsers: failed to create database daemon client: %v", err)
 	}
 	defer closeConn()
 	klog.InfoS("CreateUsers", "client", dbClient)
 
 	_, err = dbClient.CheckDatabaseState(ctx, &dbdpb.CheckDatabaseStateRequest{IsCdb: true, DatabaseName: req.CdbName, DbDomain: req.DbDomain})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("CreateUsers: failed to check a CDB state: %v", err)
 	}
 	klog.InfoS("CreateUsers: pre-flight check#: CDB is up and running")
 
@@ -341,10 +388,10 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 			var pwd string
 			pwd, err = AccessSecretVersionFunc(ctx, fmt.Sprintf(gsmSecretStr, u.PasswordGsmSecretRef.ProjectId, u.PasswordGsmSecretRef.SecretId, u.PasswordGsmSecretRef.Version))
 			if err != nil {
-				return "", err
+				return "", fmt.Errorf("CreateUsers: failed to retrieve secret from Google Secret Manager: %v", err)
 			}
 			if _, err = sql.Identifier(pwd); err != nil {
-				return "", err
+				return "", fmt.Errorf("CreateUsers: Google Secret Manager contains an invalid password for user %q: %v", u.Name, err)
 			}
 
 			usersCmd = append(usersCmd, sql.QueryCreateUser(u.Name, pwd))
@@ -352,7 +399,7 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 	}
 	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: usersCmd, Suppress: false})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("CreateUsers: failed to create users in a PDB %s: %v", p.pluggableDatabaseName, err)
 	}
 	klog.InfoS("CreateUsers: create users in PDB DONE", "pdb", p.pluggableDatabaseName)
 
@@ -360,7 +407,7 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 	privsCmd = append(privsCmd, req.GrantPrivsCmd...)
 	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: privsCmd, Suppress: false})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("CreateUsers: failed to grant privileges in a PDB %s: %v", p.pluggableDatabaseName, err)
 	}
 	klog.InfoS("CreateUsers: DONE", "pdb", p.pluggableDatabaseName)
 
@@ -390,4 +437,135 @@ var AccessSecretVersionFunc = func(ctx context.Context, name string) (string, er
 	}
 
 	return string(result.Payload.Data[:]), nil
+}
+
+type BootstrapStandbyRequest struct {
+	CdbName  string
+	Version  string
+	Dbdomain string
+}
+
+type BootstrapStandbyResponseUser struct {
+	UserName string
+	Privs    []string
+}
+
+type BootstrapStandbyResponsePDB struct {
+	PdbName string
+	Users   []*BootstrapStandbyResponseUser
+}
+
+// BootstrapStandby performs bootstrap steps for standby instance.
+func BootstrapStandby(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req BootstrapStandbyRequest) ([]*BootstrapStandbyResponsePDB, error) {
+	klog.InfoS("BootstrapStandby", "namespace", namespace, "instName", instName, "cdbName", req.CdbName, "version", req.Version, "dbdomain", req.Dbdomain)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: failed to create database daemon client: %v", err)
+	}
+	defer closeConn()
+	klog.InfoS("CreateUsers", "client", dbClient)
+
+	// skip if already bootstrapped
+	resp, err := dbClient.FileExists(ctx, &dbdpb.FileExistsRequest{Name: consts.ProvisioningDoneFile})
+	if err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: failed to check a provisioning file: %v", err)
+	}
+
+	if resp.Exists {
+		klog.InfoS("BootstrapStandby: standby is already provisioned")
+		return nil, nil
+	}
+
+	task := provision.NewBootstrapDatabaseTaskForStandby(req.CdbName, req.Dbdomain, dbClient)
+
+	if err := task.Call(ctx); err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: failed to bootstrap standby database : %v", err)
+	}
+	klog.InfoS("BootstrapStandby: bootstrap task completed successfully")
+
+	// create listeners
+	err = CreateListener(ctx, r, dbClientFactory, namespace, instName, &CreateListenerRequest{
+		Name:     req.CdbName,
+		Port:     consts.SecureListenerPort,
+		Protocol: "TCP",
+		DbDomain: req.Dbdomain,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: failed to create listener: %v", err)
+	}
+
+	if _, err := dbClient.BootstrapStandby(ctx, &dbdpb.BootstrapStandbyRequest{
+		CdbName: req.CdbName,
+	}); err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: dbdaemon failed to bootstrap standby: %v", err)
+	}
+	klog.InfoS("BootstrapStandby: dbdaemon completed bootstrap standby successfully")
+
+	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{consts.OpenPluggableDatabaseSQL}, Suppress: false})
+	if err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: failed to open pluggable database: %v", err)
+	}
+
+	// fetch existing pdbs/users to create database resources for
+	knownPDBsResp, err := dbClient.KnownPDBs(ctx, &dbdpb.KnownPDBsRequest{
+		IncludeSeed: false,
+		OnlyOpen:    false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("BootstrapStandby: dbdaemon failed to get KnownPDBs: %v", err)
+	}
+
+	var migratedPDBs []*BootstrapStandbyResponsePDB
+	for _, pdb := range knownPDBsResp.GetKnownPdbs() {
+		us := newUsers(pdb, []*User{})
+		_, _, existingUsers, _, err := us.diff(ctx, dbClient)
+		if err != nil {
+			return nil, fmt.Errorf("BootstrapStandby: failed to get existing users for pdb %v: %v", pdb, err)
+		}
+		var migratedUsers []*BootstrapStandbyResponseUser
+		for _, u := range existingUsers {
+			migratedUsers = append(migratedUsers, &BootstrapStandbyResponseUser{
+				UserName: u.GetUserName(),
+				Privs:    u.GetUserEnvPrivs(),
+			})
+		}
+		migratedPDBs = append(migratedPDBs, &BootstrapStandbyResponsePDB{
+			PdbName: strings.ToLower(pdb),
+			Users:   migratedUsers,
+		})
+	}
+
+	klog.InfoS("BootstrapStandby: fetch existing pdbs and users successfully.", "MigratedPDBs", migratedPDBs)
+	return migratedPDBs, nil
+}
+
+type CreateListenerRequest struct {
+	Name       string
+	Port       int32
+	Protocol   string
+	OracleHome string
+	DbDomain   string
+}
+
+// CreateListener invokes dbdaemon.CreateListener.
+func CreateListener(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req *CreateListenerRequest) error {
+	klog.InfoS("CreateListener", "namespace", namespace, "instName", instName, "listenerName", req.Name, "port", req.Port, "protocol", req.Protocol, "oracleHome", req.OracleHome, "dbDomain", req.DbDomain)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return fmt.Errorf("configagent/CreateListener: failed to create listener: %v", err)
+	}
+	defer closeConn()
+	klog.InfoS("CreateListener", "dbClient", dbClient)
+
+	_, err = dbClient.CreateListener(ctx, &dbdpb.CreateListenerRequest{
+		DatabaseName: req.Name,
+		Port:         req.Port,
+		Protocol:     req.Protocol,
+		OracleHome:   req.OracleHome,
+		DbDomain:     req.DbDomain,
+	})
+	if err != nil {
+		return fmt.Errorf("CreateListener: error while creating listener: %v", err)
+	}
+	return nil
 }
