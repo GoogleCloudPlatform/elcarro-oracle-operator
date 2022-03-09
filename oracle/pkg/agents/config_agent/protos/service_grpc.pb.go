@@ -19,15 +19,11 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigAgentClient interface {
-	CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error)
-	UsersChanged(ctx context.Context, in *UsersChangedRequest, opts ...grpc.CallOption) (*UsersChangedResponse, error)
-	UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error)
 	VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(ctx context.Context, in *PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	PhysicalRestore(ctx context.Context, in *PhysicalRestoreRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error)
 	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
 }
@@ -38,33 +34,6 @@ type configAgentClient struct {
 
 func NewConfigAgentClient(cc grpc.ClientConnInterface) ConfigAgentClient {
 	return &configAgentClient{cc}
-}
-
-func (c *configAgentClient) CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error) {
-	out := new(CreateDatabaseResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) UsersChanged(ctx context.Context, in *UsersChangedRequest, opts ...grpc.CallOption) (*UsersChangedResponse, error) {
-	out := new(UsersChangedResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/UsersChanged", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error) {
-	out := new(UpdateUsersResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/UpdateUsers", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *configAgentClient) VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error) {
@@ -112,15 +81,6 @@ func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImpo
 	return out, nil
 }
 
-func (c *configAgentClient) BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/BootstrapDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DataPumpExport", in, out, opts...)
@@ -143,15 +103,11 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 // All implementations must embed UnimplementedConfigAgentServer
 // for forward compatibility
 type ConfigAgentServer interface {
-	CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error)
-	UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error)
-	UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error)
 	VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error)
 	PhysicalRestore(context.Context, *PhysicalRestoreRequest) (*longrunning.Operation, error)
 	CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error)
 	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
-	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
@@ -161,15 +117,6 @@ type ConfigAgentServer interface {
 type UnimplementedConfigAgentServer struct {
 }
 
-func (UnimplementedConfigAgentServer) CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateDatabase not implemented")
-}
-func (UnimplementedConfigAgentServer) UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UsersChanged not implemented")
-}
-func (UnimplementedConfigAgentServer) UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateUsers not implemented")
-}
 func (UnimplementedConfigAgentServer) VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyPhysicalBackup not implemented")
 }
@@ -184,9 +131,6 @@ func (UnimplementedConfigAgentServer) CheckStatus(context.Context, *CheckStatusR
 }
 func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
-}
-func (UnimplementedConfigAgentServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
 }
 func (UnimplementedConfigAgentServer) DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpExport not implemented")
@@ -205,60 +149,6 @@ type UnsafeConfigAgentServer interface {
 
 func RegisterConfigAgentServer(s grpc.ServiceRegistrar, srv ConfigAgentServer) {
 	s.RegisterService(&ConfigAgent_ServiceDesc, srv)
-}
-
-func _ConfigAgent_CreateDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateDatabaseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CreateDatabase(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CreateDatabase",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CreateDatabase(ctx, req.(*CreateDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_UsersChanged_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UsersChangedRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).UsersChanged(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/UsersChanged",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).UsersChanged(ctx, req.(*UsersChangedRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_UpdateUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateUsersRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).UpdateUsers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/UpdateUsers",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).UpdateUsers(ctx, req.(*UpdateUsersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _ConfigAgent_VerifyPhysicalBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -351,24 +241,6 @@ func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_BootstrapDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BootstrapDatabaseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).BootstrapDatabase(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/BootstrapDatabase",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).BootstrapDatabase(ctx, req.(*BootstrapDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_DataPumpExport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DataPumpExportRequest)
 	if err := dec(in); err != nil {
@@ -413,18 +285,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ConfigAgentServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateDatabase",
-			Handler:    _ConfigAgent_CreateDatabase_Handler,
-		},
-		{
-			MethodName: "UsersChanged",
-			Handler:    _ConfigAgent_UsersChanged_Handler,
-		},
-		{
-			MethodName: "UpdateUsers",
-			Handler:    _ConfigAgent_UpdateUsers_Handler,
-		},
-		{
 			MethodName: "VerifyPhysicalBackup",
 			Handler:    _ConfigAgent_VerifyPhysicalBackup_Handler,
 		},
@@ -443,10 +303,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataPumpImport",
 			Handler:    _ConfigAgent_DataPumpImport_Handler,
-		},
-		{
-			MethodName: "BootstrapDatabase",
-			Handler:    _ConfigAgent_BootstrapDatabase_Handler,
 		},
 		{
 			MethodName: "DataPumpExport",

@@ -172,7 +172,7 @@ func testInstanceProvision() {
 		Expect(serviceNames).To(Equal(expectedNames))
 
 		By("setting Instance as Ready")
-		fakeClientFactory.Caclient.SetAsyncBootstrapDatabase(true)
+		fakeDatabaseClientFactory.Dbclient.SetAsyncBootstrapDatabase(true)
 		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 
 		createdInstance := &v1alpha1.Instance{}
@@ -206,7 +206,7 @@ func testInstanceProvision() {
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
 		Eventually(fakeDatabaseClientFactory.Dbclient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
-		Expect(fakeClientFactory.Caclient.BootstrapDatabaseCalledCnt()).Should(BeNumerically(">=", 1))
+		Expect(fakeDatabaseClientFactory.Dbclient.BootstrapDatabaseAsyncCalledCnt()).Should(BeNumerically(">=", 1))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 	})

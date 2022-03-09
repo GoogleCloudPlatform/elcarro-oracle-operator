@@ -37,7 +37,6 @@ import (
 	commonutils "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
@@ -441,24 +440,22 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.BootstrapPending:
 		// Launch the BootstrapDatabase LRO
-		caClient, closeConn, err := r.ClientFactory.New(ctx, r, inst.Namespace, inst.Name)
 		if err != nil {
 			log.Error(err, "failed to create config agent client")
 			return ctrl.Result{}, err
 		}
-		defer closeConn()
-		bootstrapMode := capb.BootstrapDatabaseRequest_ProvisionUnseeded
+		bootstrapMode := controllers.BootstrapDatabaseRequest_ProvisionUnseeded
 		if isImageSeeded {
-			bootstrapMode = capb.BootstrapDatabaseRequest_ProvisionSeeded
+			bootstrapMode = controllers.BootstrapDatabaseRequest_ProvisionSeeded
 		}
-
-		lro, err := caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
+		req := &controllers.BootstrapDatabaseRequest{
 			CdbName:      inst.Spec.CDBName,
 			DbUniqueName: inst.Spec.DBUniqueName,
 			Dbdomain:     controllers.GetDBDomain(inst),
 			Mode:         bootstrapMode,
-			LroInput:     &capb.LROInput{OperationId: lroBootstrapCDBOperationID(*inst)},
-		})
+			LroInput:     &controllers.LROInput{OperationId: lroBootstrapCDBOperationID(*inst)},
+		}
+		lro, err := controllers.BootstrapDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *req)
 
 		if err != nil {
 			if !controllers.IsAlreadyExistsError(err) {
