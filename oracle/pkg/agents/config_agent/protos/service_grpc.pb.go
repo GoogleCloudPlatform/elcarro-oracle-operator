@@ -20,18 +20,14 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigAgentClient interface {
 	CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error)
-	CreateCDBUser(ctx context.Context, in *CreateCDBUserRequest, opts ...grpc.CallOption) (*CreateCDBUserResponse, error)
 	UsersChanged(ctx context.Context, in *UsersChangedRequest, opts ...grpc.CallOption) (*UsersChangedResponse, error)
 	UpdateUsers(ctx context.Context, in *UpdateUsersRequest, opts ...grpc.CallOption) (*UpdateUsersResponse, error)
 	VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(ctx context.Context, in *PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	PhysicalRestore(ctx context.Context, in *PhysicalRestoreRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error)
-	CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	CreateListener(ctx context.Context, in *CreateListenerRequest, opts ...grpc.CallOption) (*CreateListenerResponse, error)
 	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
 }
@@ -47,15 +43,6 @@ func NewConfigAgentClient(cc grpc.ClientConnInterface) ConfigAgentClient {
 func (c *configAgentClient) CreateDatabase(ctx context.Context, in *CreateDatabaseRequest, opts ...grpc.CallOption) (*CreateDatabaseResponse, error) {
 	out := new(CreateDatabaseResponse)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) CreateCDBUser(ctx context.Context, in *CreateCDBUserRequest, opts ...grpc.CallOption) (*CreateCDBUserResponse, error) {
-	out := new(CreateCDBUserResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateCDBUser", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,24 +103,6 @@ func (c *configAgentClient) CheckStatus(ctx context.Context, in *CheckStatusRequ
 	return out, nil
 }
 
-func (c *configAgentClient) CreateCDB(ctx context.Context, in *CreateCDBRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateCDB", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) CreateListener(ctx context.Context, in *CreateListenerRequest, opts ...grpc.CallOption) (*CreateListenerResponse, error) {
-	out := new(CreateListenerResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CreateListener", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DataPumpImport", in, out, opts...)
@@ -146,15 +115,6 @@ func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImpo
 func (c *configAgentClient) BootstrapDatabase(ctx context.Context, in *BootstrapDatabaseRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
 	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/BootstrapDatabase", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) BootstrapStandby(ctx context.Context, in *BootstrapStandbyRequest, opts ...grpc.CallOption) (*BootstrapStandbyResponse, error) {
-	out := new(BootstrapStandbyResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/BootstrapStandby", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,18 +144,14 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 // for forward compatibility
 type ConfigAgentServer interface {
 	CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error)
-	CreateCDBUser(context.Context, *CreateCDBUserRequest) (*CreateCDBUserResponse, error)
 	UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error)
 	UpdateUsers(context.Context, *UpdateUsersRequest) (*UpdateUsersResponse, error)
 	VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error)
 	PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error)
 	PhysicalRestore(context.Context, *PhysicalRestoreRequest) (*longrunning.Operation, error)
 	CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error)
-	CreateCDB(context.Context, *CreateCDBRequest) (*longrunning.Operation, error)
-	CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error)
 	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
 	BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error)
-	BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
@@ -207,9 +163,6 @@ type UnimplementedConfigAgentServer struct {
 
 func (UnimplementedConfigAgentServer) CreateDatabase(context.Context, *CreateDatabaseRequest) (*CreateDatabaseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateDatabase not implemented")
-}
-func (UnimplementedConfigAgentServer) CreateCDBUser(context.Context, *CreateCDBUserRequest) (*CreateCDBUserResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateCDBUser not implemented")
 }
 func (UnimplementedConfigAgentServer) UsersChanged(context.Context, *UsersChangedRequest) (*UsersChangedResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UsersChanged not implemented")
@@ -229,20 +182,11 @@ func (UnimplementedConfigAgentServer) PhysicalRestore(context.Context, *Physical
 func (UnimplementedConfigAgentServer) CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckStatus not implemented")
 }
-func (UnimplementedConfigAgentServer) CreateCDB(context.Context, *CreateCDBRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateCDB not implemented")
-}
-func (UnimplementedConfigAgentServer) CreateListener(context.Context, *CreateListenerRequest) (*CreateListenerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateListener not implemented")
-}
 func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
 }
 func (UnimplementedConfigAgentServer) BootstrapDatabase(context.Context, *BootstrapDatabaseRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BootstrapDatabase not implemented")
-}
-func (UnimplementedConfigAgentServer) BootstrapStandby(context.Context, *BootstrapStandbyRequest) (*BootstrapStandbyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BootstrapStandby not implemented")
 }
 func (UnimplementedConfigAgentServer) DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpExport not implemented")
@@ -277,24 +221,6 @@ func _ConfigAgent_CreateDatabase_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigAgentServer).CreateDatabase(ctx, req.(*CreateDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_CreateCDBUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateCDBUserRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CreateCDBUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CreateCDBUser",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CreateCDBUser(ctx, req.(*CreateCDBUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -407,42 +333,6 @@ func _ConfigAgent_CheckStatus_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAgent_CreateCDB_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateCDBRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CreateCDB(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CreateCDB",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CreateCDB(ctx, req.(*CreateCDBRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_CreateListener_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateListenerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CreateListener(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CreateListener",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CreateListener(ctx, req.(*CreateListenerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DataPumpImportRequest)
 	if err := dec(in); err != nil {
@@ -475,24 +365,6 @@ func _ConfigAgent_BootstrapDatabase_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigAgentServer).BootstrapDatabase(ctx, req.(*BootstrapDatabaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_BootstrapStandby_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BootstrapStandbyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).BootstrapStandby(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/BootstrapStandby",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).BootstrapStandby(ctx, req.(*BootstrapStandbyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -545,10 +417,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigAgent_CreateDatabase_Handler,
 		},
 		{
-			MethodName: "CreateCDBUser",
-			Handler:    _ConfigAgent_CreateCDBUser_Handler,
-		},
-		{
 			MethodName: "UsersChanged",
 			Handler:    _ConfigAgent_UsersChanged_Handler,
 		},
@@ -573,24 +441,12 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigAgent_CheckStatus_Handler,
 		},
 		{
-			MethodName: "CreateCDB",
-			Handler:    _ConfigAgent_CreateCDB_Handler,
-		},
-		{
-			MethodName: "CreateListener",
-			Handler:    _ConfigAgent_CreateListener_Handler,
-		},
-		{
 			MethodName: "DataPumpImport",
 			Handler:    _ConfigAgent_DataPumpImport_Handler,
 		},
 		{
 			MethodName: "BootstrapDatabase",
 			Handler:    _ConfigAgent_BootstrapDatabase_Handler,
-		},
-		{
-			MethodName: "BootstrapStandby",
-			Handler:    _ConfigAgent_BootstrapStandby_Handler,
 		},
 		{
 			MethodName: "DataPumpExport",
