@@ -17,10 +17,8 @@ package configagent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
@@ -36,7 +34,6 @@ import (
 	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
 )
 
 const (
@@ -225,213 +222,6 @@ func (s *ConfigServer) PhysicalBackup(ctx context.Context, req *pb.PhysicalBacku
 	})
 }
 
-// CreateDatabase creates PDB as requested.
-func (s *ConfigServer) CreateDatabase(ctx context.Context, req *pb.CreateDatabaseRequest) (*pb.CreateDatabaseResponse, error) {
-	klog.InfoS("configagent/CreateDatabase", "req", req)
-
-	var pwd string
-	var err error
-
-	toUpdatePlaintextAdminPwd := req.Password != "" && req.Password != req.LastPassword
-	if toUpdatePlaintextAdminPwd {
-		pwd = req.Password
-	}
-
-	toUpdateGsmAdminPwd := req.AdminPasswordGsmSecretRef != nil && (req.AdminPasswordGsmSecretRef.Version != req.AdminPasswordGsmSecretRef.LastVersion || req.AdminPasswordGsmSecretRef.Version == "latest")
-	if toUpdateGsmAdminPwd {
-		pwd, err = AccessSecretVersionFunc(ctx, fmt.Sprintf(gsmSecretStr, req.AdminPasswordGsmSecretRef.ProjectId, req.AdminPasswordGsmSecretRef.SecretId, req.AdminPasswordGsmSecretRef.Version))
-		if err != nil {
-			return nil, fmt.Errorf("configagent/CreateDatabase: failed to retrieve secret from Google Secret Manager: %v", err)
-		}
-	}
-
-	p, err := buildPDB(req.CdbName, req.Name, pwd, version, consts.ListenerNames, true)
-	if err != nil {
-		return nil, err
-	}
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateDatabase: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/CreateDatabase", "client", client)
-
-	_, err = client.CheckDatabaseState(ctx, &dbdpb.CheckDatabaseStateRequest{IsCdb: true, DatabaseName: req.GetCdbName(), DbDomain: req.GetDbDomain()})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateDatabase: failed to check a CDB state: %v", err)
-	}
-	klog.InfoS("configagent/CreateDatabase: pre-flight check#1: CDB is up and running")
-
-	pdbCheckCmd := []string{fmt.Sprintf("select open_mode, restricted from v$pdbs where name = '%s'", sql.StringParam(p.pluggableDatabaseName))}
-	resp, err := client.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbCheckCmd, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateDatabase: failed to check if a PDB called %s already exists: %v", p.pluggableDatabaseName, err)
-	}
-	klog.InfoS("configagent/CreateDatabase pre-flight check#2", "pdb", p.pluggableDatabaseName, "resp", resp)
-
-	if resp.Msg != nil {
-		if toUpdateGsmAdminPwd || toUpdatePlaintextAdminPwd {
-			sqls := append([]string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}, []string{sql.QueryAlterUser(pdbAdmin, pwd)}...)
-			if _, err := client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
-				Commands: sqls,
-			}); err != nil {
-				return nil, fmt.Errorf("failed to alter user %s: %v", pdbAdmin, err)
-			}
-			klog.InfoS("configagent/CreateDatabase update pdb admin user succeeded", "user", pdbAdmin)
-			return &pb.CreateDatabaseResponse{Status: "AdminUserSyncCompleted"}, nil
-		}
-		klog.InfoS("configagent/CreateDatabase pre-flight check#2", "pdb", p.pluggableDatabaseName, "respMsg", resp.Msg)
-		return &pb.CreateDatabaseResponse{Status: "AlreadyExists"}, nil
-	}
-	klog.InfoS("configagent/CreateDatabase pre-flight check#2: pdb doesn't exist, proceeding to create", "pdb", p.pluggableDatabaseName)
-
-	cdbDir := fmt.Sprintf(consts.DataDir, consts.DataMount, req.GetCdbName())
-	pdbDir := filepath.Join(cdbDir, strings.ToUpper(req.GetName()))
-	toCreate := []string{
-		fmt.Sprintf("%s/data", pdbDir),
-		fmt.Sprintf("%s/%s", pdbDir, consts.DpdumpDir.Linux),
-		fmt.Sprintf("%s/rman", consts.OracleBase),
-	}
-
-	var dirs []*dbdpb.CreateDirsRequest_DirInfo
-	for _, d := range toCreate {
-		dirs = append(dirs, &dbdpb.CreateDirsRequest_DirInfo{
-			Path: d,
-			Perm: 0760,
-		})
-	}
-
-	if _, err := client.CreateDirs(ctx, &dbdpb.CreateDirsRequest{Dirs: dirs}); err != nil {
-		return nil, fmt.Errorf("failed to create PDB dirs: %v", err)
-	}
-
-	pdbCmd := []string{sql.QueryCreatePDB(p.pluggableDatabaseName, pdbAdmin, p.pluggableAdminPasswd, p.dataFilesDir, p.defaultTablespace, p.defaultTablespaceDatafile, p.fileConvertFrom, p.fileConvertTo)}
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbCmd, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreateDatabase: failed to create a PDB %s: %v", p.pluggableDatabaseName, err)
-	}
-	klog.InfoS("configagent/CreateDatabase create a PDB Done", "pdb", p.pluggableDatabaseName)
-
-	pdbOpen := []string{fmt.Sprintf("alter pluggable database %s open read write", sql.MustBeObjectName(p.pluggableDatabaseName))}
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbOpen, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CreatePDBDatabase: PDB %s open failed: %v", p.pluggableDatabaseName, err)
-	}
-	klog.InfoS("configagent/CreateDatabase PDB open", "pdb", p.pluggableDatabaseName)
-
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{
-		sql.QuerySetSessionContainer(p.pluggableDatabaseName),
-		sql.QueryGrantPrivileges("create session, dba", pdbAdmin),
-		sql.QueryGrantPrivileges("create session, resource, datapump_imp_full_database, datapump_exp_full_database, unlimited tablespace", consts.PDBLoaderUser),
-	}, Suppress: false})
-	if err != nil {
-		// Until we have a proper error handling, just log an error here.
-		klog.ErrorS(err, "configagent/CreateDatabase: failed to create a PDB_ADMIN user and/or PDB loader user")
-	}
-	klog.InfoS("configagent/CreateDatabase: created PDB_ADMIN and PDB Loader users")
-
-	// Separate out the directory treatment for the ease of troubleshooting.
-	_, err = client.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{
-		sql.QuerySetSessionContainer(p.pluggableDatabaseName),
-		sql.QueryCreateDir(consts.DpdumpDir.Oracle, filepath.Join(p.pathPrefix, consts.DpdumpDir.Linux)),
-		sql.QueryGrantPrivileges(fmt.Sprintf("read,write on directory %s", consts.DpdumpDir.Oracle), consts.PDBLoaderUser),
-	}, Suppress: false})
-	if err != nil {
-		klog.ErrorS(err, "configagent/CreateDatabase: failed to create a Data Pump directory", "datapumpDir", consts.DpdumpDir)
-	}
-	klog.InfoS("configagent/CreateDatabase: DONE", "pdb", p.pluggableDatabaseName)
-
-	return &pb.CreateDatabaseResponse{Status: "Ready"}, nil
-}
-
-// UsersChanged determines whether there is change on users (update/delete/create).
-func (s *ConfigServer) UsersChanged(ctx context.Context, req *pb.UsersChangedRequest) (*pb.UsersChangedResponse, error) {
-	klog.InfoS("configagent/UsersChanged", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/UsersChanged: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	us := newUsers(req.GetPdbName(), req.GetUserSpecs())
-	toCreate, toUpdate, toDelete, toUpdatePwd, err := us.diff(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/UsersChanged: failed to get difference between env and spec for users: %v", err)
-	}
-	var suppressed []*pb.UsersChangedResponse_Suppressed
-	for _, du := range toDelete {
-		suppressed = append(suppressed, &pb.UsersChangedResponse_Suppressed{
-			SuppressType: pb.UsersChangedResponse_DELETE,
-			UserName:     du.userName,
-			Sql:          du.delete(),
-		})
-	}
-	for _, cu := range toCreate {
-		if cu.newPassword == "" {
-			suppressed = append(suppressed, &pb.UsersChangedResponse_Suppressed{
-				SuppressType: pb.UsersChangedResponse_CREATE,
-				UserName:     cu.userName,
-			})
-		}
-	}
-	resp := &pb.UsersChangedResponse{
-		Changed:    len(toCreate) != 0 || len(toUpdate) != 0 || len(toUpdatePwd) != 0,
-		Suppressed: suppressed,
-	}
-	klog.InfoS("configagent/UsersChanged: DONE", "resp", resp)
-	return resp, nil
-}
-
-// UpdateUsers update/create users as requested.
-func (s *ConfigServer) UpdateUsers(ctx context.Context, req *pb.UpdateUsersRequest) (*pb.UpdateUsersResponse, error) {
-	klog.InfoS("configagent/UpdateUsers", "req", req)
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/UpdateUsers: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	us := newUsers(req.GetPdbName(), req.GetUserSpecs())
-	toCreate, toUpdate, _, toUpdatePwd, err := us.diff(ctx, client)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/UpdateUsers: failed to get difference between env and spec for users: %v", err)
-	}
-	foundErr := false
-	for _, u := range toCreate {
-		klog.InfoS("configagent/UpdateUsers", "creating user", u.userName)
-		if err := u.create(ctx, client); err != nil {
-			klog.ErrorS(err, "failed to create user")
-			foundErr = true
-		}
-	}
-
-	for _, u := range toUpdate {
-		klog.InfoS("configagent/UpdateUsers", "updating user", u.userName)
-		// we found there is a scenario that role comes with privileges. For example
-		// Grant dba role to a user will automatically give unlimited tablespace privilege.
-		// Revoke dba role will automatically revoke  unlimited tablespace privilege.
-		// thus user update will first update role and then update sys privi.
-		if err := u.update(ctx, client, us.databaseRoles); err != nil {
-			klog.ErrorS(err, "failed to update user")
-			foundErr = true
-		}
-	}
-
-	for _, u := range toUpdatePwd {
-		klog.InfoS("configagent/UpdateUsers", "updating user", u.userName)
-		if err := u.updatePassword(ctx, client); err != nil {
-			klog.ErrorS(err, "failed to update user password")
-			foundErr = true
-		}
-	}
-
-	if foundErr {
-		return nil, errors.New("failed to update users")
-	}
-	klog.InfoS("configagent/UpdateUsers: DONE")
-	return &pb.UpdateUsersResponse{}, nil
-}
-
 // GetOperation fetches corresponding lro given operation name.
 func (s *ConfigServer) GetOperation(ctx context.Context, req *lropb.GetOperationRequest) (*lropb.Operation, error) {
 	klog.InfoS("configagent/GetOperation", "req", req)
@@ -443,66 +233,6 @@ func (s *ConfigServer) GetOperation(ctx context.Context, req *lropb.GetOperation
 	klog.InfoS("configagent/GetOperation", "client", client)
 
 	return client.GetOperation(ctx, req)
-}
-
-// BootstrapDatabase bootstrap a CDB after creation or restore.
-func (s *ConfigServer) BootstrapDatabase(ctx context.Context, req *pb.BootstrapDatabaseRequest) (*lropb.Operation, error) {
-	klog.InfoS("configagent/BootstrapDatabase", "req", req)
-
-	dbdClient, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-
-	resp, err := dbdClient.FileExists(ctx, &dbdpb.FileExistsRequest{Name: consts.ProvisioningDoneFile})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to check a provisioning file: %v", err)
-	}
-
-	if resp.Exists {
-		klog.InfoS("configagent/BootstrapDatabase: provisioning file found, skip bootstrapping")
-		return &lropb.Operation{Done: true}, nil
-	}
-
-	switch req.GetMode() {
-	case pb.BootstrapDatabaseRequest_ProvisionUnseeded:
-		task := provision.NewBootstrapDatabaseTaskForUnseeded(req.CdbName, req.DbUniqueName, req.Dbdomain, dbdClient)
-
-		if err := task.Call(ctx); err != nil {
-			return nil, fmt.Errorf("configagent/BootstrapDatabase: failed to bootstrap database : %v", err)
-		}
-	case pb.BootstrapDatabaseRequest_ProvisionSeeded:
-		lro, err := dbdClient.BootstrapDatabaseAsync(ctx, &dbdpb.BootstrapDatabaseAsyncRequest{
-			SyncRequest: &dbdpb.BootstrapDatabaseRequest{
-				CdbName:  req.GetCdbName(),
-				DbDomain: req.GetDbdomain(),
-			},
-			LroInput: &dbdpb.LROInput{OperationId: req.GetLroInput().GetOperationId()},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("configagent/BootstrapDatabase: error while call dbdaemon/BootstrapDatabase: %v", err)
-		}
-		return lro, nil
-	default:
-	}
-
-	if _, err = dbdClient.CreateListener(ctx, &dbdpb.CreateListenerRequest{
-		DatabaseName: req.GetCdbName(),
-		Port:         consts.SecureListenerPort,
-		Protocol:     "TCP",
-		DbDomain:     req.GetDbdomain(),
-	}); err != nil {
-		return nil, fmt.Errorf("configagent/BootstrapDatabase: error while creating listener: %v", err)
-	}
-
-	if _, err = dbdClient.CreateFile(ctx, &dbdpb.CreateFileRequest{
-		Path: consts.ProvisioningDoneFile,
-	}); err != nil {
-		return nil, fmt.Errorf("configagent/BootstrapDatabase: error while creating provisioning done file: %v", err)
-	}
-
-	return &lropb.Operation{Done: true}, nil
 }
 
 // DataPumpImport imports data dump file provided in GCS path.

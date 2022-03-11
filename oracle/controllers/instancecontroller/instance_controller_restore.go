@@ -240,19 +240,19 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 			}
 		case "Physical":
-			caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
 			if err != nil {
 				log.Error(err, "failed to create config agent client")
 				return ctrl.Result{}, err
 			}
-			defer closeConn()
 
-			if _, err = caClient.BootstrapDatabase(ctx, &capb.BootstrapDatabaseRequest{
+			req := &controllers.BootstrapDatabaseRequest{
 				CdbName:      inst.Spec.CDBName,
 				DbUniqueName: inst.Spec.DBUniqueName,
 				Dbdomain:     controllers.GetDBDomain(inst),
-				Mode:         capb.BootstrapDatabaseRequest_Restore,
-			}); err != nil {
+				Mode:         controllers.BootstrapDatabaseRequest_Restore,
+			}
+
+			if _, err = controllers.BootstrapDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *req); err != nil {
 				if e := r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore bootstrap failed with %v", err), log); e != nil {
 					return ctrl.Result{}, e
 				}
