@@ -41,6 +41,7 @@ go_test(
     deps = [
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
+        "//oracle/controllers",
         "//oracle/controllers/testhelpers",
         "//oracle/pkg/k8s",
         "@com_github_go_logr_logr//:logr",

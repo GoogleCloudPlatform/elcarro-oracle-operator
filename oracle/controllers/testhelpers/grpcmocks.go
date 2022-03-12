@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	grpcstatus "google.golang.org/grpc/status"
@@ -79,36 +80,44 @@ type FakeConfigAgentClient struct {
 	methodToResp                 map[string](interface{})
 	methodToError                map[string]error
 	nextGetOperationStatus       FakeOperationStatus
-
-	GotPhysicalBackupReq *capb.PhysicalBackupRequest
 }
 
 // FakeDatabaseClient mocks DatabaseDaemon
 type FakeDatabaseClient struct {
-	getOperationCalledCnt           int32
-	listOperationsCalledCnt         int32
-	fetchServiceImageMetaDataCnt    int32
-	deleteOperationCalledCnt        int32
-	bounceDatabaseCalledCnt         int32
-	recoverConfigFileCalledCnt      int32
-	checkDatabaseStateCalledCnt     int32
-	runSQLPlusCalledCnt             int32
-	runSQLPlusFormattedCalledCnt    int32
-	bootstrapStandbyCalledCnt       int32
-	createCDBAsyncCalledCnt         int32
-	createDirsCalledCnt             int32
-	bootstrapDatabaseCalledCnt      int32
-	bootstrapDatabaseAsyncCalledCnt int32
-	fileExistsCalledCnt             int32
-	createListenerCalledCnt         int32
-	createFileCalledCnt             int32
+	getOperationCalledCnt             int32
+	listOperationsCalledCnt           int32
+	fetchServiceImageMetaDataCnt      int32
+	deleteOperationCalledCnt          int32
+	bounceDatabaseCalledCnt           int32
+	recoverConfigFileCalledCnt        int32
+	checkDatabaseStateCalledCnt       int32
+	runSQLPlusCalledCnt               int32
+	runSQLPlusFormattedCalledCnt      int32
+	bootstrapStandbyCalledCnt         int32
+	createCDBAsyncCalledCnt           int32
+	createDirsCalledCnt               int32
+	bootstrapDatabaseCalledCnt        int32
+	bootstrapDatabaseAsyncCalledCnt   int32
+	fileExistsCalledCnt               int32
+	createListenerCalledCnt           int32
+	createFileCalledCnt               int32
+	downloadDirectoryFromGCSCalledCnt int32
+	runRMANAsyncCalledCnt             int32
+	readDirCalledCnt                  int32
+	physicalRestoreAsyncCalledCnt     int32
+	asyncPhysicalBackup               bool
+	asyncPhysicalRestore              bool
+	deleteDirCalledCnt                int32
+
+	GotRMANAsyncRequest *dbdpb.RunRMANAsyncRequest
 
 	lock                   sync.Mutex
 	nextGetOperationStatus FakeOperationStatus
 
 	asyncBootstrapDatabase bool
 
-	methodToResp map[string](interface{})
+	methodToResp  map[string](interface{})
+	methodToError map[string]error
 }
 
 func (cli *FakeDatabaseClient) SetDnfsState(ctx context.Context, in *dbdpb.SetDnfsStateRequest, opts ...grpc.CallOption) (*dbdpb.SetDnfsStateResponse, error) {
@@ -125,12 +134,22 @@ func (cli *FakeDatabaseClient) CreateDirs(ctx context.Context, in *dbdpb.CreateD
 // ReadDir RPC call to read the directory named by path and returns Fileinfos
 // for the path and children.
 func (cli *FakeDatabaseClient) ReadDir(ctx context.Context, in *dbdpb.ReadDirRequest, opts ...grpc.CallOption) (*dbdpb.ReadDirResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.readDirCalledCnt, 1)
+	modTime := &timestamppb.Timestamp{
+		Seconds: 10,
+		Nanos:   10,
+	}
+	currPath := &dbdpb.ReadDirResponse_FileInfo{}
+	subPath := &dbdpb.ReadDirResponse_FileInfo{ModTime: modTime, Name: "nnsnf"}
+	subPath2 := &dbdpb.ReadDirResponse_FileInfo{ModTime: modTime, Name: "ncnnf"}
+
+	return &dbdpb.ReadDirResponse{CurrPath: currPath, SubPaths: []*dbdpb.ReadDirResponse_FileInfo{subPath, subPath2}}, nil
 }
 
 // DeleteDir RPC to call remove path.
 func (cli *FakeDatabaseClient) DeleteDir(ctx context.Context, in *dbdpb.DeleteDirRequest, opts ...grpc.CallOption) (*dbdpb.DeleteDirResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.deleteDirCalledCnt, 1)
+	return nil, nil
 }
 
 // BounceDatabase RPC call to start/stop a database.
@@ -174,7 +193,10 @@ func (cli *FakeDatabaseClient) RunRMAN(ctx context.Context, in *dbdpb.RunRMANReq
 
 // RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
 func (cli *FakeDatabaseClient) RunRMANAsync(ctx context.Context, in *dbdpb.RunRMANAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.runRMANAsyncCalledCnt, 1)
+	cli.GotRMANAsyncRequest = in
+	_, err := cli.getMethodRespErr("RunRMANAsync")
+	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, err
 }
 
 // NID changes a database id and/or database name.
@@ -234,13 +256,21 @@ func (cli *FakeDatabaseClient) CreateListener(ctx context.Context, in *dbdpb.Cre
 // checked via this RPC call.
 func (cli *FakeDatabaseClient) FileExists(ctx context.Context, in *dbdpb.FileExistsRequest, opts ...grpc.CallOption) (*dbdpb.FileExistsResponse, error) {
 	atomic.AddInt32(&cli.fileExistsCalledCnt, 1)
-	return &dbdpb.FileExistsResponse{Exists: false}, nil
+	method := "FileExists"
+	resp, err := cli.getMethodRespErr(method)
+	if resp != nil {
+		return resp.(*dbdpb.FileExistsResponse), err
+	} else {
+		return &dbdpb.FileExistsResponse{Exists: false}, err
+	}
 }
 
 // PhysicalRestoreAsync runs RMAN and SQL queries in sequence to restore
 // a database from an RMAN backup.
 func (cli *FakeDatabaseClient) PhysicalRestoreAsync(ctx context.Context, in *dbdpb.PhysicalRestoreAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.physicalRestoreAsyncCalledCnt, 1)
+	_, err := cli.getMethodRespErr("PhysicalRestoreAsync")
+	return &longrunning.Operation{Done: !cli.asyncPhysicalRestore}, err
 }
 
 // DataPumpImportAsync imports data from a .dmp file to an existing PDB.
@@ -277,7 +307,14 @@ func (cli *FakeDatabaseClient) RecoverConfigFile(ctx context.Context, in *dbdpb.
 // DownloadDirectoryFromGCS downloads a directory from GCS bucket to local
 // path.
 func (cli *FakeDatabaseClient) DownloadDirectoryFromGCS(ctx context.Context, in *dbdpb.DownloadDirectoryFromGCSRequest, opts ...grpc.CallOption) (*dbdpb.DownloadDirectoryFromGCSResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.downloadDirectoryFromGCSCalledCnt, 1)
+	method := "DownloadDirectoryFromGCS"
+	resp, err := cli.getMethodRespErr(method)
+	if resp != nil {
+		return resp.(*dbdpb.DownloadDirectoryFromGCSResponse), err
+	} else {
+		return nil, err
+	}
 }
 
 // FetchServiceImageMetaData returns the service image metadata.
@@ -315,7 +352,7 @@ type FakeClientFactory struct {
 	Caclient *FakeConfigAgentClient
 }
 
-// FakeDatabaseClientFactory is a simple factory to create our FakeConfigAgentClient.
+// FakeDatabaseClientFactory is a simple factory to create our FakeDatabaseClient.
 type FakeDatabaseClientFactory struct {
 	Dbclient *FakeDatabaseClient
 }
@@ -328,7 +365,7 @@ func (g *FakeClientFactory) New(context.Context, client.Reader, string, string) 
 	return g.Caclient, emptyConnCloseFunc, nil
 }
 
-// New returns a new fake database client.
+// New returns a new fake DatabaseClient.
 func (g *FakeDatabaseClientFactory) New(context.Context, client.Reader, string, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
 	if g.Dbclient == nil {
 		g.Reset()
@@ -351,34 +388,9 @@ func (cli *FakeConfigAgentClient) Reset() {
 	*cli = FakeConfigAgentClient{}
 }
 
-// VerifyPhysicalBackup wrapper.
-func (cli *FakeConfigAgentClient) VerifyPhysicalBackup(ctx context.Context, in *capb.VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*capb.VerifyPhysicalBackupResponse, error) {
-	atomic.AddInt32(&cli.verifyPhysicalBackupCalledCnt, 1)
-	resp, err := cli.getMethodRespErr("VerifyPhysicalBackup")
-	if resp == nil {
-		return &capb.VerifyPhysicalBackupResponse{}, err
-	}
-	return resp.(*capb.VerifyPhysicalBackupResponse), err
-}
-
-// PhysicalBackup wrapper.
-func (cli *FakeConfigAgentClient) PhysicalBackup(ctx context.Context, req *capb.PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	atomic.AddInt32(&cli.physicalBackupCalledCnt, 1)
-	cli.GotPhysicalBackupReq = req
-	_, err := cli.getMethodRespErr("PhysicalBackup")
-	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, err
-}
-
-// PhysicalRestore wrapper.
-func (cli *FakeConfigAgentClient) PhysicalRestore(context.Context, *capb.PhysicalRestoreRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	atomic.AddInt32(&cli.physicalRestoreCalledCnt, 1)
-	return &longrunning.Operation{Done: !cli.asyncPhysicalRestore}, nil
-}
-
-// CheckStatus wrapper.
-func (cli *FakeConfigAgentClient) CheckStatus(context.Context, *capb.CheckStatusRequest, ...grpc.CallOption) (*capb.CheckStatusResponse, error) {
-	atomic.AddInt32(&cli.checkStatusCalledCnt, 1)
-	return nil, nil
+// Reset reset's the config agent's counters.
+func (cli *FakeDatabaseClient) Reset() {
+	*cli = FakeDatabaseClient{}
 }
 
 // GetOperation gets the latest state of a long-running operation. Clients can
@@ -415,6 +427,16 @@ func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOpe
 // BootstrapDatabaseCalledCnt returns call count.
 func (cli *FakeDatabaseClient) BootstrapDatabaseAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.bootstrapDatabaseAsyncCalledCnt))
+}
+
+// RMANAsyncCalledCnt returns call count.
+func (cli *FakeDatabaseClient) RunRMANAsyncCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.runRMANAsyncCalledCnt))
+}
+
+// RMANAsyncCalledCnt returns call count.
+func (cli *FakeDatabaseClient) PhysicalRestoreAsyncCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.physicalRestoreAsyncCalledCnt))
 }
 
 // DataPumpImport wrapper.
@@ -464,6 +486,11 @@ func (cli *FakeDatabaseClient) GetOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.getOperationCalledCnt))
 }
 
+// GetDownloadDirectoryFromGCSCnt returns call count.
+func (cli *FakeDatabaseClient) GetDownloadDirectoryFromGCSCnt() int {
+	return int(atomic.LoadInt32(&cli.downloadDirectoryFromGCSCalledCnt))
+}
+
 // GetParameterTypeValue wrapper.
 func (cli *FakeConfigAgentClient) GetParameterTypeValue(context.Context, *capb.GetParameterTypeValueRequest, ...grpc.CallOption) (*capb.GetParameterTypeValueResponse, error) {
 	atomic.AddInt32(&cli.getParameterTypeValueCalledCnt, 1)
@@ -490,7 +517,19 @@ func (cli *FakeConfigAgentClient) SetAsyncPhysicalBackup(async bool) {
 	cli.asyncPhysicalBackup = async
 }
 
+func (cli *FakeDatabaseClient) SetAsyncPhysicalBackup(async bool) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.asyncPhysicalBackup = async
+}
+
 func (cli *FakeConfigAgentClient) SetAsyncPhysicalRestore(async bool) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	cli.asyncPhysicalRestore = async
+}
+
+func (cli *FakeDatabaseClient) SetAsyncPhysicalRestore(async bool) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.asyncPhysicalRestore = async
@@ -534,7 +573,44 @@ func (cli *FakeConfigAgentClient) SetMethodToError(method string, err error) {
 	cli.methodToError[method] = err
 }
 
+func (cli *FakeDatabaseClient) SetMethodToError(method string, err error) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	if cli.methodToError == nil {
+		cli.methodToError = make(map[string]error)
+	}
+	cli.methodToError[method] = err
+}
+
+func (cli *FakeDatabaseClient) RemoveMethodToError(method string) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
+	if cli.methodToError == nil {
+		return
+	}
+	_, ok := cli.methodToError[method]
+	if ok {
+		delete(cli.methodToError, method)
+	}
+}
+
 func (cli *FakeConfigAgentClient) getMethodRespErr(method string) (interface{}, error) {
+	var err error
+	var resp interface{}
+	if cli.methodToResp != nil {
+		if _, ok := cli.methodToResp[method]; ok {
+			resp = cli.methodToResp[method]
+		}
+	}
+	if cli.methodToError != nil {
+		if _, ok := cli.methodToError[method]; ok {
+			err = cli.methodToError[method]
+		}
+	}
+	return resp, err
+}
+
+func (cli *FakeDatabaseClient) getMethodRespErr(method string) (interface{}, error) {
 	var err error
 	var resp interface{}
 	if cli.methodToResp != nil {

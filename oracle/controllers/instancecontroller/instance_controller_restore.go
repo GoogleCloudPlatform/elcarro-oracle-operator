@@ -25,7 +25,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	appsv1 "k8s.io/api/apps/v1"
@@ -394,30 +393,25 @@ func (r *InstanceReconciler) restorePhysical(ctx context.Context, inst v1alpha1.
 	}
 	log.Info("preflight check for a restore from a physical backup - all DONE", "backup", backup)
 	dop := restoreDOP(inst.Spec.Restore.Dop, backup.Spec.Dop)
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, req.Namespace, inst.Name)
-	if err != nil {
-		log.Error(err, "failed to create config agent client")
-		return nil, err
-	}
-	defer closeConn()
 	timeLimitMinutes := controllers.PhysBackupTimeLimitDefault * 3
 	if inst.Spec.Restore.TimeLimitMinutes != 0 {
 		timeLimitMinutes = time.Duration(inst.Spec.Restore.TimeLimitMinutes) * time.Minute
 	}
 	ctxRestore, cancel := context.WithTimeout(context.Background(), timeLimitMinutes)
 	defer cancel()
-	resp, err := caClient.PhysicalRestore(ctxRestore, &capb.PhysicalRestoreRequest{
+	restoreReq := &controllers.PhysicalRestoreRequest{
 		InstanceName: inst.Name,
 		CdbName:      inst.Spec.CDBName,
 		Dop:          dop,
 		LocalPath:    backup.Spec.LocalPath,
 		GcsPath:      backup.Spec.GcsPath,
-		LroInput:     &capb.LROInput{OperationId: lroRestoreOperationID(physicalRestore, inst)},
-	})
+		LroInput:     &controllers.LROInput{OperationId: lroRestoreOperationID(physicalRestore, inst)},
+	}
+	resp, err := controllers.PhysicalRestore(ctxRestore, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *restoreReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed on PhysicalRestore gRPC call: %v", err)
 	}
-	log.Info("caClient.PhysicalRestore", "LRO", lroRestoreOperationID(physicalRestore, inst), "response", resp)
+	log.Info("config_agent_helpers.PhysicalRestore", "LRO", lroRestoreOperationID(physicalRestore, inst), "response", resp)
 	return resp, nil
 }
 

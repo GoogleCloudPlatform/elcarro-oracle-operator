@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -50,7 +51,7 @@ var (
 func TestDatabaseController(t *testing.T) {
 	// Mock function returns.
 	skipLBCheckForTest = true
-	CheckStatusInstanceFunc = func(ctx context.Context, instName, cdbName, clusterIP, DBDomain string, log logr.Logger) (string, error) {
+	CheckStatusInstanceFunc = func(ctx context.Context, r client.Reader, dbClientFactory controllers.DatabaseClientFactory, instName, cdbName, namespace, clusterIP, DBDomain string, log logr.Logger) (string, error) {
 		return "Ready", nil
 	}
 	fakeClientFactory = &testhelpers.FakeClientFactory{}
@@ -63,15 +64,14 @@ func TestDatabaseController(t *testing.T) {
 		[]*runtime.SchemeBuilder{&v1alpha1.SchemeBuilder.SchemeBuilder},
 		"Database controller",
 		func() []testhelpers.Reconciler {
-			reconciler = &DatabaseReconciler{
+			return []testhelpers.Reconciler{&DatabaseReconciler{
 				Client:                k8sManager.GetClient(),
 				Log:                   ctrl.Log.WithName("controllers").WithName("Database"),
 				Scheme:                k8sManager.GetScheme(),
 				ClientFactory:         fakeClientFactory,
 				Recorder:              k8sManager.GetEventRecorderFor("database-controller"),
 				DatabaseClientFactory: fakeDatabaseClientFactory,
-			}
-			return []testhelpers.Reconciler{reconciler}
+			}}
 		})
 }
 

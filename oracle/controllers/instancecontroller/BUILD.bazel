@@ -52,6 +52,7 @@ go_test(
     deps = [
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
+        "//oracle/controllers",
         "//oracle/controllers/testhelpers",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/k8s",

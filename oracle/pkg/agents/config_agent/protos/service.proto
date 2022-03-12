@@ -22,13 +22,6 @@ import "google/longrunning/operations.proto";
 option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos;protos";
 
 service ConfigAgent {
-  rpc VerifyPhysicalBackup(VerifyPhysicalBackupRequest)
-      returns (VerifyPhysicalBackupResponse) {}
-  rpc PhysicalBackup(PhysicalBackupRequest)
-      returns (google.longrunning.Operation) {}
-  rpc PhysicalRestore(PhysicalRestoreRequest)
-      returns (google.longrunning.Operation) {}
-  rpc CheckStatus(CheckStatusRequest) returns (CheckStatusResponse) {}
   rpc DataPumpImport(DataPumpImportRequest)
       returns (google.longrunning.Operation);
   rpc DataPumpExport(DataPumpExportRequest)
@@ -54,70 +47,6 @@ message User {
   // only being used for plaintext password scenario.
   // GSM doesn't use this field.
   string last_password = 5;
-}
-
-message VerifyPhysicalBackupRequest {
-  string gcs_path = 1;
-}
-
-message VerifyPhysicalBackupResponse {
-  repeated string err_msgs = 1;
-}
-
-message PhysicalBackupRequest {
-  enum Type {
-    UNKNOWN_TYPE = 0;
-    INSTANCE = 1;
-    DATABASE = 2;
-    TABLESPACE = 3;
-    DATAFILE = 4;
-  }
-
-  Type backup_sub_type = 1;
-  repeated string backup_items = 2;
-  bool backupset = 3;
-  bool compressed = 4;
-  bool check_logical = 5;
-
-  // DOP = degree of parallelism for physical backup.
-  int32 dop = 6;
-
-  int32 level = 7;
-  int32 filesperset = 8;
-  int32 section_size = 9;
-  string local_path = 10;
-  string gcs_path = 11;
-
-  LROInput lro_input = 12;
-}
-
-message PhysicalRestoreRequest {
-  string instance_name = 1;
-  string cdb_name = 2;
-
-  // DOP = degree of parallelism for a restore from a physical backup.
-  int32 dop = 3;
-  string local_path = 4;
-  string gcs_path = 5;
-
-  LROInput lro_input = 6;
-}
-
-message CheckStatusRequest {
-  enum Type {
-    UNKNOWN_TYPE = 0;
-    INSTANCE = 1;
-  }
-
-  string name = 1;
-  string cdb_name = 2;
-  Type check_status_type = 3;
-  string db_domain = 4;
-}
-
-message CheckStatusResponse {
-  string status = 1;
-  string error_message = 2;
 }
 
 message DataPumpImportRequest {

@@ -29,17 +29,15 @@ func testInstanceRestore() {
 		interval = time.Millisecond * 15
 	)
 
-	var fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
 	var fakeDatabaseClient *testhelpers.FakeDatabaseClient
 	oldPreflightFunc := restorePhysicalPreflightCheck
 
 	BeforeEach(func() {
 		fakeClientFactory.Reset()
-		fakeConfigAgentClient = fakeClientFactory.Caclient
 		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
-		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
+		fakeDatabaseClient.SetAsyncPhysicalRestore(true)
 
 		fakeDatabaseClient.SetMethodToResp(
 			"FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
@@ -100,10 +98,6 @@ func testInstanceRestore() {
 		Expect(instance.Status.LastRestoreTime).ShouldNot(BeNil())
 		Expect(instance.Status.LastRestoreTime.UnixNano()).Should(Equal(restoreRequestTime.Rfc3339Copy().UnixNano()))
 
-		Eventually(func() int {
-			return fakeConfigAgentClient.PhysicalRestoreCalledCnt()
-		}, timeout, interval).Should(Equal(1))
-
 		By("checking that instance is Ready on restore LRO completion")
 		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
 
@@ -144,7 +138,7 @@ func testInstanceRestore() {
 	It("it should NOT attempt to restore with the same RequestTime", func() {
 		instance, backup := testCaseHappyPathLRORestore()
 
-		oldPhysicalRestoreCalledCnt := fakeConfigAgentClient.PhysicalRestoreCalledCnt()
+		oldPhysicalRestoreCalledCnt := fakeDatabaseClient.PhysicalRestoreAsyncCalledCnt()
 		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
 
 		By("restoring from same backup with same RequestTime")
@@ -165,7 +159,7 @@ func testInstanceRestore() {
 		Eventually(func() (metav1.ConditionStatus, error) {
 			return getConditionStatus(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
-		Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(oldPhysicalRestoreCalledCnt))
+		Expect(fakeDatabaseClient.PhysicalRestoreAsyncCalledCnt()).Should(Equal(oldPhysicalRestoreCalledCnt))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Namespace: Namespace, Name: backupName}, backup)
@@ -176,14 +170,14 @@ func testInstanceRestore() {
 		instance, backup := testCaseHappyPathLRORestore()
 
 		// reset method call counters used later
-		fakeConfigAgentClient.Reset()
+		fakeDatabaseClient.Reset()
 
 		fakeDatabaseClient.SetMethodToResp("FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
 			Version:    "12.2",
 			CdbName:    "GCLOUD",
 			OracleHome: "/u01/app/oracle/product/12.2/db",
 		})
-		fakeConfigAgentClient.SetAsyncPhysicalRestore(true)
+		fakeDatabaseClient.SetAsyncPhysicalRestore(true)
 
 		By("restoring from same backup with later RequestTime")
 		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusRunning)
@@ -224,7 +218,7 @@ func testInstanceRestore() {
 		// from the reconciler loop with the same LRO id.
 		// This should be expected and not harmful.
 		Eventually(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(BeNumerically(">=", 1))
-		Expect(fakeConfigAgentClient.PhysicalRestoreCalledCnt()).Should(Equal(1))
+		Expect(fakeDatabaseClient.PhysicalRestoreAsyncCalledCnt()).Should(Equal(1))
 
 		By("checking Status.LastRestoreTime was updated")
 		Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
@@ -273,7 +267,7 @@ func testInstanceRestore() {
 	})
 
 	It("it should be able to restore from RestoreFailed state", func() {
-		fakeConfigAgentClient.SetAsyncPhysicalRestore(false)
+		fakeDatabaseClient.SetAsyncPhysicalRestore(false)
 
 		instance := createSimpleInstance(ctx, InstanceName, Namespace, timeout, interval)
 		backup := createSimpleRMANBackup(ctx, InstanceName, backupName, backupID, Namespace)
@@ -361,7 +355,7 @@ func testInstanceRestore() {
 
 	It("it should restore successfully in sync mode", func() {
 
-		fakeConfigAgentClient.SetAsyncPhysicalRestore(false)
+		fakeDatabaseClient.SetAsyncPhysicalRestore(false)
 		instance, backup := createInstanceAndStartRestore(testhelpers.StatusNotFound)
 
 		By("checking that instance status is Ready")

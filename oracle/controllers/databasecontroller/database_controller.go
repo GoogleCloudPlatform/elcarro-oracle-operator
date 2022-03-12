@@ -159,7 +159,7 @@ func (r *DatabaseReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctr
 
 	// CDBName is specified in Instance specs
 	cdbName := inst.Spec.CDBName
-	istatus, err := CheckStatusInstanceFunc(ctx, db.Spec.Instance, cdbName, svc.Spec.ClusterIP, DBDomain, log)
+	istatus, err := CheckStatusInstanceFunc(ctx, r, r.DatabaseClientFactory, db.Spec.Instance, cdbName, inst.Namespace, svc.Spec.ClusterIP, DBDomain, log)
 	if err != nil {
 		log.Error(err, "preflight check failed", "check the database instance status", "failed")
 		return ctrl.Result{}, err

@@ -34,7 +34,6 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
@@ -78,22 +77,22 @@ type backupControl interface {
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
 
-func backupSubType(st string) capb.PhysicalBackupRequest_Type {
+func backupSubType(st string) controllers.PhysicalBackupRequest_Type {
 	switch st {
 	case "Instance":
-		return capb.PhysicalBackupRequest_INSTANCE
+		return controllers.PhysicalBackupRequest_INSTANCE
 	case "Database":
-		return capb.PhysicalBackupRequest_DATABASE
+		return controllers.PhysicalBackupRequest_DATABASE
 	case "Tablespace":
-		return capb.PhysicalBackupRequest_TABLESPACE
+		return controllers.PhysicalBackupRequest_TABLESPACE
 	case "Datafile":
-		return capb.PhysicalBackupRequest_DATAFILE
+		return controllers.PhysicalBackupRequest_DATAFILE
 	}
 
 	// If backup sub type is unknown default to Instance.
 	// Defaulting to Instance seems more user friendly
 	// (at the expense of silently swallowing a potential user error).
-	return capb.PhysicalBackupRequest_INSTANCE
+	return controllers.PhysicalBackupRequest_INSTANCE
 }
 
 // updateBackupStatus updates the phase of Backup and Instance objects to the required state.
@@ -191,14 +190,10 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 	}
 	log.Info("Verifying the existence of a backup")
 
-	caClient, closeConn, err := r.ClientFactory.New(ctx, r, backup.Namespace, inst.Name)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to create config agent client: %w", err)
-	}
-	defer closeConn()
-	resp, err := caClient.VerifyPhysicalBackup(ctx, &capb.VerifyPhysicalBackupRequest{
+	req := &controllers.VerifyPhysicalBackupRequest{
 		GcsPath: backup.Spec.GcsPath,
-	})
+	}
+	resp, err := controllers.VerifyPhysicalBackup(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *req)
 	if err != nil {
 		log.Error(err, "failed to verify a physical backup")
 		// retry
@@ -211,7 +206,7 @@ func (r *BackupReconciler) reconcileVerifyExists(ctx context.Context, backup *v1
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionTrue, k8s.BackupReady, msg)
 	} else {
 		backup.Status.Phase = commonv1alpha1.BackupFailed
-		msg := fmt.Sprintf("Failed to verify the existence of a physical backup: %s", strings.Join(resp.GetErrMsgs(), msgSep))
+		msg := fmt.Sprintf("Failed to verify the existence of a physical backup: %s", strings.Join(resp.ErrMsgs, msgSep))
 		r.Recorder.Event(backup, corev1.EventTypeWarning, "BackupVerifyFailed", msg)
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, msg)
 	}

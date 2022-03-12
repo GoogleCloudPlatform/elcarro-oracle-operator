@@ -10,7 +10,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -182,14 +181,7 @@ func (b *physicalBackup) create(ctx context.Context) error {
 	ctxBackup, cancel := context.WithTimeout(ctx, timeLimitMinutes)
 	defer cancel()
 
-	caClient, closeConn, err := b.r.ClientFactory.New(ctxBackup, b.r, b.backup.Namespace, b.backup.Spec.Instance)
-	if err != nil {
-		b.log.Error(err, "failed to create config agent client")
-		return err
-	}
-	defer closeConn()
-
-	if _, err := caClient.PhysicalBackup(ctxBackup, &capb.PhysicalBackupRequest{
+	req := &controllers.PhysicalBackupRequest{
 		BackupSubType: backupSubType(b.backup.Spec.Subtype),
 		BackupItems:   b.backup.Spec.BackupItems,
 		Backupset:     *backupset,
@@ -201,8 +193,10 @@ func (b *physicalBackup) create(ctx context.Context) error {
 		SectionSize:   b.backup.SectionSize(),
 		LocalPath:     b.backup.Spec.LocalPath,
 		GcsPath:       b.backup.Spec.GcsPath,
-		LroInput:      &capb.LROInput{OperationId: lroOperationID(b.backup)},
-	}); err != nil && !controllers.IsAlreadyExistsError(err) {
+		LroInput:      &controllers.LROInput{OperationId: lroOperationID(b.backup)},
+	}
+	if _, err := controllers.PhysicalBackup(ctxBackup, b.r, b.r.DatabaseClientFactory, b.backup.Namespace, b.backup.Spec.Instance, *req); err != nil &&
+		!controllers.IsAlreadyExistsError(err) {
 		return fmt.Errorf("failed on PhysicalBackup gRPC call: %v", err)
 	}
 	return nil

@@ -25,10 +25,8 @@ import (
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
@@ -83,143 +81,6 @@ type ConfigServer struct {
 	*pb.UnimplementedConfigAgentServer
 	DBService string
 	DBPort    int
-}
-
-// CheckStatus runs a requested set of state checks.
-// The Instance state check consists of:
-//   - checking the provisioning done file.
-//   - running a CDB connection test via DB Daemon.
-func (s *ConfigServer) CheckStatus(ctx context.Context, req *pb.CheckStatusRequest) (*pb.CheckStatusResponse, error) {
-	klog.InfoS("configagent/CheckStatus", "req", req)
-
-	switch req.GetCheckStatusType() {
-	case pb.CheckStatusRequest_INSTANCE:
-		klog.InfoS("configagent/CheckStatus: running a Database Instance status check...")
-	default:
-		return &pb.CheckStatusResponse{}, fmt.Errorf("configagent/CheckStatus: unsupported in this release check status type of %v", req.GetCheckStatusType())
-	}
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CheckStatus: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	klog.V(1).InfoS("configagent/CheckStatus", "client", client)
-
-	resp, err := client.FileExists(ctx, &dbdpb.FileExistsRequest{Name: consts.ProvisioningDoneFile})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CheckStatus: failed to check a provisioning file: %v", err)
-	}
-
-	if !resp.Exists {
-		klog.InfoS("configagent/CheckStatus: provisioning file NOT found")
-		return &pb.CheckStatusResponse{Status: "InProgress"}, nil
-	}
-	klog.InfoS("configagent/CheckStatus: provisioning file found")
-
-	if _, err = client.CheckDatabaseState(ctx, &dbdpb.CheckDatabaseStateRequest{IsCdb: true, DatabaseName: req.GetCdbName(), DbDomain: req.GetDbDomain()}); err != nil {
-		return nil, fmt.Errorf("configagent/CheckStatus: failed to check a Database Instance state: %v", err)
-	}
-	klog.InfoS("configagent/CheckStatus: Database Instance is up and running")
-
-	pdbCheckCmd := []string{"select open_mode, restricted from v$pdbs"}
-	resp2, err := client.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbCheckCmd, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("configagent/CheckStatus: failed to get a list of available PDBs: %v", err)
-	}
-	klog.InfoS("configagent/CheckStatus", "PDB query response", resp2)
-
-	return &pb.CheckStatusResponse{Status: "Ready"}, nil
-}
-
-// PhysicalRestore restores an RMAN backup (downloaded from GCS).
-func (s *ConfigServer) PhysicalRestore(ctx context.Context, req *pb.PhysicalRestoreRequest) (*lropb.Operation, error) {
-	klog.InfoS("configagent/PhysicalRestore", "req", req)
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/PhysicalRestore: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/PhysicalRestore", "client", client)
-
-	return backup.PhysicalRestore(ctx, &backup.Params{
-		Client:       client,
-		InstanceName: req.GetInstanceName(),
-		CDBName:      req.CdbName,
-		DOP:          req.GetDop(),
-		LocalPath:    req.GetLocalPath(),
-		GCSPath:      req.GetGcsPath(),
-		OperationID:  req.GetLroInput().GetOperationId(),
-	})
-}
-
-// VerifyPhysicalBackup verifies the existence of physical backup.
-func (s *ConfigServer) VerifyPhysicalBackup(ctx context.Context, req *pb.VerifyPhysicalBackupRequest) (*pb.VerifyPhysicalBackupResponse, error) {
-	klog.InfoS("configagent/VerifyPhysicalBackup", "req", req)
-	dbdClient, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/VerifyPhysicalBackup: failed to create a database daemon dbdClient: %v", err)
-	}
-	defer closeConn()
-	if _, err := dbdClient.DownloadDirectoryFromGCS(ctx, &dbdpb.DownloadDirectoryFromGCSRequest{
-		GcsPath:               req.GetGcsPath(),
-		AccessPermissionCheck: true,
-	}); err != nil {
-		return &pb.VerifyPhysicalBackupResponse{ErrMsgs: []string{err.Error()}}, nil
-	}
-	return &pb.VerifyPhysicalBackupResponse{}, nil
-}
-
-// PhysicalBackup starts an RMAN backup and stores it in the GCS bucket provided.
-func (s *ConfigServer) PhysicalBackup(ctx context.Context, req *pb.PhysicalBackupRequest) (*lropb.Operation, error) {
-	klog.InfoS("configagent/PhysicalBackup", "req", req)
-
-	var granularity string
-	switch req.BackupSubType {
-	case pb.PhysicalBackupRequest_INSTANCE:
-		granularity = "database"
-	case pb.PhysicalBackupRequest_DATABASE:
-		if req.GetBackupItems() == nil {
-			return &lropb.Operation{}, fmt.Errorf("configagent/PhysicalBackup: failed a pre-flight check: a PDB backup is requested, but no PDB name(s) given")
-		}
-
-		granularity = "pluggable database "
-		for i, pdb := range req.GetBackupItems() {
-			if i == 0 {
-				granularity += pdb
-			} else {
-				granularity += ", "
-				granularity += pdb
-			}
-		}
-	default:
-		return &lropb.Operation{}, fmt.Errorf("configagent/PhysicalBackup: unsupported in this release sub backup type of %v", req.BackupSubType)
-	}
-	klog.InfoS("configagent/PhysicalBackup", "granularity", granularity)
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/PhysicalBackup: failed to create database daemon client: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/PhysicalBackup", "client", client)
-
-	sectionSize := resource.NewQuantity(int64(req.GetSectionSize()), resource.DecimalSI)
-	return backup.PhysicalBackup(ctx, &backup.Params{
-		Client:       client,
-		Granularity:  granularity,
-		Backupset:    req.GetBackupset(),
-		CheckLogical: req.GetCheckLogical(),
-		Compressed:   req.GetCompressed(),
-		DOP:          req.GetDop(),
-		Level:        req.GetLevel(),
-		Filesperset:  req.GetFilesperset(),
-		SectionSize:  *sectionSize,
-		LocalPath:    req.GetLocalPath(),
-		GCSPath:      req.GetGcsPath(),
-		OperationID:  req.GetLroInput().GetOperationId(),
-	})
 }
 
 // GetOperation fetches corresponding lro given operation name.
