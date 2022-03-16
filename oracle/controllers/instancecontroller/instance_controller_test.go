@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -56,7 +57,7 @@ var (
 func TestInstanceController(t *testing.T) {
 
 	// Mock functions
-	CheckStatusInstanceFunc = func(ctx context.Context, instName, cdbName, clusterIP, DBDomain string, log logr.Logger) (string, error) {
+	CheckStatusInstanceFunc = func(ctx context.Context, r client.Reader, dbClientFactory controllers.DatabaseClientFactory, instName, cdbName, namespace, clusterIP, DBDomain string, log logr.Logger) (string, error) {
 		return "Ready", nil
 	}
 

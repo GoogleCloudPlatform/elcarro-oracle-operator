@@ -19,10 +19,6 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigAgentClient interface {
-	VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error)
-	PhysicalBackup(ctx context.Context, in *PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	PhysicalRestore(ctx context.Context, in *PhysicalRestoreRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error)
 	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
@@ -34,42 +30,6 @@ type configAgentClient struct {
 
 func NewConfigAgentClient(cc grpc.ClientConnInterface) ConfigAgentClient {
 	return &configAgentClient{cc}
-}
-
-func (c *configAgentClient) VerifyPhysicalBackup(ctx context.Context, in *VerifyPhysicalBackupRequest, opts ...grpc.CallOption) (*VerifyPhysicalBackupResponse, error) {
-	out := new(VerifyPhysicalBackupResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/VerifyPhysicalBackup", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) PhysicalBackup(ctx context.Context, in *PhysicalBackupRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/PhysicalBackup", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) PhysicalRestore(ctx context.Context, in *PhysicalRestoreRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/PhysicalRestore", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) CheckStatus(ctx context.Context, in *CheckStatusRequest, opts ...grpc.CallOption) (*CheckStatusResponse, error) {
-	out := new(CheckStatusResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/CheckStatus", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
@@ -103,10 +63,6 @@ func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetPa
 // All implementations must embed UnimplementedConfigAgentServer
 // for forward compatibility
 type ConfigAgentServer interface {
-	VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error)
-	PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error)
-	PhysicalRestore(context.Context, *PhysicalRestoreRequest) (*longrunning.Operation, error)
-	CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error)
 	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
 	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
 	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
@@ -117,18 +73,6 @@ type ConfigAgentServer interface {
 type UnimplementedConfigAgentServer struct {
 }
 
-func (UnimplementedConfigAgentServer) VerifyPhysicalBackup(context.Context, *VerifyPhysicalBackupRequest) (*VerifyPhysicalBackupResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method VerifyPhysicalBackup not implemented")
-}
-func (UnimplementedConfigAgentServer) PhysicalBackup(context.Context, *PhysicalBackupRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PhysicalBackup not implemented")
-}
-func (UnimplementedConfigAgentServer) PhysicalRestore(context.Context, *PhysicalRestoreRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PhysicalRestore not implemented")
-}
-func (UnimplementedConfigAgentServer) CheckStatus(context.Context, *CheckStatusRequest) (*CheckStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckStatus not implemented")
-}
 func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
 }
@@ -149,78 +93,6 @@ type UnsafeConfigAgentServer interface {
 
 func RegisterConfigAgentServer(s grpc.ServiceRegistrar, srv ConfigAgentServer) {
 	s.RegisterService(&ConfigAgent_ServiceDesc, srv)
-}
-
-func _ConfigAgent_VerifyPhysicalBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VerifyPhysicalBackupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).VerifyPhysicalBackup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/VerifyPhysicalBackup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).VerifyPhysicalBackup(ctx, req.(*VerifyPhysicalBackupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_PhysicalBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PhysicalBackupRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).PhysicalBackup(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/PhysicalBackup",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).PhysicalBackup(ctx, req.(*PhysicalBackupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_PhysicalRestore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PhysicalRestoreRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).PhysicalRestore(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/PhysicalRestore",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).PhysicalRestore(ctx, req.(*PhysicalRestoreRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_CheckStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CheckStatusRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).CheckStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/CheckStatus",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).CheckStatus(ctx, req.(*CheckStatusRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -284,22 +156,6 @@ var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "protos.ConfigAgent",
 	HandlerType: (*ConfigAgentServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "VerifyPhysicalBackup",
-			Handler:    _ConfigAgent_VerifyPhysicalBackup_Handler,
-		},
-		{
-			MethodName: "PhysicalBackup",
-			Handler:    _ConfigAgent_PhysicalBackup_Handler,
-		},
-		{
-			MethodName: "PhysicalRestore",
-			Handler:    _ConfigAgent_PhysicalRestore_Handler,
-		},
-		{
-			MethodName: "CheckStatus",
-			Handler:    _ConfigAgent_CheckStatus_Handler,
-		},
 		{
 			MethodName: "DataPumpImport",
 			Handler:    _ConfigAgent_DataPumpImport_Handler,

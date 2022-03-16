@@ -91,9 +91,9 @@ func TestPhysicalBackupCreate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r, _, _, caclient, _ := newTestBackupReconciler()
+			r, _, _, _, dbClient := newTestBackupReconciler()
 			if tc.physicalBackupFailure {
-				caclient.SetMethodToError("PhysicalBackup", fmt.Errorf("PhysicalBackup fail."))
+				dbClient.SetMethodToError("RunRMANAsync", fmt.Errorf("PhysicalBackup fail."))
 			}
 			backup := &physicalBackup{
 				r:      r,
@@ -104,20 +104,12 @@ func TestPhysicalBackupCreate(t *testing.T) {
 			if tc.wantError != (gotErr != nil) {
 				t.Fatalf("physicalBackup.create() returns unexpected error: wantErr:%v gotErr:%v", tc.wantError, gotErr)
 			}
-			if caclient.PhysicalBackupCalledCnt() != tc.wantPhysicalBackupCalledCnt {
-				t.Errorf("physicalBackup.create() make unexpected number of calls to caclient.PhysicalBackup(): want:%v got:%v", tc.wantPhysicalBackupCalledCnt, caclient.PhysicalBackupCalledCnt())
+			wantRMANAsyncCalledCnt := tc.wantPhysicalBackupCalledCnt
+			if dbClient.RunRMANAsyncCalledCnt() != wantRMANAsyncCalledCnt {
+				t.Errorf("physicalBackup.create() make unexpected number of calls to dbClient.RunRMANAsync(): want:%v got:%v", wantRMANAsyncCalledCnt, dbClient.RunRMANAsyncCalledCnt())
 			}
-			if caclient.GotPhysicalBackupReq.GetBackupset() != tc.wantBackupSet {
-				t.Errorf("Unexpected PhysicalBackupRequest.Backupset: want:%v got:%v", tc.wantBackupSet, caclient.GotPhysicalBackupReq.Backupset)
-			}
-			if caclient.GotPhysicalBackupReq.GetDop() != tc.wantBackupDop {
-				t.Errorf("Unexpected PhysicalBackupRequest.Backupset: want:%v got:%v", tc.wantBackupSet, caclient.GotPhysicalBackupReq.Backupset)
-			}
-			if caclient.GotPhysicalBackupReq.GetLevel() != tc.wantBackupLevel {
-				t.Errorf("Unexpected PhysicalBackupRequest.Level: want:%v got:%v", tc.wantBackupLevel, caclient.GotPhysicalBackupReq.Level)
-			}
-			if caclient.GotPhysicalBackupReq.GetGcsPath() != tc.wantGcsPath {
-				t.Errorf("Unexpected PhysicalBackupRequest.GcsPath: want:%v got:%v", tc.wantGcsPath, caclient.GotPhysicalBackupReq.GcsPath)
+			if dbClient.GotRMANAsyncRequest.SyncRequest.GetGcsPath() != tc.wantGcsPath {
+				t.Errorf("Unexpected PhysicalBackupRequest.GcsPath: want:%v got:%v", tc.wantGcsPath, dbClient.GotRMANAsyncRequest.SyncRequest.GetGcsPath())
 			}
 		})
 	}

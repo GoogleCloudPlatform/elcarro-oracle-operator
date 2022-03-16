@@ -9,7 +9,6 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
@@ -528,7 +527,7 @@ func TestReconcileVerifyExist(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reconciler, _, backupCtrl, caclient, _ := newTestBackupReconciler()
+			reconciler, _, backupCtrl, _, dbClient := newTestBackupReconciler()
 			var gotNewStatus v1alpha1.BackupStatus
 			backupCtrl.updateStatus = func(obj client.Object) error {
 				if _, ok := obj.(*v1alpha1.Backup); ok {
@@ -556,8 +555,12 @@ func TestReconcileVerifyExist(t *testing.T) {
 				return &inst, nil
 			}
 
-			caclient.SetMethodToResp("VerifyPhysicalBackup", &capb.VerifyPhysicalBackupResponse{ErrMsgs: tc.verifyPhysicalBackupErrMsg})
-
+			if tc.verifyPhysicalBackupErrMsg != nil && len(tc.verifyPhysicalBackupErrMsg) > 0 {
+				err := fmt.Errorf(tc.verifyPhysicalBackupErrMsg[0])
+				dbClient.SetMethodToError("DownloadDirectoryFromGCS", err)
+			} else {
+				dbClient.RemoveMethodToError("DownloadDirectoryFromGCS")
+			}
 			gotReconcileResult, _ := reconciler.reconcileVerifyExists(context.Background(), newBackupWithSpec(tc.backupSpec), reconciler.Log)
 			if diff := cmp.Diff(gotReconcileResult, tc.wantReconcileResult); diff != "" {
 				t.Errorf("reconciler.reconcileBackupCreation got unexpected reconcile result: -want +got %v", diff)

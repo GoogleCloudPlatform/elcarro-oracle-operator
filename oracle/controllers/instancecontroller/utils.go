@@ -386,7 +386,7 @@ func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1a
 	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(controllers.AgentSvcName, inst.Name), Namespace: namespace}, agentSvc); err != nil {
 		return false, err
 	}
-	status, err := CheckStatusInstanceFunc(ctx, inst.Name, inst.Spec.CDBName, agentSvc.Spec.ClusterIP, controllers.GetDBDomain(inst), log)
+	status, err := CheckStatusInstanceFunc(ctx, r, r.DatabaseClientFactory, inst.Name, inst.Spec.CDBName, inst.Namespace, agentSvc.Spec.ClusterIP, controllers.GetDBDomain(inst), log)
 	if err != nil {
 		log.Info("dbdaemon startup still in progress, waiting")
 		return false, nil

@@ -16,6 +16,7 @@ go_library(
         "//common/api/v1alpha1",
         "//common/pkg/utils",
         "//oracle/api/v1alpha1",
+        "//oracle/pkg/agents/backup",
         "//oracle/pkg/agents/common",
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/agents/config_agent/protos",

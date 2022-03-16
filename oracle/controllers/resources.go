@@ -30,11 +30,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 )
 
@@ -616,7 +616,7 @@ func NewSnapshotInst(inst *v1alpha1.Instance, scheme *runtime.Scheme, pvcName, s
 // In particular:
 //   - has provisioning finished?
 //   - is Instance up and accepting connection requests?
-var CheckStatusInstanceFunc = func(ctx context.Context, instName, cdbName, clusterIP, DBDomain string, log logr.Logger) (string, error) {
+var CheckStatusInstanceFunc = func(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, instName, cdbName, namespace, clusterIP, DBDomain string, log logr.Logger) (string, error) {
 	log.Info("resources/checkStatusInstance", "inst name", instName, "clusterIP", clusterIP)
 
 	// Establish a connection to a Config Agent.
@@ -630,19 +630,19 @@ var CheckStatusInstanceFunc = func(ctx context.Context, instName, cdbName, clust
 	}
 	defer conn.Close()
 
-	caClient := capb.NewConfigAgentClient(conn)
-	cdOut, err := caClient.CheckStatus(ctx, &capb.CheckStatusRequest{
+	checkStatusReq := &CheckStatusRequest{
 		Name:            instName,
 		CdbName:         cdbName,
-		CheckStatusType: capb.CheckStatusRequest_INSTANCE,
+		CheckStatusType: CheckStatusRequest_INSTANCE,
 		DbDomain:        DBDomain,
-	})
+	}
+	cdOut, err := CheckStatus(ctx, r, dbClientFactory, namespace, instName, *checkStatusReq)
 	if err != nil {
-		return "", fmt.Errorf("resource/checkStatusInstance: failed on CheckStatus gRPC call: %v", err)
+		return "", fmt.Errorf("resource/checkStatusInstance: failed on CheckStatus call: %v", err)
 	}
 	log.Info("resource/CheckStatusInstance: DONE with this output", "out", cdOut)
 
-	return string(cdOut.Status), nil
+	return cdOut.Status, nil
 }
 
 // GetDBDomain figures out DBDomain from DBUniqueName and DBDomain.

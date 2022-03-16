@@ -9,7 +9,6 @@ go_library(
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/server",
     visibility = ["//visibility:public"],
     deps = [
-        "//oracle/pkg/agents/backup",
         "//oracle/pkg/agents/common",
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/agents/config_agent/protos",
@@ -18,7 +17,6 @@ go_library(
         "@com_google_cloud_go//secretmanager/apiv1",
         "@go_googleapis//google/cloud/secretmanager/v1:secretmanager_go_proto",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
-        "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_klog_v2//:klog",
         "@org_bitbucket_creachadair_stringset//:stringset",
         "@org_golang_google_grpc//:go_default_library",
