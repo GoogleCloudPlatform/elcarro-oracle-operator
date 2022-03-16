@@ -17,18 +17,9 @@ syntax = "proto3";
 
 package protos;
 
-import "google/longrunning/operations.proto";
-
 option go_package = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos;protos";
 
-service ConfigAgent {
-  rpc DataPumpImport(DataPumpImportRequest)
-      returns (google.longrunning.Operation);
-  rpc DataPumpExport(DataPumpExportRequest)
-      returns (google.longrunning.Operation);
-  rpc GetParameterTypeValue(GetParameterTypeValueRequest)
-      returns (GetParameterTypeValueResponse) {}
-}
+service ConfigAgent {}
 
 message GsmSecretReference {
   string project_id = 1;
@@ -49,38 +40,7 @@ message User {
   string last_password = 5;
 }
 
-message DataPumpImportRequest {
-  string pdb_name = 1;
-  string db_domain = 2;
-  // GCS path to input dump file
-  string gcs_path = 3;
-  // GCS path to output log file
-  string gcs_log_path = 4;
-
-  LROInput lro_input = 5;
-}
-
-message DataPumpExportRequest {
-  string pdb_name = 1;
-  string db_domain = 2;
-  string object_type = 3;
-  string objects = 4;
-  string gcs_path = 5;
-  string gcs_log_path = 6;
-  LROInput lro_input = 7;
-  string flashback_time = 8;
-}
-
 // LROInput is a common part of input requests for all Async operations.
 message LROInput {
   string operation_id = 1;
-}
-
-message GetParameterTypeValueRequest {
-  repeated string keys = 1;
-}
-
-message GetParameterTypeValueResponse {
-  repeated string types = 1;
-  repeated string values = 2;
 }

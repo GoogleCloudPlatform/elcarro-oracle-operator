@@ -3,11 +3,7 @@
 package protos
 
 import (
-	context "context"
-	longrunning "google.golang.org/genproto/googleapis/longrunning"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,9 +15,6 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigAgentClient interface {
-	DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
-	GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error)
 }
 
 type configAgentClient struct {
@@ -32,40 +25,10 @@ func NewConfigAgentClient(cc grpc.ClientConnInterface) ConfigAgentClient {
 	return &configAgentClient{cc}
 }
 
-func (c *configAgentClient) DataPumpImport(ctx context.Context, in *DataPumpImportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DataPumpImport", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) DataPumpExport(ctx context.Context, in *DataPumpExportRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	out := new(longrunning.Operation)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/DataPumpExport", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAgentClient) GetParameterTypeValue(ctx context.Context, in *GetParameterTypeValueRequest, opts ...grpc.CallOption) (*GetParameterTypeValueResponse, error) {
-	out := new(GetParameterTypeValueResponse)
-	err := c.cc.Invoke(ctx, "/protos.ConfigAgent/GetParameterTypeValue", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ConfigAgentServer is the server API for ConfigAgent service.
 // All implementations must embed UnimplementedConfigAgentServer
 // for forward compatibility
 type ConfigAgentServer interface {
-	DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error)
-	DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error)
-	GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error)
 	mustEmbedUnimplementedConfigAgentServer()
 }
 
@@ -73,15 +36,6 @@ type ConfigAgentServer interface {
 type UnimplementedConfigAgentServer struct {
 }
 
-func (UnimplementedConfigAgentServer) DataPumpImport(context.Context, *DataPumpImportRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataPumpImport not implemented")
-}
-func (UnimplementedConfigAgentServer) DataPumpExport(context.Context, *DataPumpExportRequest) (*longrunning.Operation, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DataPumpExport not implemented")
-}
-func (UnimplementedConfigAgentServer) GetParameterTypeValue(context.Context, *GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetParameterTypeValue not implemented")
-}
 func (UnimplementedConfigAgentServer) mustEmbedUnimplementedConfigAgentServer() {}
 
 // UnsafeConfigAgentServer may be embedded to opt out of forward compatibility for this service.
@@ -95,80 +49,13 @@ func RegisterConfigAgentServer(s grpc.ServiceRegistrar, srv ConfigAgentServer) {
 	s.RegisterService(&ConfigAgent_ServiceDesc, srv)
 }
 
-func _ConfigAgent_DataPumpImport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DataPumpImportRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).DataPumpImport(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/DataPumpImport",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).DataPumpImport(ctx, req.(*DataPumpImportRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_DataPumpExport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DataPumpExportRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).DataPumpExport(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/DataPumpExport",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).DataPumpExport(ctx, req.(*DataPumpExportRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ConfigAgent_GetParameterTypeValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetParameterTypeValueRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAgentServer).GetParameterTypeValue(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protos.ConfigAgent/GetParameterTypeValue",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAgentServer).GetParameterTypeValue(ctx, req.(*GetParameterTypeValueRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // ConfigAgent_ServiceDesc is the grpc.ServiceDesc for ConfigAgent service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ConfigAgent_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "protos.ConfigAgent",
 	HandlerType: (*ConfigAgentServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "DataPumpImport",
-			Handler:    _ConfigAgent_DataPumpImport_Handler,
-		},
-		{
-			MethodName: "DataPumpExport",
-			Handler:    _ConfigAgent_DataPumpExport_Handler,
-		},
-		{
-			MethodName: "GetParameterTypeValue",
-			Handler:    _ConfigAgent_GetParameterTypeValue_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "oracle/pkg/agents/config_agent/protos/service.proto",
+	Methods:     []grpc.MethodDesc{},
+	Streams:     []grpc.StreamDesc{},
+	Metadata:    "oracle/pkg/agents/config_agent/protos/service.proto",
 }

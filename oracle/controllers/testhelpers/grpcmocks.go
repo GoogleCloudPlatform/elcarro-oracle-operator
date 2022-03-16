@@ -108,6 +108,8 @@ type FakeDatabaseClient struct {
 	asyncPhysicalBackup               bool
 	asyncPhysicalRestore              bool
 	deleteDirCalledCnt                int32
+	dataPumpImportAsyncCalledCnt      int32
+	dataPumpExportAsyncCalledCnt      int32
 
 	GotRMANAsyncRequest *dbdpb.RunRMANAsyncRequest
 
@@ -275,12 +277,14 @@ func (cli *FakeDatabaseClient) PhysicalRestoreAsync(ctx context.Context, in *dbd
 
 // DataPumpImportAsync imports data from a .dmp file to an existing PDB.
 func (cli *FakeDatabaseClient) DataPumpImportAsync(ctx context.Context, in *dbdpb.DataPumpImportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.dataPumpImportAsyncCalledCnt, 1)
+	return &longrunning.Operation{Done: false}, nil
 }
 
 // DataPumpExportAsync exports data to a .dmp file using expdp
 func (cli *FakeDatabaseClient) DataPumpExportAsync(ctx context.Context, in *dbdpb.DataPumpExportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.dataPumpExportAsyncCalledCnt, 1)
+	return &longrunning.Operation{Done: false}, nil
 }
 
 // ListOperations lists operations that match the specified filter in the
@@ -439,26 +443,19 @@ func (cli *FakeDatabaseClient) PhysicalRestoreAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.physicalRestoreAsyncCalledCnt))
 }
 
-// DataPumpImport wrapper.
-func (cli *FakeConfigAgentClient) DataPumpImport(context.Context, *capb.DataPumpImportRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	atomic.AddInt32(&cli.dataPumpImportCalledCnt, 1)
-	return &longrunning.Operation{Done: false}, nil
-}
-
-// DataPumpExport wrapper.
-func (cli *FakeConfigAgentClient) DataPumpExport(context.Context, *capb.DataPumpExportRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
-	atomic.AddInt32(&cli.dataPumpExportCalledCnt, 1)
-	return nil, nil
-}
-
 // DataPumpImportCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) DataPumpImportCalledCnt() int {
-	return int(atomic.LoadInt32(&cli.dataPumpImportCalledCnt))
+func (cli *FakeDatabaseClient) DataPumpImportAsyncCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.dataPumpImportAsyncCalledCnt))
 }
 
 // DataPumpExportCalledCnt returns call count.
 func (cli *FakeConfigAgentClient) DataPumpExportCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.dataPumpExportCalledCnt))
+}
+
+// DataPumpExportCalledCnt returns call count.
+func (cli *FakeDatabaseClient) DataPumpExportAsyncCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.dataPumpExportAsyncCalledCnt))
 }
 
 // DeleteOperationCalledCnt returns call count.
@@ -489,12 +486,6 @@ func (cli *FakeDatabaseClient) GetOperationCalledCnt() int {
 // GetDownloadDirectoryFromGCSCnt returns call count.
 func (cli *FakeDatabaseClient) GetDownloadDirectoryFromGCSCnt() int {
 	return int(atomic.LoadInt32(&cli.downloadDirectoryFromGCSCalledCnt))
-}
-
-// GetParameterTypeValue wrapper.
-func (cli *FakeConfigAgentClient) GetParameterTypeValue(context.Context, *capb.GetParameterTypeValueRequest, ...grpc.CallOption) (*capb.GetParameterTypeValueResponse, error) {
-	atomic.AddInt32(&cli.getParameterTypeValueCalledCnt, 1)
-	return nil, nil
 }
 
 // Set the next operation's status
