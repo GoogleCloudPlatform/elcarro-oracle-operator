@@ -527,6 +527,9 @@ func fetchAndParseSingleResultQuery(ctx context.Context, client dbdpb.DatabaseDa
 			rows = append(rows, v)
 		}
 	}
+	if len(rows) < 1 {
+		return "", nil
+	}
 	return rows[0], nil
 }
 
@@ -1104,4 +1107,125 @@ func CheckStatus(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 	klog.InfoS("config_agent_helpers/CheckStatus", "PDB query response", resp2)
 
 	return &CheckStatusResponse{Status: "Ready"}, nil
+}
+
+type DataPumpImportRequest struct {
+	PdbName  string
+	DbDomain string
+	// GCS path to input dump file
+	GcsPath string
+	// GCS path to output log file
+	GcsLogPath string
+	LroInput   *LROInput
+}
+
+// DataPumpImport imports data dump file provided in GCS path.
+func DataPumpImport(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req DataPumpImportRequest) (*lropb.Operation, error) {
+	klog.InfoS("config_agent_helpers/DataPumpImport", "namespace", namespace, "instName", instName, "pdbName", req.PdbName, "dbDomain", req.DbDomain, "gcsPath", req.GcsPath)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/DataPumpImport: failed to create database daemon client: %v", err)
+	}
+	defer func() { _ = closeConn() }()
+
+	return dbClient.DataPumpImportAsync(ctx, &dbdpb.DataPumpImportAsyncRequest{
+		SyncRequest: &dbdpb.DataPumpImportRequest{
+			PdbName:    req.PdbName,
+			DbDomain:   req.DbDomain,
+			GcsPath:    req.GcsPath,
+			GcsLogPath: req.GcsLogPath,
+			CommandParams: []string{
+				"FULL=YES",
+				"METRICS=YES",
+				"LOGTIME=ALL",
+			},
+		},
+		LroInput: &dbdpb.LROInput{
+			OperationId: req.LroInput.OperationId,
+		},
+	})
+}
+
+type DataPumpExportRequest struct {
+	PdbName       string
+	DbDomain      string
+	ObjectType    string
+	Objects       string
+	GcsPath       string
+	GcsLogPath    string
+	LroInput      *LROInput
+	FlashbackTime string
+}
+
+// DataPumpExport exports data pump file to GCS path provided.
+func DataPumpExport(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req DataPumpExportRequest) (*lropb.Operation, error) {
+	klog.InfoS("config_agent_helpers/DataPumpExport", "namespace", namespace, "instName", instName, "pdbName", req.PdbName, "dbDomain", req.DbDomain, "objects", req.Objects, "gcsPath", req.GcsPath)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/DataPumpExport: failed to create database daemon client: %v", err)
+	}
+	defer func() { _ = closeConn() }()
+
+	return dbClient.DataPumpExportAsync(ctx, &dbdpb.DataPumpExportAsyncRequest{
+		SyncRequest: &dbdpb.DataPumpExportRequest{
+			PdbName:       req.PdbName,
+			DbDomain:      req.DbDomain,
+			ObjectType:    req.ObjectType,
+			Objects:       req.Objects,
+			GcsPath:       req.GcsPath,
+			GcsLogPath:    req.GcsLogPath,
+			FlashbackTime: req.FlashbackTime,
+			CommandParams: []string{
+				"METRICS=YES",
+				"LOGTIME=ALL",
+			},
+		},
+		LroInput: &dbdpb.LROInput{
+			OperationId: req.LroInput.OperationId,
+		},
+	})
+}
+
+type GetParameterTypeValueRequest struct {
+	Keys []string
+}
+
+type GetParameterTypeValueResponse struct {
+	Types  []string
+	Values []string
+}
+
+// GetParameterTypeValue returns parameters' type and value by querying DB.
+func GetParameterTypeValue(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req GetParameterTypeValueRequest) (*GetParameterTypeValueResponse, error) {
+	klog.InfoS("config_agent_helpers/GetParameterTypeValue", "namespace", namespace, "instName", instName, "keys", req.Keys)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/GetParameterTypeValue: failed to create database daemon client: %v", err)
+	}
+	defer closeConn()
+
+	types := []string{}
+	values := []string{}
+
+	for _, key := range req.Keys {
+		query := fmt.Sprintf("select issys_modifiable from v$parameter where name='%s'", sql.StringParam(key))
+		value, err := fetchAndParseSingleResultQuery(ctx, dbClient, query)
+		if err != nil {
+			return nil, fmt.Errorf("config_agent_helpers/GetParameterTypeValue: error while fetching type for %v: %v", key, err)
+		}
+		types = append(types, value)
+	}
+	for _, key := range req.Keys {
+		query := fmt.Sprintf("select value from v$parameter where name='%s'", sql.StringParam(key))
+		value, err := fetchAndParseSingleResultQuery(ctx, dbClient, query)
+		if err != nil {
+			return nil, fmt.Errorf("config_agent_helpers/GetParameterTypeValue: error while fetching value for %v: %v", key, err)
+		}
+		values = append(values, value)
+	}
+
+	return &GetParameterTypeValueResponse{Types: types, Values: values}, nil
 }

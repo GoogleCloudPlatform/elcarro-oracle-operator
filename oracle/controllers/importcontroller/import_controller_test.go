@@ -74,7 +74,6 @@ var _ = Describe("Import controller", func() {
 
 	ctx := context.Background()
 
-	var fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
 	var fakeDatabaseClient *testhelpers.FakeDatabaseClient
 
 	var (
@@ -121,7 +120,6 @@ var _ = Describe("Import controller", func() {
 		}, timeout, interval).Should(Succeed())
 
 		fakeClientFactory.Reset()
-		fakeConfigAgentClient = fakeClientFactory.Caclient
 		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
@@ -174,7 +172,7 @@ var _ = Describe("Import controller", func() {
 			Eventually(func() (metav1.ConditionStatus, error) {
 				return getConditionStatus(ctx, importObjectKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(metav1.ConditionTrue))
-			Eventually(fakeConfigAgentClient.DataPumpImportCalledCnt, timeout, interval).Should(Equal(1))
+			Eventually(fakeDatabaseClient.DataPumpImportAsyncCalledCnt, timeout, interval).Should(Equal(1))
 			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
 
 			readyCond, err := getCondition(ctx, importObjectKey, k8s.Ready)
@@ -193,7 +191,7 @@ var _ = Describe("Import controller", func() {
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, importObjectKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.ImportFailed))
-			Eventually(fakeConfigAgentClient.DataPumpImportCalledCnt, timeout, interval).Should(Equal(1))
+			Eventually(fakeDatabaseClient.DataPumpImportAsyncCalledCnt, timeout, interval).Should(Equal(1))
 			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(Equal(1))
 		})
 	})
@@ -225,7 +223,7 @@ var _ = Describe("Import controller", func() {
 
 			// give controller some time to run import if it unexpectedly is going to
 			time.Sleep(100 * time.Millisecond)
-			Expect(fakeConfigAgentClient.DataPumpImportCalledCnt()).Should(Equal(0))
+			Expect(fakeDatabaseClient.DataPumpImportAsyncCalledCnt()).Should(Equal(0))
 			Expect(getConditionReason(ctx, importObjectKey, k8s.Ready)).Should(Equal(k8s.ImportPending))
 		})
 	})

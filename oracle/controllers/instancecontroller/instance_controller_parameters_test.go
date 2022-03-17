@@ -63,7 +63,6 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 	ctx := context.Background()
 	fakeClientFactory := &testhelpers.FakeClientFactory{}
 	fakeClientFactory.Reset()
-	fakeConfigAgentClient := fakeClientFactory.Caclient
 
 	fakeDatabaseClientFactory := &testhelpers.FakeDatabaseClientFactory{}
 	fakeDatabaseClientFactory.Reset()
@@ -74,14 +73,25 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 		OracleHome: "/u01/app/oracle/product/19.3/db",
 	})
 
+	const (
+		Namespace    = "default"
+		InstanceName = "test-instance-parameter"
+	)
+	objKey := client.ObjectKey{Namespace: Namespace, Name: InstanceName}
 	for _, tc := range tests {
-		instanceSpec := v1alpha1.InstanceSpec{
-			InstanceSpec: commonv1alpha1.InstanceSpec{
-				Parameters:        map[string]string{tc.parameterKey: tc.parameterVal},
-				MaintenanceWindow: &tc.maintenanceWindow,
+		instance := v1alpha1.Instance{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      objKey.Name,
+				Namespace: objKey.Namespace,
+			},
+			Spec: v1alpha1.InstanceSpec{
+				InstanceSpec: commonv1alpha1.InstanceSpec{
+					Parameters:        map[string]string{tc.parameterKey: tc.parameterVal},
+					MaintenanceWindow: &tc.maintenanceWindow,
+				},
 			},
 		}
-		_, _, err := fetchCurrentParameterState(ctx, fakeConfigAgentClient, instanceSpec)
+		_, _, err := fetchCurrentParameterState(ctx, reconciler, fakeDatabaseClientFactory, instance)
 		if tc.expectedError && err == nil {
 			t.Fatalf("TestSanityCheckParameters(ctx) expected error for test case:%v", tc.name)
 		} else if !tc.expectedError && err != nil {

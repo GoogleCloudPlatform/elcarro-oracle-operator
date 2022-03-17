@@ -11,7 +11,6 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "//oracle/controllers",
-        "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "@io_k8s_klog_v2//:klog",

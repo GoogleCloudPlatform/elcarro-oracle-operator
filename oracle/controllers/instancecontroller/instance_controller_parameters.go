@@ -22,19 +22,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
-	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	maintenance "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/maintenance"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+	"github.com/go-logr/logr"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // reservedParameters holds the list of parameters that aren't allowed for modification.
@@ -77,8 +77,8 @@ func (r *InstanceReconciler) recordEventAndUpdateStatus(ctx context.Context, ins
 //   a database restart is required.
 // * The current parameter value will be used for rollback if the parameter
 //   update fails or the database is non-functional after the restart.
-func fetchCurrentParameterState(ctx context.Context, caClient capb.ConfigAgentClient, spec v1alpha1.InstanceSpec) (map[string]string, map[string]string, error) {
-
+func fetchCurrentParameterState(ctx context.Context, r client.Reader, dbClientFactory controllers.DatabaseClientFactory, inst v1alpha1.Instance) (map[string]string, map[string]string, error) {
+	spec := inst.Spec
 	var unacceptableParams []string
 	var keys []string
 	for k := range spec.Parameters {
@@ -93,17 +93,18 @@ func fetchCurrentParameterState(ctx context.Context, caClient capb.ConfigAgentCl
 	}
 	staticParams := make(map[string]string)
 	dynamicParams := make(map[string]string)
-	response, err := caClient.GetParameterTypeValue(ctx, &capb.GetParameterTypeValueRequest{
+	setParameterReq := &controllers.GetParameterTypeValueRequest{
 		Keys: keys,
-	})
+	}
+	response, err := controllers.GetParameterTypeValue(ctx, r, dbClientFactory, inst.Namespace, inst.Name, *setParameterReq)
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetchCurrentParameterState: error while querying parameter type:%v", err)
 	}
 
 	// Check if static parameters are specified and restart is required.
 	restartRequired := false
-	paramType := response.GetTypes()
-	paramValues := response.GetValues()
+	paramType := response.Types
+	paramValues := response.Values
 	for i := 0; i < len(paramType); i++ {
 		if paramType[i] == "FALSE" {
 			restartRequired = restartRequired || paramType[i] == "FALSE"
@@ -127,7 +128,7 @@ func fetchCurrentParameterState(ctx context.Context, caClient capb.ConfigAgentCl
 	return staticParams, dynamicParams, nil
 }
 
-func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.Instance, caClient capb.ConfigAgentClient, log logr.Logger) (bool, error) {
+func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.Instance, log logr.Logger) (bool, error) {
 	log.Info("Parameters are ", "parameters:", inst.Spec.Parameters)
 	requireDatabaseRestart := false
 	var keys []string
@@ -143,15 +144,16 @@ func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.In
 		log.Info("setParameters: requireDatabaseRestart", "requireDatabaseRestart", requireDatabaseRestart)
 	}
 
-	response, err := caClient.GetParameterTypeValue(ctx, &capb.GetParameterTypeValueRequest{
+	getParameterReq := &controllers.GetParameterTypeValueRequest{
 		Keys: keys,
-	})
+	}
+	response, err := controllers.GetParameterTypeValue(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *getParameterReq)
 	if err != nil {
 		log.Error(err, "setParameters: error while running GetParameterTypeValue query")
 		return false, err
 	}
 
-	paramValues := response.GetValues()
+	paramValues := response.Values
 	for i := 0; i < len(keys); i++ {
 		if inst.Spec.Parameters[keys[i]] != paramValues[i] &&
 			// For certain parameter types Oracle converts them to uppercase before storing
@@ -188,13 +190,8 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 	if result, err := r.sanityCheckTimeRange(inst, log); err != nil {
 		return result, err
 	}
-	conn, caClient, err := r.getConfigAgentClient(ctx, req, inst, log)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	defer conn.Close()
 
-	_, dynamicParamsRollbackState, err := fetchCurrentParameterState(ctx, caClient, inst.Spec)
+	_, dynamicParamsRollbackState, err := fetchCurrentParameterState(ctx, r, r.DatabaseClientFactory, inst)
 	if err != nil {
 		msg := "setInstanceParameterStateMachine: Sanity check failed for instance parameters"
 		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollback, fmt.Sprintf("%s: %v", msg, err), log)
@@ -210,7 +207,7 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateInProgress, msg, log)
 			log.Info("setInstanceParameterStateMachine: SM CreateComplete -> ParameterUpdateInProgress")
 		case k8s.ParameterUpdateInProgress:
-			restartRequired, err := r.setParameters(ctx, inst, caClient, log)
+			restartRequired, err := r.setParameters(ctx, inst, log)
 			if err != nil {
 				msg := "setInstanceParameterStateMachine: Error while setting instance parameters"
 				r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollback, fmt.Sprintf("%s: %v", msg, err), log)
@@ -234,7 +231,7 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 			log.Info("setInstanceParameterStateMachine: SM ParameterUpdateInProgress -> CreateComplete")
 			return ctrl.Result{}, nil
 		case k8s.ParameterUpdateRollback:
-			if err := r.initiateRecovery(ctx, inst, caClient, dynamicParamsRollbackState, log); err != nil {
+			if err := r.initiateRecovery(ctx, inst, dynamicParamsRollbackState, log); err != nil {
 				log.Info("setInstanceParameterStateMachine: recovery failed, instance currently in irrecoverable state", "err", err)
 				return ctrl.Result{}, err
 			}
@@ -268,7 +265,7 @@ func (r *InstanceReconciler) getConfigAgentClient(ctx context.Context, req ctrl.
 // parameters) to the last known working copy if the static
 // parameter update failed (which caused the database to be non-functional
 // after a restart).
-func (r *InstanceReconciler) initiateRecovery(ctx context.Context, inst v1alpha1.Instance, caClient capb.ConfigAgentClient, dynamicParams map[string]string, log logr.Logger) error {
+func (r *InstanceReconciler) initiateRecovery(ctx context.Context, inst v1alpha1.Instance, dynamicParams map[string]string, log logr.Logger) error {
 
 	log.Info("initiateRecovery: initiating recovery of config file")
 	if err := controllers.RecoverConfigFile(ctx, r.DatabaseClientFactory, r.Client, inst.Namespace, inst.Name, inst.Spec.CDBName); err != nil {

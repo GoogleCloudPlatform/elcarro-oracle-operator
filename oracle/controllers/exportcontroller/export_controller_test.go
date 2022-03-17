@@ -76,13 +76,12 @@ var _ = Describe("Export controller", func() {
 	)
 
 	var (
-		instance              *v1alpha1.Instance
-		database              *v1alpha1.Database
-		export                *v1alpha1.Export
-		dbObjKey              client.ObjectKey
-		objKey                client.ObjectKey
-		fakeConfigAgentClient *testhelpers.FakeConfigAgentClient
-		fakeDatabaseClient    *testhelpers.FakeDatabaseClient
+		instance           *v1alpha1.Instance
+		database           *v1alpha1.Database
+		export             *v1alpha1.Export
+		dbObjKey           client.ObjectKey
+		objKey             client.ObjectKey
+		fakeDatabaseClient *testhelpers.FakeDatabaseClient
 	)
 	ctx := context.Background()
 
@@ -129,7 +128,6 @@ var _ = Describe("Export controller", func() {
 			}, timeout, interval).Should(Succeed())
 
 		fakeClientFactory.Reset()
-		fakeConfigAgentClient = fakeClientFactory.Caclient
 		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 	})
@@ -181,7 +179,7 @@ var _ = Describe("Export controller", func() {
 			}, timeout, interval).Should(Equal(k8s.ExportPending))
 
 			By("verifying post-conditions")
-			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(0))
+			Expect(fakeDatabaseClient.DataPumpExportAsyncCalledCnt()).Should(Equal(0))
 			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(0))
 		})
 
@@ -199,7 +197,7 @@ var _ = Describe("Export controller", func() {
 			}, timeout, interval).Should(Equal(k8s.ExportComplete))
 
 			By("verifying post-conditions")
-			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(1))
+			Expect(fakeDatabaseClient.DataPumpExportAsyncCalledCnt()).Should(Equal(1))
 			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(1))
 		})
 
@@ -217,7 +215,7 @@ var _ = Describe("Export controller", func() {
 			}, timeout, interval).Should(Equal(k8s.ExportFailed))
 
 			By("verifying post-conditions")
-			Expect(fakeConfigAgentClient.DataPumpExportCalledCnt()).Should(Equal(1))
+			Expect(fakeDatabaseClient.DataPumpExportAsyncCalledCnt()).Should(Equal(1))
 			Expect(fakeDatabaseClient.DeleteOperationCalledCnt()).Should(Equal(1))
 		})
 	})

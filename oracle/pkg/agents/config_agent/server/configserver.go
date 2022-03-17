@@ -28,7 +28,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	pb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
@@ -94,98 +93,6 @@ func (s *ConfigServer) GetOperation(ctx context.Context, req *lropb.GetOperation
 	klog.InfoS("configagent/GetOperation", "client", client)
 
 	return client.GetOperation(ctx, req)
-}
-
-// DataPumpImport imports data dump file provided in GCS path.
-func (s *ConfigServer) DataPumpImport(ctx context.Context, req *pb.DataPumpImportRequest) (*lropb.Operation, error) {
-	klog.InfoS("configagent/DataPumpImport", "req", req)
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/DataPumpImport: failed to create database daemon client: %v", err)
-	}
-	defer func() { _ = closeConn() }()
-
-	return client.DataPumpImportAsync(ctx, &dbdpb.DataPumpImportAsyncRequest{
-		SyncRequest: &dbdpb.DataPumpImportRequest{
-			PdbName:    req.PdbName,
-			DbDomain:   req.DbDomain,
-			GcsPath:    req.GcsPath,
-			GcsLogPath: req.GcsLogPath,
-			CommandParams: []string{
-				"FULL=YES",
-				"METRICS=YES",
-				"LOGTIME=ALL",
-			},
-		},
-		LroInput: &dbdpb.LROInput{
-			OperationId: req.GetLroInput().GetOperationId(),
-		},
-	})
-}
-
-// DataPumpExport exports data pump file to GCS path provided.
-func (s *ConfigServer) DataPumpExport(ctx context.Context, req *pb.DataPumpExportRequest) (*lropb.Operation, error) {
-
-	klog.InfoS("configagent/DataPumpExport", "req", req)
-
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/DataPumpExport: failed to create database daemon client: %v", err)
-	}
-	defer func() { _ = closeConn() }()
-
-	return client.DataPumpExportAsync(ctx, &dbdpb.DataPumpExportAsyncRequest{
-		SyncRequest: &dbdpb.DataPumpExportRequest{
-			PdbName:       req.PdbName,
-			DbDomain:      req.DbDomain,
-			ObjectType:    req.ObjectType,
-			Objects:       req.Objects,
-			GcsPath:       req.GcsPath,
-			GcsLogPath:    req.GcsLogPath,
-			FlashbackTime: req.FlashbackTime,
-			CommandParams: []string{
-				"METRICS=YES",
-				"LOGTIME=ALL",
-			},
-		},
-		LroInput: &dbdpb.LROInput{
-			OperationId: req.GetLroInput().GetOperationId(),
-		},
-	})
-}
-
-// GetParameterTypeValue returns parameters' type and value by querying DB.
-func (s *ConfigServer) GetParameterTypeValue(ctx context.Context, req *pb.GetParameterTypeValueRequest) (*pb.GetParameterTypeValueResponse, error) {
-	klog.InfoS("configagent/GetParameterTypeValue", "req", req)
-	client, closeConn, err := newDBDClient(ctx, s)
-	if err != nil {
-		return nil, fmt.Errorf("configagent/GetParameterTypeValue: failed to create dbdClient: %v", err)
-	}
-	defer closeConn()
-	klog.InfoS("configagent/GetParameterTypeValue", "client", client)
-
-	types := []string{}
-	values := []string{}
-
-	for _, key := range req.GetKeys() {
-		query := fmt.Sprintf("select issys_modifiable from v$parameter where name='%s'", sql.StringParam(key))
-		value, err := fetchAndParseSingleResultQuery(ctx, client, query)
-		if err != nil {
-			return nil, fmt.Errorf("configagent/GetParameterTypeValue: error while fetching type for %v: %v", key, err)
-		}
-		types = append(types, value)
-	}
-	for _, key := range req.GetKeys() {
-		query := fmt.Sprintf("select value from v$parameter where name='%s'", sql.StringParam(key))
-		value, err := fetchAndParseSingleResultQuery(ctx, client, query)
-		if err != nil {
-			return nil, fmt.Errorf("configagent/GetParameterTypeValue: error while fetching value for %v: %v", key, err)
-		}
-		values = append(values, value)
-	}
-
-	return &pb.GetParameterTypeValueResponse{Types: types, Values: values}, nil
 }
 
 // fetchAndParseSingleResultQuery is a utility method intended for running single result queries.

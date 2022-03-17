@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"google.golang.org/grpc"
 	log "k8s.io/klog/v2"
@@ -59,8 +58,4 @@ func testConfigAgent() {
 	}
 
 	defer conn.Close()
-	caClient := capb.NewConfigAgentClient(conn)
-	// replace below code to test other config agent APIs
-	resp, err := caClient.GetParameterTypeValue(ctx, &capb.GetParameterTypeValueRequest{Keys: []string{"db_block_size"}})
-	log.Info(fmt.Sprintf("resp: %v, err: %v", resp, err))
 }
