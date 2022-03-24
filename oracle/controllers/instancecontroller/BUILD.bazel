@@ -19,7 +19,6 @@ go_library(
         "//oracle/controllers",
         "//oracle/controllers/databasecontroller",
         "//oracle/pkg/agents/common/sql",
-        "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/k8s",
@@ -37,7 +36,6 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/handler",
         "@io_k8s_sigs_controller_runtime//pkg/source",
-        "@org_golang_google_grpc//:go_default_library",
     ],
 )
 

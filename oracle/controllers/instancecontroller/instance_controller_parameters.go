@@ -25,14 +25,10 @@ import (
 	maintenance "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/maintenance"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/go-logr/logr"
-	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -243,22 +239,6 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 		}
 	}
 	return ctrl.Result{}, nil
-}
-
-func (r *InstanceReconciler) getConfigAgentClient(ctx context.Context, req ctrl.Request, inst v1alpha1.Instance, log logr.Logger) (*grpc.ClientConn, capb.ConfigAgentClient, error) {
-	agentSvc := &corev1.Service{}
-	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(controllers.AgentSvcName, inst.Name), Namespace: req.Namespace}, agentSvc); err != nil {
-		return nil, nil, err
-	}
-
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", agentSvc.Spec.ClusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
-	if err != nil {
-		// We'll retry the reconcile if its due to transient connection errors
-		log.Error(err, "setInstanceParameterStateMachine: failed to create a conn via gRPC.Dial")
-		return nil, nil, err
-	}
-	caClient := capb.NewConfigAgentClient(conn)
-	return conn, caClient, nil
 }
 
 // initiateRecovery will recover the config file (which contains the static

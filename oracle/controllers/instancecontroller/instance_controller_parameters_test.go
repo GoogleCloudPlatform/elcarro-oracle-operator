@@ -61,8 +61,6 @@ func TestSanityCheckForReservedParameters(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	fakeClientFactory := &testhelpers.FakeClientFactory{}
-	fakeClientFactory.Reset()
 
 	fakeDatabaseClientFactory := &testhelpers.FakeDatabaseClientFactory{}
 	fakeDatabaseClientFactory.Reset()

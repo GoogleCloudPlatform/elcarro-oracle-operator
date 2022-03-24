@@ -33,8 +33,6 @@ func testInstanceRestore() {
 	oldPreflightFunc := restorePhysicalPreflightCheck
 
 	BeforeEach(func() {
-		fakeClientFactory.Reset()
-		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
 		fakeDatabaseClient.SetAsyncPhysicalRestore(true)
@@ -66,7 +64,7 @@ func testInstanceRestore() {
 
 		By("invoking RMAN restore for the Instance")
 
-		// configure fake ConfigAgent to be in requested mode
+		// configure fakeDatabaseClient to be in requested mode
 		fakeDatabaseClient.SetNextGetOperationStatus(mode)
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			if err := k8sClient.Get(ctx, objKey, instance); err != nil {
@@ -298,7 +296,7 @@ func testInstanceRestore() {
 			return k8sClient.Status().Update(ctx, instance)
 		})).Should(Succeed())
 
-		// configure fake ConfigAgent to be in requested mode
+		// configure fakeDatabaseClient to be in requested mode
 		fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusNotFound)
 		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			if err := k8sClient.Get(ctx, objKey, instance); err != nil {

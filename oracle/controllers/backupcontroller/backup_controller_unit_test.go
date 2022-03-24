@@ -93,7 +93,7 @@ func (f *mockOracleBackupFactory) newOracleBackup(r *BackupReconciler, backup *v
 }
 
 func TestReconcileBackupErrors(t *testing.T) {
-	reconciler, _, backupCtrl, _, _ := newTestBackupReconciler()
+	reconciler, _, backupCtrl, _ := newTestBackupReconciler()
 	backup := v1alpha1.Backup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testBackupName,
@@ -357,7 +357,7 @@ func TestReconcileBackupCreation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reconciler, oracleBackup, backupCtrl, _, _ := newTestBackupReconciler()
+			reconciler, oracleBackup, backupCtrl, _ := newTestBackupReconciler()
 			var gotNewStatus v1alpha1.BackupStatus
 			backupCtrl.updateStatus = func(obj client.Object) error {
 				if _, ok := obj.(*v1alpha1.Backup); ok {
@@ -527,7 +527,7 @@ func TestReconcileVerifyExist(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reconciler, _, backupCtrl, _, dbClient := newTestBackupReconciler()
+			reconciler, _, backupCtrl, dbClient := newTestBackupReconciler()
 			var gotNewStatus v1alpha1.BackupStatus
 			backupCtrl.updateStatus = func(obj client.Object) error {
 				if _, ok := obj.(*v1alpha1.Backup); ok {
@@ -597,21 +597,18 @@ func newBackupWithStatus(status v1alpha1.BackupStatus) *v1alpha1.Backup {
 func newTestBackupReconciler() (reconciler *BackupReconciler,
 	b *mockOracleBackup,
 	c *mockBackupControl,
-	caclient *testhelpers.FakeConfigAgentClient,
 	dbClient *testhelpers.FakeDatabaseClient) {
 	b = &mockOracleBackup{}
 	c = &mockBackupControl{}
-	caclient = &testhelpers.FakeConfigAgentClient{}
 	dbClient = &testhelpers.FakeDatabaseClient{}
 
 	return &BackupReconciler{
 		Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
 		Scheme:              runtime.NewScheme(),
-		ClientFactory:       &testhelpers.FakeClientFactory{Caclient: caclient},
 		OracleBackupFactory: &mockOracleBackupFactory{mockBackup: b},
 		Recorder:            record.NewFakeRecorder(10),
 		BackupCtrl:          c,
 
 		DatabaseClientFactory: &testhelpers.FakeDatabaseClientFactory{Dbclient: dbClient},
-	}, b, c, caclient, dbClient
+	}, b, c, dbClient
 }

@@ -170,9 +170,6 @@ buildah-push-operator:
 buildah-push-dbinit:
 	bazel run //oracle/build:dbinit_push
 
-buildah-push-configagent:
-	bazel run //oracle/build:configagent_push
-
 buildah-push-dbdaemon-client:
 	bazel run //oracle/build:dbdaemonclient_push
 
@@ -183,7 +180,7 @@ buildah-push-monitoring:
 	bazel run //oracle/build:monitoring_push
 
 # Build and push everything except the db image for integration tests.
-buildah-push-all: buildah-push-operator buildah-push-dbinit buildah-push-configagent buildah-push-logging buildah-push-monitoring
+buildah-push-all: buildah-push-operator buildah-push-dbinit buildah-push-logging buildah-push-monitoring
 
 # Install CRDs into a cluster
 install: generate-config

@@ -36,16 +36,14 @@ import (
 )
 
 var (
-	k8sClient         client.Client
-	k8sManager        ctrl.Manager
-	reconciler        *BackupReconciler
-	fakeClientFactory *testhelpers.FakeClientFactory
+	k8sClient  client.Client
+	k8sManager ctrl.Manager
+	reconciler *BackupReconciler
 
 	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
 )
 
 func TestBackupController(t *testing.T) {
-	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 	testhelpers.CdToRoot(t)
 	testhelpers.RunFunctionalTestSuite(t, &k8sClient, &k8sManager,
@@ -61,7 +59,6 @@ func TestBackupController(t *testing.T) {
 				Client:              client,
 				Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
 				Scheme:              k8sManager.GetScheme(),
-				ClientFactory:       fakeClientFactory,
 				Recorder:            k8sManager.GetEventRecorderFor("backup-controller"),
 				BackupCtrl:          &RealBackupControl{Client: k8sClient},
 				OracleBackupFactory: &RealOracleBackupFactory{},
@@ -119,7 +116,6 @@ var _ = Describe("Backup controller", func() {
 			return getInstanceConditionStatus(ctx, objKey, k8s.Ready)
 		}, timeout, interval).Should(Equal(metav1.ConditionTrue))
 
-		fakeClientFactory.Reset()
 		fakeDatabaseClientFactory.Reset()
 	})
 

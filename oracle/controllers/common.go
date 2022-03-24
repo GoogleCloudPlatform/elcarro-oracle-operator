@@ -30,7 +30,6 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
@@ -115,20 +114,7 @@ type AgentDeploymentParams struct {
 	Services       []commonv1alpha1.Service
 }
 
-// ConfigAgentClientFactory is a GRPC implementation of ConfigAgentClientFactory. Exists for test mock.
-type GrpcConfigAgentClientFactory struct {
-	caclient *capb.ConfigAgentClient
-}
-
 type ConnCloseFunc func()
-
-// ConfigAgentClientFactory is a GRPC implementation of ConfigAgentClientFactory. Exists for test mock.
-type ConfigAgentClientFactory interface {
-	// New returns new Client.
-	// connection close function should be invoked by the caller if
-	// error is nil.
-	New(ctx context.Context, r client.Reader, namespace, instName string) (capb.ConfigAgentClient, ConnCloseFunc, error)
-}
 
 //
 type GRPCDatabaseClientFactory struct {
@@ -149,19 +135,6 @@ func GetPVCNameAndMount(instName, diskName string) (string, string) {
 	mountLocation := defaultDiskMountLocations[spec.Name]
 	pvcName := fmt.Sprintf(PvcMountName, instName, mountLocation)
 	return pvcName, mountLocation
-}
-
-// New returns a new config agent client.
-func (g *GrpcConfigAgentClientFactory) New(ctx context.Context, r client.Reader, namespace, instName string) (capb.ConfigAgentClient, ConnCloseFunc, error) {
-	agentSvc := &corev1.Service{}
-	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(AgentSvcName, instName), Namespace: namespace}, agentSvc); err != nil {
-		return nil, nil, err
-	}
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", agentSvc.Spec.ClusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create a conn via gRPC.Dial: %w", err)
-	}
-	return capb.NewConfigAgentClient(conn), func() { _ = conn.Close() }, nil
 }
 
 // New returns a new database daemon client

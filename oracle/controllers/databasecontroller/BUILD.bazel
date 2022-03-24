@@ -13,7 +13,6 @@ go_library(
         "//oracle/api/v1alpha1",
         "//oracle/controllers",
         "//oracle/pkg/agents/common/sql",
-        "//oracle/pkg/agents/consts",
         "//oracle/pkg/k8s",
         "@com_github_go_logr_logr//:logr",
         "@io_k8s_api//core/v1:core",
@@ -30,7 +29,6 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
         "@io_k8s_sigs_controller_runtime//pkg/source",
         "@io_k8s_utils//integer",
-        "@org_golang_google_grpc//:go_default_library",
     ],
 )
 

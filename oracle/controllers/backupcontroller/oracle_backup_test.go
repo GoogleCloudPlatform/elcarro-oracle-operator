@@ -91,7 +91,7 @@ func TestPhysicalBackupCreate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r, _, _, _, dbClient := newTestBackupReconciler()
+			r, _, _, dbClient := newTestBackupReconciler()
 			if tc.physicalBackupFailure {
 				dbClient.SetMethodToError("RunRMANAsync", fmt.Errorf("PhysicalBackup fail."))
 			}
@@ -140,7 +140,7 @@ func TestPhysicalBackupStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			r, _, _, _, dbClient := newTestBackupReconciler()
+			r, _, _, dbClient := newTestBackupReconciler()
 
 			dbClient.SetNextGetOperationStatus(tc.operationStatus)
 			backup := &physicalBackup{

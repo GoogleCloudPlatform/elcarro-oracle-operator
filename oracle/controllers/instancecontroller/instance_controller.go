@@ -22,7 +22,6 @@ import (
 
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/go-logr/logr"
-	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,11 +45,10 @@ var CheckStatusInstanceFunc = controllers.CheckStatusInstanceFunc
 // InstanceReconciler reconciles an Instance object.
 type InstanceReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	Images        map[string]string
-	ClientFactory controllers.ConfigAgentClientFactory
-	Recorder      record.EventRecorder
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Images   map[string]string
+	Recorder record.EventRecorder
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }
@@ -223,7 +221,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return ctrl.Result{}, err
 	}
 
-	_, agentSvc, err := r.createDataplaneServices(ctx, inst, applyOpts)
+	_, _, err = r.createDataplaneServices(ctx, inst, applyOpts)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -281,12 +279,6 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	}
 
 	if k8s.ConditionStatusEquals(k8s.FindCondition(inst.Status.Conditions, k8s.StandbyReady), v1.ConditionTrue) {
-		conn, err := grpc.Dial(fmt.Sprintf("%s:%d", agentSvc.Spec.ClusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
-		if err != nil {
-			log.Error(err, "failed to create a conn via gRPC.Dial")
-			return ctrl.Result{}, err
-		}
-		defer conn.Close()
 		// promote the standby instance, bootstrap is part of promotion.
 		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.PromoteStandbyInProgress, "")
 		if err := r.bootstrapStandby(ctx, &inst, log); err != nil {
@@ -440,10 +432,6 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 	case k8s.BootstrapPending:
 		// Launch the BootstrapDatabase LRO
-		if err != nil {
-			log.Error(err, "failed to create config agent client")
-			return ctrl.Result{}, err
-		}
 		bootstrapMode := controllers.BootstrapDatabaseRequest_ProvisionUnseeded
 		if isImageSeeded {
 			bootstrapMode = controllers.BootstrapDatabaseRequest_ProvisionSeeded
@@ -530,7 +518,7 @@ func (r *InstanceReconciler) setDnfs(ctx context.Context, inst v1alpha1.Instance
 		AvoidConfigBackup: false,
 	})
 	if err != nil {
-		return fmt.Errorf("configagent/BounceDatabase: error while starting db: %v", err)
+		return fmt.Errorf("dbClient/BounceDatabase: error while starting db: %v", err)
 	}
 
 	return nil

@@ -49,7 +49,6 @@ var (
 
 	dbInitImage          = flag.String("db_init_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/dbinit:latest", "DB POD init binary image URI")
 	serviceImage         = flag.String("service_image_uri", "", "GCR service URI")
-	configAgentImage     = flag.String("config_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/configagent:latest", "Config Agent image URI")
 	loggingSidecarImage  = flag.String("logging_sidecar_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/loggingsidecar:latest", "Logging Sidecar image URI")
 	monitoringAgentImage = flag.String("monitoring_agent_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/monitoring:latest", "Monitoring Agent image URI")
 
@@ -84,7 +83,6 @@ func main() {
 	images := make(map[string]string)
 	images["dbinit"] = *dbInitImage
 	images["service"] = *serviceImage
-	images["config"] = *configAgentImage
 	images["logging_sidecar"] = *loggingSidecarImage
 	images["monitoring"] = *monitoringAgentImage
 
@@ -102,12 +100,11 @@ func main() {
 	}
 
 	if err = (&instancecontroller.InstanceReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Instance"),
-		Scheme:        mgr.GetScheme(),
-		Images:        images,
-		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
-		Recorder:      mgr.GetEventRecorderFor("instance-controller"),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("Instance"),
+		Scheme:   mgr.GetScheme(),
+		Images:   images,
+		Recorder: mgr.GetEventRecorderFor("instance-controller"),
 
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
@@ -118,7 +115,6 @@ func main() {
 		Client:                mgr.GetClient(),
 		Log:                   ctrl.Log.WithName("controllers").WithName("Database"),
 		Scheme:                mgr.GetScheme(),
-		ClientFactory:         &controllers.GrpcConfigAgentClientFactory{},
 		Recorder:              mgr.GetEventRecorderFor("database-controller"),
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
@@ -129,7 +125,6 @@ func main() {
 		Client:              mgr.GetClient(),
 		Log:                 ctrl.Log.WithName("controllers").WithName("Backup"),
 		Scheme:              mgr.GetScheme(),
-		ClientFactory:       &controllers.GrpcConfigAgentClientFactory{},
 		Recorder:            mgr.GetEventRecorderFor("backup-controller"),
 		OracleBackupFactory: &backupcontroller.RealOracleBackupFactory{},
 		BackupCtrl:          &backupcontroller.RealBackupControl{Client: mgr.GetClient()},
@@ -150,11 +145,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&exportcontroller.ExportReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Export"),
-		Scheme:        mgr.GetScheme(),
-		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
-		Recorder:      mgr.GetEventRecorderFor("export-controller"),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("Export"),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("export-controller"),
 
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
@@ -162,11 +156,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&importcontroller.ImportReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Import"),
-		Scheme:        mgr.GetScheme(),
-		ClientFactory: &controllers.GrpcConfigAgentClientFactory{},
-		Recorder:      mgr.GetEventRecorderFor("import-controller"),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName("Import"),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("import-controller"),
 
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
