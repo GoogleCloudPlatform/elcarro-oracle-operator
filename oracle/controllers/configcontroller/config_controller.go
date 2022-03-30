@@ -108,6 +108,9 @@ func (r *ConfigReconciler) patchAgentDeployment(ctx context.Context, instance v1
 	if err != nil {
 		r.Log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
 		return err
+	} else if agentDeployment == nil {
+		r.Log.Info("ConfigReconciler/patchAgentDeployment: Agent Deployment not needed since it would contain no pods")
+		return nil
 	}
 
 	if err := Patch(r, ctx, agentDeployment, client.Apply, applyOpts...); err != nil {

@@ -90,11 +90,6 @@ var _ = Describe("Config controller", func() {
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
 
-		Eventually(func() bool {
-			// The Patch function is called once for each deployment that should be patched.
-			return atomic.LoadUint32(&patchedDeploymentCount) == instanceCount
-		}, timeout, interval).Should(BeTrue())
-
 		Expect(k8sClient.Delete(context.Background(), config)).Should(Succeed())
 	})
 

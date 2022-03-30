@@ -239,11 +239,6 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 				return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 			}
 		case "Physical":
-			if err != nil {
-				log.Error(err, "failed to create config agent client")
-				return ctrl.Result{}, err
-			}
-
 			req := &controllers.BootstrapDatabaseRequest{
 				CdbName:      inst.Spec.CDBName,
 				DbUniqueName: inst.Spec.DBUniqueName,

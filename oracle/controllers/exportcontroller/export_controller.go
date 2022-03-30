@@ -37,10 +37,9 @@ import (
 // ExportReconciler reconciles an export object.
 type ExportReconciler struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	ClientFactory controllers.ConfigAgentClientFactory
-	Recorder      record.EventRecorder
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }

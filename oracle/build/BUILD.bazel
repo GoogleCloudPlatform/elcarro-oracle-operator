@@ -39,25 +39,6 @@ container_push(
 )
 
 container_image(
-    name = "configagent",
-    base = "//oracle:base_image",
-    entrypoint = ["/config_agent"],
-    files = [
-        "//oracle/cmd/config_agent",
-    ],
-    symlinks = {"/configagent": "/config_agent"},
-)
-
-container_push(
-    name = "configagent_push",
-    format = "OCI",
-    image = ":configagent",
-    registry = REGISTRY,
-    repository = PROJECT + "/oracle.db.anthosapis.com/configagent",
-    tag = TAG,
-)
-
-container_image(
     name = "dbdaemon_client",
     base = "//oracle:base_image_with_busybox",
     files = [

@@ -4,7 +4,6 @@ go_library(
     name = "manual_test_lib",
     srcs = [
         "test.go",
-        "test_config_agent.go",
         "test_dbdaemon.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/scripts/manual_test",

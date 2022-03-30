@@ -97,13 +97,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 			Expect(k8sClient.List(ctx, &sts, client.InNamespace(instanceNamespace))).Should(Succeed())
 			Expect(len(sts.Items)).Should(Equal(1))
 
-			var instanceDeployment appsv1.DeploymentList
-			Expect(k8sClient.List(ctx, &instanceDeployment, client.InNamespace(instanceNamespace))).Should(Succeed())
-			Expect(len(instanceDeployment.Items)).Should(Equal(1)) //1 deployment for the instance
-
 			var instanceSvc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &instanceSvc, client.InNamespace(instanceNamespace))).Should(Succeed())
-			Expect(len(instanceSvc.Items)).Should(Equal(3)) // 3 services (LB, DBDaemon, Agent) per (1) instance
+			Expect(len(instanceSvc.Items)).Should(Equal(2)) // 2 services (LB, DBDaemon, Agent) per (1) instance
 		})
 	}
 

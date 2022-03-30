@@ -16,7 +16,6 @@ go_library(
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
         "//oracle/controllers",
-        "//oracle/pkg/agents/config_agent/protos",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/k8s",
         "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",

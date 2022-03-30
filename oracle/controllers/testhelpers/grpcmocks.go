@@ -31,9 +31,6 @@ import (
 	grpcstatus "google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	capb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/config_agent/protos"
-
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
@@ -55,31 +52,6 @@ const (
 
 // FakeConfigAgentClient a client for capturing calls the various ConfigAgent api.
 type FakeConfigAgentClient struct {
-	verifyPhysicalBackupCalledCnt  int32
-	physicalBackupCalledCnt        int32
-	physicalRestoreCalledCnt       int32
-	createUsersCalledCnt           int32
-	checkStatusCalledCnt           int32
-	createCDBCalledCnt             int32
-	bootstrapDatabaseCalledCnt     int32
-	bootstrapStandbyCalledCnt      int32
-	bounceDatabaseCalledCnt        int32
-	getOperationCalledCnt          int32
-	deleteOperationCalledCnt       int32
-	dataPumpImportCalledCnt        int32
-	dataPumpExportCalledCnt        int32
-	setParameterCalledCnt          int32
-	getParameterTypeValueCalledCnt int32
-	SetDnfsStateCalledCnt          int32
-
-	lock                         sync.Mutex
-	fetchServiceImageMetaDataCnt int32
-	asyncBootstrapDatabase       bool
-	asyncPhysicalBackup          bool
-	asyncPhysicalRestore         bool
-	methodToResp                 map[string](interface{})
-	methodToError                map[string]error
-	nextGetOperationStatus       FakeOperationStatus
 }
 
 // FakeDatabaseClient mocks DatabaseDaemon
@@ -361,14 +333,6 @@ type FakeDatabaseClientFactory struct {
 	Dbclient *FakeDatabaseClient
 }
 
-// New returns a new fake ConfigAgent.
-func (g *FakeClientFactory) New(context.Context, client.Reader, string, string) (capb.ConfigAgentClient, controllers.ConnCloseFunc, error) {
-	if g.Caclient == nil {
-		g.Reset()
-	}
-	return g.Caclient, emptyConnCloseFunc, nil
-}
-
 // New returns a new fake DatabaseClient.
 func (g *FakeDatabaseClientFactory) New(context.Context, client.Reader, string, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
 	if g.Dbclient == nil {
@@ -378,18 +342,8 @@ func (g *FakeDatabaseClientFactory) New(context.Context, client.Reader, string, 
 }
 
 // Reset clears the inner ConfigAgent.
-func (g *FakeClientFactory) Reset() {
-	g.Caclient = &FakeConfigAgentClient{}
-}
-
-// Reset clears the inner ConfigAgent.
 func (g *FakeDatabaseClientFactory) Reset() {
 	g.Dbclient = &FakeDatabaseClient{}
-}
-
-// Reset reset's the config agent's counters.
-func (cli *FakeConfigAgentClient) Reset() {
-	*cli = FakeConfigAgentClient{}
 }
 
 // Reset reset's the config agent's counters.
@@ -449,11 +403,6 @@ func (cli *FakeDatabaseClient) DataPumpImportAsyncCalledCnt() int {
 }
 
 // DataPumpExportCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) DataPumpExportCalledCnt() int {
-	return int(atomic.LoadInt32(&cli.dataPumpExportCalledCnt))
-}
-
-// DataPumpExportCalledCnt returns call count.
 func (cli *FakeDatabaseClient) DataPumpExportAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.dataPumpExportAsyncCalledCnt))
 }
@@ -461,21 +410,6 @@ func (cli *FakeDatabaseClient) DataPumpExportAsyncCalledCnt() int {
 // DeleteOperationCalledCnt returns call count.
 func (cli *FakeDatabaseClient) DeleteOperationCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.deleteOperationCalledCnt))
-}
-
-// VerifyPhysicalBackupCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) VerifyPhysicalBackupCalledCnt() int {
-	return int(atomic.LoadInt32(&cli.verifyPhysicalBackupCalledCnt))
-}
-
-// PhysicalBackupCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) PhysicalBackupCalledCnt() int {
-	return int(atomic.LoadInt32(&cli.physicalBackupCalledCnt))
-}
-
-// PhysicalRestoreCalledCnt returns call count.
-func (cli *FakeConfigAgentClient) PhysicalRestoreCalledCnt() int {
-	return int(atomic.LoadInt32(&cli.physicalRestoreCalledCnt))
 }
 
 // GetOperationCalledCnt returns call count.
@@ -502,22 +436,10 @@ func (cli *FakeDatabaseClient) NextGetOperationStatus() FakeOperationStatus {
 	return cli.nextGetOperationStatus
 }
 
-func (cli *FakeConfigAgentClient) SetAsyncPhysicalBackup(async bool) {
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-	cli.asyncPhysicalBackup = async
-}
-
 func (cli *FakeDatabaseClient) SetAsyncPhysicalBackup(async bool) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.asyncPhysicalBackup = async
-}
-
-func (cli *FakeConfigAgentClient) SetAsyncPhysicalRestore(async bool) {
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-	cli.asyncPhysicalRestore = async
 }
 
 func (cli *FakeDatabaseClient) SetAsyncPhysicalRestore(async bool) {
@@ -526,24 +448,10 @@ func (cli *FakeDatabaseClient) SetAsyncPhysicalRestore(async bool) {
 	cli.asyncPhysicalRestore = async
 }
 
-func (cli *FakeConfigAgentClient) SetAsyncBootstrapDatabase(async bool) {
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-	cli.asyncBootstrapDatabase = async
-}
 func (cli *FakeDatabaseClient) SetAsyncBootstrapDatabase(async bool) {
 	cli.lock.Lock()
 	defer cli.lock.Unlock()
 	cli.asyncBootstrapDatabase = async
-}
-
-func (cli *FakeConfigAgentClient) SetMethodToResp(method string, resp interface{}) {
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-	if cli.methodToResp == nil {
-		cli.methodToResp = make(map[string]interface{})
-	}
-	cli.methodToResp[method] = resp
 }
 
 func (cli *FakeDatabaseClient) SetMethodToResp(method string, resp interface{}) {
@@ -553,15 +461,6 @@ func (cli *FakeDatabaseClient) SetMethodToResp(method string, resp interface{}) 
 		cli.methodToResp = make(map[string]interface{})
 	}
 	cli.methodToResp[method] = resp
-}
-
-func (cli *FakeConfigAgentClient) SetMethodToError(method string, err error) {
-	cli.lock.Lock()
-	defer cli.lock.Unlock()
-	if cli.methodToError == nil {
-		cli.methodToError = make(map[string]error)
-	}
-	cli.methodToError[method] = err
 }
 
 func (cli *FakeDatabaseClient) SetMethodToError(method string, err error) {
@@ -583,22 +482,6 @@ func (cli *FakeDatabaseClient) RemoveMethodToError(method string) {
 	if ok {
 		delete(cli.methodToError, method)
 	}
-}
-
-func (cli *FakeConfigAgentClient) getMethodRespErr(method string) (interface{}, error) {
-	var err error
-	var resp interface{}
-	if cli.methodToResp != nil {
-		if _, ok := cli.methodToResp[method]; ok {
-			resp = cli.methodToResp[method]
-		}
-	}
-	if cli.methodToError != nil {
-		if _, ok := cli.methodToError[method]; ok {
-			err = cli.methodToError[method]
-		}
-	}
-	return resp, err
 }
 
 func (cli *FakeDatabaseClient) getMethodRespErr(method string) (interface{}, error) {

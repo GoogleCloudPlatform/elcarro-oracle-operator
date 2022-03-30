@@ -42,7 +42,6 @@ var (
 	k8sClient                 client.Client
 	k8sManager                ctrl.Manager
 	reconciler                *DatabaseReconciler
-	fakeClientFactory         *testhelpers.FakeClientFactory
 	DatabaseName              = testhelpers.RandName("db1")
 	Namespace                 = testhelpers.RandName("ns1")
 	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
@@ -54,7 +53,6 @@ func TestDatabaseController(t *testing.T) {
 	CheckStatusInstanceFunc = func(ctx context.Context, r client.Reader, dbClientFactory controllers.DatabaseClientFactory, instName, cdbName, namespace, clusterIP, DBDomain string, log logr.Logger) (string, error) {
 		return "Ready", nil
 	}
-	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 	// Run test suite for database reconciler.
 	testhelpers.CdToRoot(t)
@@ -68,7 +66,6 @@ func TestDatabaseController(t *testing.T) {
 				Client:                k8sManager.GetClient(),
 				Log:                   ctrl.Log.WithName("controllers").WithName("Database"),
 				Scheme:                k8sManager.GetScheme(),
-				ClientFactory:         fakeClientFactory,
 				Recorder:              k8sManager.GetEventRecorderFor("database-controller"),
 				DatabaseClientFactory: fakeDatabaseClientFactory,
 			}}

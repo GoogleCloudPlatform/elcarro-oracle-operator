@@ -35,7 +35,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -133,6 +132,9 @@ func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1a
 		log.Info("createAgentDeployment: error in function NewAgentDeployment")
 		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
 		return ctrl.Result{}, err
+	} else if agentDeployment == nil {
+		log.Info("createAgentDeployment: Agent Deployment not needed since it would contain no pods")
+		return ctrl.Result{}, nil
 	}
 	log.Info("createAgentDeployment: function NewAgentDeployment succeeded")
 	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
@@ -208,8 +210,13 @@ func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v
 	agentSvc, err = controllers.NewAgentSvc(&inst, r.Scheme)
 	if err != nil {
 		return nil, nil, err
+	} else if agentSvc == nil {
+		return dbDaemonSvc, nil, nil
 	}
 
+	if agentSvc.Spec.Ports == nil {
+		return dbDaemonSvc, agentSvc, nil
+	}
 	if err := r.Patch(ctx, agentSvc, client.Apply, applyOpts...); err != nil {
 		return nil, nil, err
 	}
@@ -382,11 +389,7 @@ func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string
 }
 
 func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1alpha1.Instance, namespace string, log logr.Logger) (bool, error) {
-	agentSvc := &corev1.Service{}
-	if err := r.Get(ctx, types.NamespacedName{Name: fmt.Sprintf(controllers.AgentSvcName, inst.Name), Namespace: namespace}, agentSvc); err != nil {
-		return false, err
-	}
-	status, err := CheckStatusInstanceFunc(ctx, r, r.DatabaseClientFactory, inst.Name, inst.Spec.CDBName, inst.Namespace, agentSvc.Spec.ClusterIP, controllers.GetDBDomain(inst), log)
+	status, err := CheckStatusInstanceFunc(ctx, r, r.DatabaseClientFactory, inst.Name, inst.Spec.CDBName, inst.Namespace, "", controllers.GetDBDomain(inst), log)
 	if err != nil {
 		log.Info("dbdaemon startup still in progress, waiting")
 		return false, nil

@@ -33,16 +33,14 @@ import (
 )
 
 var (
-	k8sClient         client.Client
-	k8sManager        ctrl.Manager
-	reconciler        *ImportReconciler
-	fakeClientFactory *testhelpers.FakeClientFactory
+	k8sClient  client.Client
+	k8sManager ctrl.Manager
+	reconciler *ImportReconciler
 
 	fakeDatabaseClientFactory *testhelpers.FakeDatabaseClientFactory
 )
 
 func TestImportController(t *testing.T) {
-	fakeClientFactory = &testhelpers.FakeClientFactory{}
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
 	testhelpers.CdToRoot(t)
 	testhelpers.RunFunctionalTestSuite(t, &k8sClient, &k8sManager,
@@ -50,11 +48,10 @@ func TestImportController(t *testing.T) {
 		"Import controller",
 		func() []testhelpers.Reconciler {
 			reconciler = &ImportReconciler{
-				Client:        k8sManager.GetClient(),
-				Log:           ctrl.Log.WithName("controllers").WithName("Import"),
-				Scheme:        k8sManager.GetScheme(),
-				ClientFactory: fakeClientFactory,
-				Recorder:      k8sManager.GetEventRecorderFor("import-controller"),
+				Client:   k8sManager.GetClient(),
+				Log:      ctrl.Log.WithName("controllers").WithName("Import"),
+				Scheme:   k8sManager.GetScheme(),
+				Recorder: k8sManager.GetEventRecorderFor("import-controller"),
 
 				DatabaseClientFactory: fakeDatabaseClientFactory,
 			}
@@ -119,7 +116,6 @@ var _ = Describe("Import controller", func() {
 			return k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: database.Name}, &v1alpha1.Database{})
 		}, timeout, interval).Should(Succeed())
 
-		fakeClientFactory.Reset()
 		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 

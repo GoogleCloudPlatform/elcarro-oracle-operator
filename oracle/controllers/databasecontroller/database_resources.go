@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/integer"
@@ -31,7 +30,6 @@ import (
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	k8s "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
@@ -49,8 +47,7 @@ var (
 // If a PDB is new, just created now, NewDatabase returns bail=false.
 // If it's an existing PDB, NewDatabase returns bail=true (so that the rest
 // of the workflow, e.g. creating users step, is not attempted).
-func NewDatabase(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, clusterIP, dbDomain, cdbName string, log logr.Logger) (bool, error) {
-	log.Info("resources/NewDatabase: new database requested", "db", db, "clusterIP", clusterIP)
+func NewDatabase(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, dbDomain, cdbName string, log logr.Logger) (bool, error) {
 	r.Recorder.Eventf(db, corev1.EventTypeNormal, k8s.CreatingDatabase, fmt.Sprintf("Creating new database %q", db.Spec.Name))
 
 	// Establish a connection to a Config Agent.
@@ -128,8 +125,8 @@ func NewDatabase(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Databa
 }
 
 // NewUsers attempts to create a new user.
-func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, clusterIP, dbDomain, cdbName string, log logr.Logger) error {
-	log.Info("resources/NewUsers: new database users requested", "dbName", db.Spec.Name, "clusterIP", clusterIP, "requestedUsers", db.Spec.Users)
+func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, dbDomain, cdbName string, log logr.Logger) error {
+	log.Info("resources/NewUsers: new database users requested", "dbName", db.Spec.Name, "requestedUsers", db.Spec.Users)
 	var usernames, usersCmds, grantsCmds []string
 	var userSpecs []*controllers.User
 	userVerMap := make(map[string]string)
@@ -208,20 +205,9 @@ func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database,
 }
 
 // SyncUsers attempts to update PDB users.
-func SyncUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, clusterIP, cdbName string, log logr.Logger) error {
-	// Establish a connection to a Config Agent.
-	log.Info("resources/syncUsers: sync database users requested", "db", db, "clusterIP", clusterIP)
+func SyncUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, cdbName string, log logr.Logger) error {
+	log.Info("resources/syncUsers: sync database users requested", "db", db)
 	r.Recorder.Eventf(db, corev1.EventTypeNormal, k8s.SyncingUser, fmt.Sprintf("Syncing users for database %q", db.Spec.Name))
-
-	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
-	defer cancel()
-
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", clusterIP, consts.DefaultConfigAgentPort), grpc.WithInsecure())
-	if err != nil {
-		log.Error(err, "resources/syncUsers: failed to create a conn via gRPC.Dial")
-		return err
-	}
-	defer conn.Close()
 
 	var userSpecs []*controllers.User
 	var usernames []string

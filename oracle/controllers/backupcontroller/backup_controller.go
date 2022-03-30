@@ -51,7 +51,6 @@ type BackupReconciler struct {
 	client.Client
 	Log                 logr.Logger
 	Scheme              *runtime.Scheme
-	ClientFactory       controllers.ConfigAgentClientFactory
 	OracleBackupFactory oracleBackupFactory
 	Recorder            record.EventRecorder
 	BackupCtrl          backupControl

@@ -177,7 +177,6 @@ func RunFunctionalTestSuite(
 var (
 	// Base image names, to be combined with PROW_IMAGE_{TAG,REPO}.
 	dbInitImage          = "oracle.db.anthosapis.com/dbinit"
-	configAgentImage     = "oracle.db.anthosapis.com/configagent"
 	loggingSidecarImage  = "oracle.db.anthosapis.com/loggingsidecar"
 	monitoringAgentImage = "oracle.db.anthosapis.com/monitoring"
 	operatorImage        = "oracle.db.anthosapis.com/operator"
@@ -431,7 +430,6 @@ func deployOperator(ctx context.Context, k8sClient client.Client, CPNamespace st
 	}
 
 	dbInitImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, dbInitImage, agentImageTag)
-	configAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, configAgentImage, agentImageTag)
 	loggingSidecarImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, loggingSidecarImage, agentImageTag)
 	monitoringAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, monitoringAgentImage, agentImageTag)
 	operatorImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, operatorImage, agentImageTag)
@@ -492,7 +490,6 @@ func deployOperator(ctx context.Context, k8sClient client.Client, CPNamespace st
 		"--enable-leader-election=false",
 		"--namespace=" + DPNamespace,
 		"--db_init_image_uri=" + dbInitImage,
-		"--config_image_uri=" + configAgentImage,
 		"--logging_sidecar_image_uri=" + loggingSidecarImage,
 		"--monitoring_agent_image_uri=" + monitoringAgentImage,
 	}
@@ -582,7 +579,6 @@ func getAgentLogs(ctx context.Context, config *rest.Config, namespace, instance,
 	// with the instance.
 	agentToQuery := map[string]string{
 		// NCSA Agents
-		"config-agent":      "deployment=" + instance + "-agent-deployment",
 		"oracle-monitoring": "deployment=" + instance + "-agent-deployment",
 		// CSA Agents
 		"oracledb":             "instance=" + instance,
