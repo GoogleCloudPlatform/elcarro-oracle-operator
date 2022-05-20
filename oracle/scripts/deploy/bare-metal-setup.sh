@@ -152,7 +152,20 @@ connect_cluster_and_ui() {
   kubectl create serviceaccount ${KSA_NAME}
   echo "Created the following service account: $KSA_NAME"
   kubectl create clusterrolebinding ${KSA_NAME}-cluster-admin --clusterrole cluster-admin --serviceaccount default:${KSA_NAME}
-  SECRET_NAME=$(kubectl get serviceaccount ${KSA_NAME} -o jsonpath='{$.secrets[0].name}')
+  SECRET_NAME="${KSA_NAME}-token"
+  kubectl apply -f - << __EOF__
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "${SECRET_NAME}"
+  annotations:
+    kubernetes.io/service-account.name: "${KSA_NAME}"
+type: kubernetes.io/service-account-token
+__EOF__
+  until [[ $(kubectl get -o=jsonpath="{.data.token}" "secret/${SECRET_NAME}") ]]; do
+    echo "waiting for token..." >&2;
+    sleep 1;
+  done
   SECRET_CONTENT=$(kubectl get secret ${SECRET_NAME} -o jsonpath='{$.data.token}' | base64 -d)
   echo $SECRET_CONTENT
   echo 'Paste the above secret after selecting token in "Log in to cluster" section of the UI and press any key to continue'
