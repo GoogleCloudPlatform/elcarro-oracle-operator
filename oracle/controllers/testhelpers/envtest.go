@@ -797,6 +797,9 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 				Images: map[string]string{
 					"service": TestImageForVersion(version, edition, ""),
 				},
+				DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+					GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+				},
 			},
 		},
 	}

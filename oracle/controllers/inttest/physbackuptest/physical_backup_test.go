@@ -175,6 +175,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 					},
 					Images:            map[string]string{},
 					DatabaseResources: dbResource,
+					DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+						GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+					},
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
@@ -219,6 +222,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 					},
 					Images:            map[string]string{},
 					DatabaseResources: dbResource,
+					DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+						GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+					},
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
@@ -258,6 +264,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 					},
 					Images:            map[string]string{},
 					DatabaseResources: dbResource,
+					DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+						GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+					},
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
@@ -307,6 +316,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 					},
 					Images:            map[string]string{},
 					DatabaseResources: dbResource,
+					DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+						GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+					},
 				},
 			},
 			backupSpec: v1alpha1.BackupSpec{
