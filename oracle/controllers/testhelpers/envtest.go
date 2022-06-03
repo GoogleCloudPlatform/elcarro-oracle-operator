@@ -113,13 +113,12 @@ func RunFunctionalTestSuite(
 	k8sManager *ctrl.Manager,
 	schemeBuilders []*runtime.SchemeBuilder,
 	description string,
-	controllers func() []Reconciler) {
+	controllers func() []Reconciler,
+	crdPaths ...string) {
 	// Define the test environment.
+	crdPaths = append(crdPaths, filepath.Join("config", "crd", "bases"), filepath.Join("config", "crd", "testing"))
 	testEnv := envtest.Environment{
-		CRDDirectoryPaths: []string{
-			filepath.Join("config", "crd", "bases"),
-			filepath.Join("config", "crd", "testing"),
-		},
+		CRDDirectoryPaths:        crdPaths,
 		ControlPlaneStartTimeout: 60 * time.Second, // Default 20s may not be enough for test pods.
 	}
 
