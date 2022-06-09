@@ -69,7 +69,9 @@ func TestDatabaseController(t *testing.T) {
 				Recorder:              k8sManager.GetEventRecorderFor("database-controller"),
 				DatabaseClientFactory: fakeDatabaseClientFactory,
 			}}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 var _ = Describe("Database controller", func() {

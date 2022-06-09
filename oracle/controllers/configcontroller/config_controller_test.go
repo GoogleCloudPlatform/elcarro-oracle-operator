@@ -60,7 +60,9 @@ func TestConfigController(t *testing.T) {
 					Images: map[string]string{"config": "config_image"},
 				},
 			}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 var _ = Describe("Config controller", func() {

@@ -91,7 +91,9 @@ func TestBackupsScheduleController(t *testing.T) {
 				t.Fatalf("failed to create cronanythingcontroller for backup schedule test")
 			}
 			return []testhelpers.Reconciler{backupReconciler, backupScheduleReconciler, cronanythingReconciler}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 var _ = Describe("BackupSchedule controller", func() {

@@ -55,7 +55,9 @@ func TestInstanceLockBasic(t *testing.T) {
 		"Instance controller",
 		func() []testhelpers.Reconciler {
 			return []testhelpers.Reconciler{}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 // Simple worker performing read-write operations with 'testmap' in a loop

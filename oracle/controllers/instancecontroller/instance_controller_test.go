@@ -79,7 +79,9 @@ func TestInstanceController(t *testing.T) {
 			}
 
 			return []testhelpers.Reconciler{reconciler}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 var _ = Describe("Instance controller", func() {

@@ -17,6 +17,7 @@ package testhelpers
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base32"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"io/ioutil"
 	logg "log"
 	"math/rand"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,6 +73,11 @@ type Reconciler interface {
 	SetupWithManager(manager ctrl.Manager) error
 }
 
+// Webhook is the interface to setup a webhook for testing.
+type Webhook interface {
+	SetupWebhookWithManager(mgr ctrl.Manager) error
+}
+
 // cdToRoot change to the repo root directory.
 func CdToRoot(t *testing.T) {
 	for {
@@ -114,14 +121,48 @@ func RunFunctionalTestSuite(
 	schemeBuilders []*runtime.SchemeBuilder,
 	description string,
 	controllers func() []Reconciler,
-	crdPaths ...string) {
+	crdPaths []string,
+) {
+	RunFunctionalTestSuiteWithWebhooks(
+		t,
+		k8sClient,
+		k8sManager,
+		schemeBuilders,
+		description,
+		controllers,
+		crdPaths,
+		func() []Webhook { return []Webhook{} }, // No webhooks
+		[]string{},                              // Use default Webhook locations
+	)
+}
+
+// RunFunctionalTestSuiteWithWebhooks extends RunFunctionalTestSuite
+// allowing to set up test webhooks
+func RunFunctionalTestSuiteWithWebhooks(
+	t *testing.T,
+	k8sClient *client.Client,
+	k8sManager *ctrl.Manager,
+	schemeBuilders []*runtime.SchemeBuilder,
+	description string,
+	controllers func() []Reconciler,
+	crdPaths []string,
+	webhooks func() []Webhook,
+	webhookPaths []string,
+) {
 	// Define the test environment.
 	crdPaths = append(crdPaths, filepath.Join("config", "crd", "bases"), filepath.Join("config", "crd", "testing"))
+
 	testEnv := envtest.Environment{
 		CRDDirectoryPaths:        crdPaths,
 		ControlPlaneStartTimeout: 60 * time.Second, // Default 20s may not be enough for test pods.
 	}
-
+	// Set up webhooks
+	if len(webhookPaths) != 0 {
+		testEnv.WebhookInstallOptions = envtest.WebhookInstallOptions{
+			Paths:                    webhookPaths,
+			IgnoreErrorIfPathMissing: true,
+		}
+	}
 	if runfiles, err := bazel.RunfilesPath(); err == nil {
 		// Running with bazel test, find binary assets in runfiles.
 		testEnv.BinaryAssetsDirectory = filepath.Join(runfiles, "external/kubebuilder_tools/bin")
@@ -130,38 +171,83 @@ func RunFunctionalTestSuite(
 	BeforeSuite(func(done Done) {
 		klog.SetOutput(GinkgoWriter)
 		logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
+		log := logf.FromContext(nil)
 
 		var err error
-		cfg, err := testEnv.Start()
-		Expect(err).ToNot(HaveOccurred())
-		Expect(cfg).ToNot(BeNil())
+		var cfg *rest.Config
+
+		var backoff = wait.Backoff{
+			Steps:    6,
+			Duration: 100 * time.Millisecond,
+			Factor:   5.0,
+			Jitter:   0.1,
+		}
+		Expect(retry.OnError(backoff, func(error) bool { return true }, func() error {
+			cfg, err = testEnv.Start()
+			if err != nil {
+				log.Error(err, "Envtest startup failed, retrying")
+			}
+			return err
+		})).Should(Succeed())
 
 		for _, sb := range schemeBuilders {
 			utilruntime.Must(sb.AddToScheme(scheme.Scheme))
 		}
 
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme:             scheme.Scheme,
-			MetricsBindAddress: "0",
-		})
-		Expect(err).ToNot(HaveOccurred())
+		if len(webhookPaths) != 0 {
+			// start webhook server using Manager
+			webhookInstallOptions := &testEnv.WebhookInstallOptions
+			*k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
+				Scheme:             scheme.Scheme,
+				Host:               webhookInstallOptions.LocalServingHost,
+				Port:               webhookInstallOptions.LocalServingPort,
+				CertDir:            webhookInstallOptions.LocalServingCertDir,
+				LeaderElection:     false,
+				MetricsBindAddress: "0",
+			})
+			Expect(err).NotTo(HaveOccurred())
+		} else {
+			*k8sManager, err = ctrl.NewManager(cfg, ctrl.Options{
+				Scheme:             scheme.Scheme,
+				MetricsBindAddress: "0",
+			})
+			Expect(err).ToNot(HaveOccurred())
+		}
 
-		*k8sManager = mgr
-		*k8sClient = mgr.GetClient()
+		*k8sClient = (*k8sManager).GetClient()
 
 		// Install controllers into the manager.
 		for _, c := range controllers() {
-			Expect(c.SetupWithManager(mgr)).To(Succeed())
+			Expect(c.SetupWithManager(*k8sManager)).To(Succeed())
+		}
+		// Install webhooks into the manager.
+		for _, c := range webhooks() {
+			Expect(c.SetupWebhookWithManager(*k8sManager)).To(Succeed())
 		}
 
 		go func() {
 			defer GinkgoRecover()
-			err = mgr.Start(ctrl.SetupSignalHandler())
+			err = (*k8sManager).Start(ctrl.SetupSignalHandler())
 			Expect(err).ToNot(HaveOccurred())
 		}()
 
+		if len(webhookPaths) != 0 {
+			// wait for the webhook server to get ready
+			webhookInstallOptions := &testEnv.WebhookInstallOptions
+			dialer := &net.Dialer{Timeout: 60 * time.Second}
+			addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
+			Eventually(func() error {
+				conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
+				if err != nil {
+					return err
+				}
+				conn.Close()
+				return nil
+			}, 60*time.Second, 5*time.Second).Should(Succeed())
+		}
+
 		close(done)
-	}, 300)
+	}, 600)
 
 	AfterSuite(func() {
 		By("Stopping control plane")
