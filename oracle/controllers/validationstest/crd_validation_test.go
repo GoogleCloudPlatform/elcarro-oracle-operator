@@ -46,7 +46,9 @@ func TestValidations(t *testing.T) {
 		"Validations test",
 		func() []testhelpers.Reconciler {
 			return []testhelpers.Reconciler{}
-		})
+		},
+		[]string{}, // Use default CRD locations
+	)
 }
 
 var _ = Describe("Instance CRD Validation rules", func() {
