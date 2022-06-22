@@ -26,6 +26,7 @@ import (
 	logg "log"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -76,6 +77,10 @@ type Reconciler interface {
 // Webhook is the interface to setup a webhook for testing.
 type Webhook interface {
 	SetupWebhookWithManager(mgr ctrl.Manager) error
+}
+
+type AdmissionWebhook interface {
+	ServeHTTP(http.ResponseWriter, *http.Request)
 }
 
 // cdToRoot change to the repo root directory.
@@ -132,7 +137,8 @@ func RunFunctionalTestSuite(
 		controllers,
 		crdPaths,
 		func() []Webhook { return []Webhook{} }, // No webhooks
-		[]string{},                              // Use default Webhook locations
+		func() map[string]AdmissionWebhook { return nil }, // No admission webhook handlers
+		[]string{}, // Use default Webhook locations
 	)
 }
 
@@ -147,6 +153,7 @@ func RunFunctionalTestSuiteWithWebhooks(
 	controllers func() []Reconciler,
 	crdPaths []string,
 	webhooks func() []Webhook,
+	admissionWebhookHandlers func() map[string]AdmissionWebhook,
 	webhookPaths []string,
 ) {
 	// Define the test environment.
@@ -223,6 +230,10 @@ func RunFunctionalTestSuiteWithWebhooks(
 		// Install webhooks into the manager.
 		for _, c := range webhooks() {
 			Expect(c.SetupWebhookWithManager(*k8sManager)).To(Succeed())
+		}
+		// Register admission webhook handlers into the webhook in the manager
+		for path, handler := range admissionWebhookHandlers() {
+			(*k8sManager).GetWebhookServer().Register(path, handler)
 		}
 
 		go func() {
