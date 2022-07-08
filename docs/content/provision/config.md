@@ -43,7 +43,6 @@ To get El Carro up and running, you need to do one the following:
       images:
         # Replace below with the actual URIs hosting the service agent images.
         service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-unseeded"
-        config: "gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/configagent:latest"
       platform: "GCP"
       disks: [
       {
@@ -111,7 +110,6 @@ To get El Carro up and running, you need to do one the following:
         Size:  150Gi
         Type:  pd-standard
       Images:
-        Config:               gcr.io/${PROJECT_ID}/oracle.db.anthosapis.com/configagent:latest
         Service:              gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2ee-unseeded
       Platform:               GCP
       Volume Snapshot Class:  csi-gce-pd-snapshot-class

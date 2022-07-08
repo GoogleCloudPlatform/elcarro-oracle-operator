@@ -11,5 +11,4 @@ spec:
     dbinit: "localhost:5000/oracle.db.anthosapis.com/dbinit:latest"
     dbdaemon_client: "localhost:5000/oracle.db.anthosapis.com/dbdaemon_client:latest"
     logging_sidecar: "localhost:5000/oracle.db.anthosapis.com/loggingsidecar:latest"
-    config: "localhost:5000/oracle.db.anthosapis.com/configagent:latest"
     monitoring: "localhost:5000/oracle.db.anthosapis.com/monitoring:latest"

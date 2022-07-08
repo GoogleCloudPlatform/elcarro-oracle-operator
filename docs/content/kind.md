@@ -159,7 +159,7 @@ curl http://localhost:5000/v2/_catalog
 
 You should see an output similar to this:
 ```sh
-{"repositories":["oracle-12.2-ee-seeded-mydb","local/oracle.db.anthosapis.com/configagent","local/oracle.db.anthosapis.com/dbinit","local/oracle.db.anthosapis.com/loggingsidecar","local/oracle.db.anthosapis.com/monitoring","local/oracle.db.anthosapis.com/operator"]}
+{"repositories":["oracle-12.2-ee-seeded-mydb","local/oracle.db.anthosapis.com/dbinit","local/oracle.db.anthosapis.com/loggingsidecar","local/oracle.db.anthosapis.com/monitoring","local/oracle.db.anthosapis.com/operator"]}
 ```
 
 ### Setup a namespace
