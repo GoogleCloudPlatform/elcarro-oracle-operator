@@ -156,6 +156,9 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 				Images: map[string]string{
 					"service": testhelpers.TestImageForVersion(version, edition, extra),
 				},
+				DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
+					GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
+				},
 			},
 		},
 	}
