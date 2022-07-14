@@ -39,7 +39,7 @@ const (
 )
 
 var (
-	dialTimeout = 3 * time.Minute
+	dialTimeout = 10 * time.Minute
 )
 
 // NewDatabase attempts to create a new PDB if it doesn't exist yet.
