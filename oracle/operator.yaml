@@ -2085,6 +2085,82 @@ spec:
                     description: gcr link containing the patched service image.
                     type: string
                 type: object
+              replicationSettings:
+                description: ReplicationSettings provides configuration for initializing
+                  an instance as a standby for the specified primary instance. These
+                  settings can only be used when initializing an instance, adding
+                  them to an already created instance is an error. Once a standby
+                  is created with these settings you may promote the standby to its
+                  own independent instance by removing these settings. DBUniqueName
+                  must be set when initializing a standby instance.
+                properties:
+                  backupURI:
+                    description: BackupURI is the URI to a copy of the primary's RMAN
+                      backup. Standby will be created from this backup when provided.
+                      Currently only gs:// (GCS) schemes are supported.
+                    type: string
+                  passwordFileURI:
+                    description: PasswordFileURI is the URI to a copy of the primary's
+                      password file for establishing an active dataguard connection.
+                      Currently only gs:// (GCS) schemes are supported.
+                    type: string
+                  primaryHost:
+                    description: PrimaryHost is the hostname of the primary's listener.
+                    type: string
+                  primaryPort:
+                    description: PrimaryPort is the port of the primary's listener.
+                    format: int32
+                    type: integer
+                  primaryServiceName:
+                    description: PrimaryServiceName is the service name of the primary
+                      database on the listener at PrimaryHost:PrimaryPort.
+                    type: string
+                  primaryUser:
+                    description: PrimaryUser specifies the user name and credential
+                      to authenticate to the primary database as.
+                    properties:
+                      gsmSecretRef:
+                        description: A reference to a GSM secret.
+                        properties:
+                          projectId:
+                            description: ProjectId identifies the project where the
+                              secret resource is.
+                            type: string
+                          secretId:
+                            description: SecretId identifies the secret.
+                            type: string
+                          version:
+                            description: Version is the version of the secret. If
+                              "latest" is specified, underlying the latest SecretId
+                              is used.
+                            type: string
+                        type: object
+                      name:
+                        description: Name of the User.
+                        type: string
+                      password:
+                        description: Plaintext password.
+                        type: string
+                      secretRef:
+                        description: A reference to a k8s secret.
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                    type: object
+                required:
+                - passwordFileURI
+                - primaryHost
+                - primaryPort
+                - primaryServiceName
+                - primaryUser
+                type: object
               restore:
                 description: Restore and recovery request details. This section should
                   normally be commented out unless an actual restore/recovery is required.
@@ -2125,6 +2201,33 @@ spec:
                     - true
                     - false
                     type: boolean
+                  pitrRestore:
+                    description: Point In Time Recovery restore spec.
+                    properties:
+                      incarnation:
+                        description: Incarnation number to restore to. This is optional,
+                          default to current incarnation.
+                        type: string
+                      pitrRef:
+                        description: PITRRef specifies the PITR object from which
+                          to read backup data.
+                        properties:
+                          name:
+                            description: '`name` is the name of the PITR.'
+                            type: string
+                          namespace:
+                            description: '`namespace` is the namespace in which the
+                              PITR object is created.'
+                            type: string
+                        type: object
+                      scn:
+                        description: SCN to restore to.
+                        type: string
+                      timestamp:
+                        description: Timestamp to restore to.
+                        format: date-time
+                        type: string
+                    type: object
                   requestTime:
                     description: Request version as a date-time to avoid accidental
                       triggering of a restore operation when reapplying an older version
@@ -2247,16 +2350,113 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              currentDatabaseIncarnation:
+                description: CurrentDatabaseIncarnation stores the current incarnation
+                  number
+                type: string
               currentParameters:
                 additionalProperties:
                   type: string
                 description: CurrentParameters stores the last successfully set instance
                   parameters.
                 type: object
+              currentReplicationSettings:
+                description: CurrentReplicationSettings stores the current replication
+                  settings of the standby instance. Standby data replication uses
+                  it to promote a standby instance. It will be updated to match with
+                  spec.replicationSettings before promotion. It will be removed once
+                  data replication is completed.
+                properties:
+                  backupURI:
+                    description: BackupURI is the URI to a copy of the primary's RMAN
+                      backup. Standby will be created from this backup when provided.
+                      Currently only gs:// (GCS) schemes are supported.
+                    type: string
+                  passwordFileURI:
+                    description: PasswordFileURI is the URI to a copy of the primary's
+                      password file for establishing an active dataguard connection.
+                      Currently only gs:// (GCS) schemes are supported.
+                    type: string
+                  primaryHost:
+                    description: PrimaryHost is the hostname of the primary's listener.
+                    type: string
+                  primaryPort:
+                    description: PrimaryPort is the port of the primary's listener.
+                    format: int32
+                    type: integer
+                  primaryServiceName:
+                    description: PrimaryServiceName is the service name of the primary
+                      database on the listener at PrimaryHost:PrimaryPort.
+                    type: string
+                  primaryUser:
+                    description: PrimaryUser specifies the user name and credential
+                      to authenticate to the primary database as.
+                    properties:
+                      gsmSecretRef:
+                        description: A reference to a GSM secret.
+                        properties:
+                          projectId:
+                            description: ProjectId identifies the project where the
+                              secret resource is.
+                            type: string
+                          secretId:
+                            description: SecretId identifies the secret.
+                            type: string
+                          version:
+                            description: Version is the version of the secret. If
+                              "latest" is specified, underlying the latest SecretId
+                              is used.
+                            type: string
+                        type: object
+                      name:
+                        description: Name of the User.
+                        type: string
+                      password:
+                        description: Plaintext password.
+                        type: string
+                      secretRef:
+                        description: A reference to a k8s secret.
+                        properties:
+                          name:
+                            description: Name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: Namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                    type: object
+                required:
+                - passwordFileURI
+                - primaryHost
+                - primaryPort
+                - primaryServiceName
+                - primaryUser
+                type: object
               currentServiceImage:
                 description: CurrentServiceImage stores the image name used by the
                   database instance.
                 type: string
+              dataGuardOutput:
+                description: DataGuardOutput stores the latest Data Guard utility
+                  status output.
+                properties:
+                  lastUpdateTime:
+                    description: LastUpdateTime is the last time the DataGuardOutput
+                      updated based on DB Data Guard utility output.
+                    format: date-time
+                    type: string
+                  statusOutput:
+                    description: StatusOutput is the output of "show configuration"
+                      and "show database <standby DB unique name>".
+                    items:
+                      type: string
+                    type: array
+                required:
+                - lastUpdateTime
+                - statusOutput
+                type: object
               databasenames:
                 description: List of database names (e.g. PDBs) hosted in the Instance.
                 items:
@@ -2273,6 +2473,10 @@ spec:
               isChangeApplied:
                 description: IsChangeApplied indicates whether instance changes have
                   been applied
+                type: string
+              lastDatabaseIncarnation:
+                description: LastDatabaseIncarnation stores the parent incarnation
+                  number
                 type: string
               lastFailedParameterUpdate:
                 additionalProperties:

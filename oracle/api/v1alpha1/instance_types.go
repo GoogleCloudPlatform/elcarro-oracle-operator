@@ -83,6 +83,16 @@ type InstanceSpec struct {
 	// +kubebuilder:validation:Maximum=100
 	MemoryPercent int `json:"memoryPercent,omitempty"`
 
+	// ReplicationSettings provides configuration for initializing an
+	// instance as a standby for the specified primary instance. These
+	// settings can only be used when initializing an instance, adding them
+	// to an already created instance is an error. Once a standby is
+	// created with these settings you may promote the standby to its own
+	// independent instance by removing these settings.
+	// DBUniqueName must be set when initializing a standby instance.
+	// +optional
+	ReplicationSettings *ReplicationSettings `json:"replicationSettings,omitempty"`
+
 	// EnableDnfs enables configuration of Oracle's dNFS functionality.
 	// +optional
 	EnableDnfs bool `json:"enableDnfs,omitempty"`
@@ -112,6 +122,10 @@ type RestoreSpec struct {
 	// Backup reference to restore from.
 	// +optional
 	BackupRef *BackupReference `json:"backupRef,omitempty"`
+
+	// Point In Time Recovery restore spec.
+	// +optional
+	PITRRestore *PITRRestoreSpec `json:"pitrRestore,omitempty"`
 
 	// Similar to a (physical) backup, optionally indicate a degree
 	// of parallelism, also known as DOP.
@@ -146,6 +160,82 @@ type RestoreSpec struct {
 	RequestTime metav1.Time `json:"requestTime"`
 }
 
+type PITRRestoreSpec struct {
+	// Incarnation number to restore to. This is optional, default to current incarnation.
+	// +optional
+	Incarnation string `json:"incarnation,omitempty"`
+
+	// Set ONLY ONE of the following as restore point.
+
+	// Timestamp to restore to.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=date-time
+	Timestamp *metav1.Time `json:"timestamp,omitempty"`
+
+	// SCN to restore to.
+	// +optional
+	SCN string `json:"scn,omitempty"`
+
+	// PITRRef specifies the PITR object from which to read backup data.
+	// +optional
+	PITRRef *PITRReference `json:"pitrRef,omitempty"`
+}
+
+type PITRReference struct {
+	// `namespace` is the namespace in which the PITR object is created.
+	// +required
+	Namespace string `json:"namespace,omitempty"`
+	// `name` is the name of the PITR.
+	// +required
+	Name string `json:"name,omitempty"`
+}
+
+// ReplicationSettings provides configuration for initializing an
+// instance as a standby for the specified primary instance. These
+// settings can only be used when initializing an instance, adding them
+// to an already created instance is an error. Once a standby is
+// created with these settings you may promote the standby to its own
+// independent instance by removing these settings.
+type ReplicationSettings struct {
+	// PrimaryHost is the hostname of the primary's listener.
+	// +required
+	PrimaryHost string `json:"primaryHost"`
+	// PrimaryPort is the port of the primary's listener.
+	// +required
+	PrimaryPort int32 `json:"primaryPort"`
+	// PrimaryServiceName is the service name of the primary
+	// database on the listener at PrimaryHost:PrimaryPort.
+	// +required
+	PrimaryServiceName string `json:"primaryServiceName"`
+	// PrimaryUser specifies the user name and credential to authenticate to the primary database as.
+	// +required
+	PrimaryUser commonv1alpha1.UserSpec `json:"primaryUser"`
+	// PasswordFileURI is the URI to a copy of the primary's
+	// password file for establishing an active dataguard connection.
+	// Currently only gs:// (GCS) schemes are supported.
+	// +required
+	PasswordFileURI string `json:"passwordFileURI"`
+	// BackupURI is the URI to a copy of the primary's RMAN backup.
+	// Standby will be created from this backup when provided.
+	// Currently only gs:// (GCS) schemes are supported.
+	// +optional
+	BackupURI string `json:"backupURI"`
+}
+
+// DataGuardOutput shows Data Guard utility output.
+type DataGuardOutput struct {
+	// LastUpdateTime is the last time the DataGuardOutput updated based on DB
+	// Data Guard utility output.
+	// +required
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=date-time
+	LastUpdateTime metav1.Time `json:"lastUpdateTime"`
+
+	// StatusOutput is the output of "show configuration" and "show database <standby DB unique name>".
+	StatusOutput []string `json:"statusOutput"`
+}
+
 // InstanceStatus defines the observed state of Instance.
 type InstanceStatus struct {
 	// InstanceStatus represents the database engine agnostic
@@ -168,6 +258,23 @@ type InstanceStatus struct {
 
 	// CurrentParameters stores the last successfully set instance parameters.
 	CurrentParameters map[string]string `json:"currentParameters,omitempty"`
+
+	// LastDatabaseIncarnation stores the parent incarnation number
+	LastDatabaseIncarnation string `json:"lastDatabaseIncarnation,omitempty"`
+
+	// CurrentDatabaseIncarnation stores the current incarnation number
+	CurrentDatabaseIncarnation string `json:"currentDatabaseIncarnation,omitempty"`
+
+	// CurrentReplicationSettings stores the current replication settings of the
+	// standby instance. Standby data replication uses it to promote a standby
+	// instance. It will be updated to match with spec.replicationSettings before
+	// promotion. It will be removed once data replication is completed.
+	// +optional
+	CurrentReplicationSettings *ReplicationSettings `json:"currentReplicationSettings,omitempty"`
+
+	// DataGuardOutput stores the latest Data Guard utility status output.
+	// +optional
+	DataGuardOutput *DataGuardOutput `json:"dataGuardOutput,omitempty"`
 
 	// LastFailedParameterUpdate is used to avoid getting into the failed
 	// parameter update loop.
