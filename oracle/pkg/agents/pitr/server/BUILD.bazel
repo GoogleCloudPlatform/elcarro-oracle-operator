@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "server",
+    srcs = ["server.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/pitr/server",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/pkg/agents/pitr",
+        "//oracle/pkg/agents/pitr/proto",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
