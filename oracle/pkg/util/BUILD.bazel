@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "util",
+    srcs = ["utils.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_cloud_go_storage//:storage",
+        "@io_k8s_client_go//util/retry",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_api//iterator",
+    ],
+)
+
+go_test(
+    name = "util_test",
+    srcs = ["utils_test.go"],
+    embed = [":util"],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [
+        ":package-srcs",
+        "//oracle/pkg/util/secret:all-srcs",
+        "//oracle/pkg/util/task:all-srcs",
+    ],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
