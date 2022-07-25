@@ -120,6 +120,15 @@ type BackupSpec struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=`^gs:\/\/.+$`
 	GcsPath string `json:"gcsPath,omitempty"`
+
+	// Similar to GcsPath but specify a Gcs directory.
+	// The backup sets of physical backup will be transferred to this GcsDir under a folder named .backup.Spec.Name.
+	// This field is usually set in .backupSchedule.Spec.backSpec to specify a GcsDir which all scheduled backups will be uploaded to.
+	// A user is to ensure proper write access to the bucket from within the
+	// Oracle Operator.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^gs:\/\/.+$`
+	GcsDir string `json:"gcsDir,omitempty"`
 }
 
 // BackupMode describes how a backup be managed by the operator.
@@ -135,9 +144,9 @@ const (
 type BackupStatus struct {
 	// Backup status that is common across all database engines.
 	commonv1alpha1.BackupStatus `json:",inline"`
-
-	BackupID   string `json:"backupid,omitempty"`
-	BackupTime string `json:"backuptime,omitempty"`
+	GcsPath                     string `json:"gcsPath,omitempty"`
+	BackupID                    string `json:"backupid,omitempty"`
+	BackupTime                  string `json:"backuptime,omitempty"`
 	// +optional
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 	// +optional
