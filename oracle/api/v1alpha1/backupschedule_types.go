@@ -38,6 +38,10 @@ type BackupScheduleSpec struct {
 
 	// BackupSpec defines the Backup that will be created on the provided schedule.
 	BackupSpec BackupSpec `json:"backupSpec"`
+
+	// BackupLabels define the desired labels that scheduled backups will be created with.
+	// +optional
+	BackupLabels map[string]string `json:"backupLabels,omitempty"`
 }
 
 // BackupScheduleStatus defines the observed state of BackupSchedule.

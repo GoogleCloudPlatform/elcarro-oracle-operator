@@ -35,6 +35,12 @@ spec:
             type: object
           spec:
             properties:
+              backupLabels:
+                additionalProperties:
+                  type: string
+                description: BackupLabels define the desired labels that scheduled
+                  backups will be created with.
+                type: object
               backupRetentionPolicy:
                 description: BackupRetentionPolicy is the policy used to trigger automatic
                   deletion of backups produced from this BackupSchedule.
@@ -84,6 +90,15 @@ spec:
                       The default depends on a type of backup, generally 64.
                     format: int32
                     type: integer
+                  gcsDir:
+                    description: Similar to GcsPath but specify a Gcs directory. The
+                      backup sets of physical backup will be transferred to this GcsDir
+                      under a folder named .backup.Spec.Name. This field is usually
+                      set in .backupSchedule.Spec.backSpec to specify a GcsDir which
+                      all scheduled backups will be uploaded to. A user is to ensure
+                      proper write access to the bucket from within the Oracle Operator.
+                    pattern: ^gs:\/\/.+$
+                    type: string
                   gcsPath:
                     description: If set up ahead of time, the backup sets of a physical
                       backup can be optionally transferred to a GCS bucket. A user
