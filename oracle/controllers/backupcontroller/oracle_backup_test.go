@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
+
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	"github.com/golang/protobuf/proto"
 )
 
 func TestPhysicalBackupCreate(t *testing.T) {

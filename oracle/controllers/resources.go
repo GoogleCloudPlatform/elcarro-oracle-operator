@@ -40,10 +40,12 @@ import (
 const (
 	configAgentName = "config-agent"
 	// OperatorName is the default operator name.
-	OperatorName                = "operator"
-	scriptDir                   = "/agents"
-	defaultUID                  = int64(54321)
-	defaultGID                  = int64(54322)
+	OperatorName = "operator"
+	scriptDir    = "/agents"
+	// DefaultUID is the default Database pod user uid.
+	DefaultUID = int64(54321)
+	// DefaultGID is the default Database pod user gid.
+	DefaultGID                  = int64(54322)
 	safeMinMemoryForDBContainer = "4.0Gi"
 )
 
@@ -305,7 +307,7 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 		if sp.Config != nil {
 			configSpec = &sp.Config.Spec.ConfigSpec
 		}
-		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec, defaultDiskSpecs, defaultDiskSize)}
+		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec, DefaultDiskSpecs, defaultDiskSize)}
 		pvcName, mount := GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
 		var pvc corev1.PersistentVolumeClaim
 
@@ -390,7 +392,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		imagePullPolicy = corev1.PullIfNotPresent
 	}
 
-	sp.Log.Info("NewPodTemplate: creating new template with service image", "image", sp.Images["service"])
+	sp.Log.Info("NewPodTemplate: creating new template with images", "images", sp.Images)
 	dataDiskPVC, dataDiskMountName := GetPVCNameAndMount(sp.Inst.Name, "DataDisk")
 
 	containers := []corev1.Container{
@@ -507,16 +509,16 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 
 	uid := sp.Inst.Spec.DatabaseUID
 	if uid == nil {
-		sp.Log.Info("set pod user ID to default value", "UID", defaultUID)
+		sp.Log.Info("set pod user ID to default value", "UID", DefaultUID)
 		// consts are not addressable
-		uid = func(i int64) *int64 { return &i }(defaultUID)
+		uid = func(i int64) *int64 { return &i }(DefaultUID)
 	}
 
 	gid := sp.Inst.Spec.DatabaseGID
 	if gid == nil {
-		sp.Log.Info("set pod group ID to default value", "GID", defaultGID)
+		sp.Log.Info("set pod group ID to default value", "GID", DefaultGID)
 		// consts are not addressable
-		gid = func(i int64) *int64 { return &i }(defaultGID)
+		gid = func(i int64) *int64 { return &i }(DefaultGID)
 	}
 
 	// for minikube/kind, the default csi-hostpath-driver mounts persistent volumes writable by root only, so explicitly

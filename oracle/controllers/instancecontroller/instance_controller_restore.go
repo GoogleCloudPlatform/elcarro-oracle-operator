@@ -18,21 +18,23 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
 // Reconciler for restore logic.
@@ -71,8 +73,8 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 	if err != nil {
 		log.Error(err, "findBackupForRestore failed")
 		e := r.setRestoreFailed(ctx, inst, fmt.Sprintf(
-			"Could not find a matching backup for BackupID: %v, BackupRef: %v, BackupType: %v",
-			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupRef, inst.Spec.Restore.BackupType), log)
+			"Could not find a matching backup for BackupID: %v, BackupRef: %v, BackupType: %v, PITRRestore: %v. Error message: %v",
+			inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupRef, inst.Spec.Restore.BackupType, inst.Spec.Restore.PITRRestore, err), log)
 		return ctrl.Result{}, e
 	}
 
@@ -88,6 +90,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 		}
 	}
 
+	log.Info("Found backup object for restore", "backup", backup)
 	switch instanceReadyCond.Reason {
 	// Entry points for restore process
 	case k8s.RestoreComplete, k8s.CreateComplete, k8s.RestoreFailed:
@@ -116,14 +119,14 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 		if err := r.Status().Update(ctx, inst); err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Info("restoreStateMachine: CreateComplete->RestorePreparationInProgress")
+		log.Info(fmt.Sprintf("restoreStateMachine: %s->RestorePreparationInProgress", instanceReadyCond.Reason))
 		// Reconcile again
 		return ctrl.Result{Requeue: true}, nil
 	case k8s.RestorePreparationInProgress:
 		switch inst.Spec.Restore.BackupType {
 		case "Snapshot":
 			// Cleanup STS and PVCs.
-			done, err := r.cleanupSTSandPVCs(ctx, *inst, stsParams, log)
+			done, err := r.deleteOldSTSandPVCs(ctx, *inst, stsParams, log)
 			if err != nil {
 				if e := r.setRestoreFailed(ctx, inst, err.Error(), log); e != nil {
 					return ctrl.Result{}, e
@@ -137,6 +140,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 		case "Physical":
 			// Do nothing in this step.
 		}
+
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.RestorePreparationComplete, "")
 		log.Info("restoreStateMachine: RestorePreparationInProgress->RestorePreparationComplete")
 		// Reconcile again
@@ -223,6 +227,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			}
 			return ctrl.Result{}, err
 		}
+		log.Info("restoreStateMachine: RestoreInProgress->PostRestoreBootstrapInProgress")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreBootstrapInProgress, "")
 		// Reconcile again
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
@@ -335,21 +340,28 @@ func restoreDOP(r, b int32) int32 {
 	return 1
 }
 
-// findBackupForRestore fetches the backup with the backup_id specified in the spec for initiating the instance restore.
+// findBackupForRestore fetches the backup as specified in the spec for initiating the instance restore.
 func (r *InstanceReconciler) findBackupForRestore(ctx context.Context, inst v1alpha1.Instance, namespace string, log logr.Logger) (*v1alpha1.Backup, error) {
 	var backups v1alpha1.BackupList
 	var backup v1alpha1.Backup
 
 	backupRef := inst.Spec.Restore.BackupRef
-	if backupRef == nil && inst.Spec.Restore.BackupID == "" {
-		return nil, fmt.Errorf("preflight check: either BackupID or BackupRef must be set to perform a restore")
+	if backupRef == nil && inst.Spec.Restore.BackupID == "" && inst.Spec.Restore.PITRRestore == nil {
+		return nil, fmt.Errorf("preflight check: either BackupID or BackupRef or PITRRestore must be set to perform a restore")
 	}
+
 	if backupRef != nil {
+		if inst.Spec.Restore.BackupID != "" || inst.Spec.Restore.PITRRestore != nil {
+			return nil, fmt.Errorf("preflight check: specify only one of BackupID/BackupRef/PITRRestore")
+		}
 		// find backup based on BackupRef
 		if err := r.Get(ctx, types.NamespacedName{Name: backupRef.Name, Namespace: backupRef.Namespace}, &backup); err != nil {
 			return nil, fmt.Errorf("preflight check: failed to get backup for a restore: %v, backupRef: %v", err, backupRef)
 		}
-	} else {
+	} else if inst.Spec.Restore.BackupID != "" {
+		if inst.Spec.Restore.PITRRestore != nil {
+			return nil, fmt.Errorf("preflight check: specify only one of BackupID/BackupRef/PITRRestore")
+		}
 		if err := r.List(ctx, &backups, client.InNamespace(namespace)); err != nil {
 			return nil, fmt.Errorf("preflight check: failed to list backups for a restore: %v", err)
 		}
@@ -363,6 +375,12 @@ func (r *InstanceReconciler) findBackupForRestore(ctx context.Context, inst v1al
 		if backup.Spec.Type == "" {
 			return nil, fmt.Errorf("preflight check: failed to locate the requested backup %q", inst.Spec.Restore.BackupID)
 		}
+	} else {
+		b, err := r.findPITRBackupForRestore(ctx, inst, log)
+		if err != nil {
+			return nil, fmt.Errorf("preflight check: failed to locate a backup for PITR restore %v: %v", inst.Spec.Restore.PITRRestore, err)
+		}
+		backup = *b
 	}
 
 	if backup.Spec.Type != inst.Spec.Restore.BackupType {
@@ -394,13 +412,66 @@ func (r *InstanceReconciler) restorePhysical(ctx context.Context, inst v1alpha1.
 	}
 	ctxRestore, cancel := context.WithTimeout(context.Background(), timeLimitMinutes)
 	defer cancel()
+
+	var sTime, eTime *timestamppb.Timestamp
+	var incarnation, backupIncarnation string
+	var sSCN, eSCN int64
+	var p v1alpha1.PITR
+	var err error
+	backupIncarnation = backup.Labels[controllers.IncarnationLabel]
+	incarnation = backupIncarnation
+	if inst.Spec.Restore.PITRRestore != nil {
+		// preflight check in findPITRBackupForRestore that only either SCN or timestamp must be set in PITRRestore.
+		if inst.Spec.Restore.PITRRestore.SCN != "" {
+			sSCN, err = strconv.ParseInt(backup.Annotations[controllers.SCNAnnotation], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("PITR restore preflight check: failed to parse backup SCN %v from backup %v", err, backup)
+			}
+			eSCN, err = strconv.ParseInt(inst.Spec.Restore.PITRRestore.SCN, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("PITR restore preflight check: failed to parse restore SCN %v from spec %v", err, inst.Spec.Restore)
+			}
+		}
+
+		if inst.Spec.Restore.PITRRestore.Timestamp != nil {
+			backupTimestamp, err := time.Parse(time.RFC3339, backup.Annotations[controllers.TimestampAnnotation])
+			if err != nil {
+				log.Error(err, "failed to find backup timestamp")
+				return nil, err
+			}
+			sTime = timestamppb.New(backupTimestamp)
+			eTime = timestamppb.New(inst.Spec.Restore.PITRRestore.Timestamp.Time)
+		}
+
+		p, err = r.findRestorePITR(ctx, &inst)
+		if err != nil {
+			return nil, err
+		}
+		incarnation = inst.Spec.Restore.PITRRestore.Incarnation
+		if incarnation == "" {
+			if inst.Spec.Restore.PITRRestore.PITRRef != nil {
+				// PITRRef was specified.
+				incarnation = p.Status.CurrentDatabaseIncarnation
+			} else {
+				incarnation = inst.Status.CurrentDatabaseIncarnation
+			}
+		}
+	}
+
 	restoreReq := &controllers.PhysicalRestoreRequest{
-		InstanceName: inst.Name,
-		CdbName:      inst.Spec.CDBName,
-		Dop:          dop,
-		LocalPath:    backup.Spec.LocalPath,
-		GcsPath:      backup.Spec.GcsPath,
-		LroInput:     &controllers.LROInput{OperationId: lroRestoreOperationID(physicalRestore, inst)},
+		InstanceName:      inst.Name,
+		CdbName:           inst.Spec.CDBName,
+		Dop:               dop,
+		LocalPath:         backup.Spec.LocalPath,
+		GcsPath:           backup.Spec.GcsPath,
+		LroInput:          &controllers.LROInput{OperationId: lroRestoreOperationID(physicalRestore, inst)},
+		LogGcsPath:        p.Spec.StorageURI,
+		Incarnation:       incarnation,
+		BackupIncarnation: backupIncarnation,
+		StartTime:         sTime,
+		EndTime:           eTime,
+		StartScn:          sSCN,
+		EndScn:            eSCN,
 	}
 	resp, err := controllers.PhysicalRestore(ctxRestore, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *restoreReq)
 	if err != nil {
@@ -481,6 +552,8 @@ func lroRestoreOperationID(opType string, instance v1alpha1.Instance) string {
 
 // Return STS and PVC objects from given sts params.
 func (r *InstanceReconciler) constructSTSandPVCs(inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (error, *appsv1.StatefulSet, []corev1.PersistentVolumeClaim) {
+
+	log.Info("constructSTSandPVCs: sp", "images", sp.Images)
 	// Create PVCs.
 	newPVCs, err := controllers.NewPVCs(sp)
 	if err != nil {
@@ -498,11 +571,11 @@ func (r *InstanceReconciler) constructSTSandPVCs(inst v1alpha1.Instance, sp cont
 	return nil, sts, newPVCs
 }
 
-// cleanupSTSandPVCs removes old STS and PVCs before restoring from snapshot.
+// deleteOldSTSandPVCs removes old STS and PVCs before restoring from snapshot.
 // Return (true, nil) if all done.
 // Return (false, nil) if still in progress.
 // Return (false, err) if unrecoverable error occurred.
-func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context, inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (bool, error) {
+func (r *InstanceReconciler) deleteOldSTSandPVCs(ctx context.Context, inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (bool, error) {
 	// Create PVC and STS objects from sts params.
 	err, sts, newPVCs := r.constructSTSandPVCs(inst, sp, log)
 	if err != nil {
@@ -537,8 +610,8 @@ func (r *InstanceReconciler) cleanupSTSandPVCs(ctx context.Context, inst v1alpha
 		// If PVC exists delete it and restart reconciling.
 		if err == nil {
 			log.Info("deleting pvc", "name", pvc.Name)
-			if e := r.Delete(ctx, &pvc); e != nil {
-				log.Error(e, "cleanupSTSandPVCs: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
+			if err := r.Delete(ctx, &pvc); err != nil {
+				log.Error(err, "deleteOldSTSandPVCs: failed to delete the old PVC", "pvc#", i, "pvc", pvc)
 			}
 			log.Info("deleted PVC, need to reconcile again")
 			return false, nil

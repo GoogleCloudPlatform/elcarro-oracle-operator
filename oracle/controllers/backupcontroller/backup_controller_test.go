@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -292,17 +293,19 @@ var _ = Describe("Backup controller", func() {
 
 			By("By checking that physical backup is Ready on backup LRO completion")
 			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDone)
+			var rmanOutput = []string{"Thrd Seq Low SCN Low Time Next SCN Next Time\n----------------\n1 1 1527386 30-JUL-21 1530961 1530961\n"}
+			fakeDatabaseClient.SetMethodToResp("RunRMAN", &dbdpb.RunRMANResponse{Output: rmanOutput})
 
 			Eventually(func() (string, error) {
 				return getConditionReason(ctx, objKey, k8s.Ready)
 			}, timeout, interval).Should(Equal(k8s.BackupReady))
+			Eventually(fakeDatabaseClient.RunRMANCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
+			Eventually(fakeDatabaseClient.RunSQLPlusFormattedCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
 
 			Eventually(fakeDatabaseClient.DeleteOperationCalledCnt, timeout, interval).Should(BeNumerically(">=", 1))
 		})
 
 		It("Should mark unsuccessful RMAN backup as Failed", func() {
-			// configure fake ConfigAgent to be in LRO mode with a
-			// failed operation result.
 			fakeDatabaseClient := fakeDatabaseClientFactory.Dbclient
 			fakeDatabaseClient.SetAsyncPhysicalBackup(true)
 			fakeDatabaseClient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)

@@ -49,9 +49,11 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/pitr"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/lib/lro"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
 )
 
 const (
@@ -99,7 +101,7 @@ type Server struct {
 	dbdClientClose func() error
 	lroServer      *lro.Server
 	syncJobs       *syncJobs
-	gcsUtil        GCSUtil
+	gcsUtil        util.GCSUtil
 }
 
 // Remove pdbConnStr from String(), as that may contain the pdb user/password
@@ -314,7 +316,13 @@ func (s *Server) CreatePasswordFile(ctx context.Context, req *dbdpb.CreatePasswo
 		return nil, fmt.Errorf("missing password for req: %v", req)
 	}
 
-	passwordFile := fmt.Sprintf("%s/orapw%s", req.Dir, strings.ToUpper(req.DatabaseName))
+	if req.GetDir() != "" {
+		if err := os.MkdirAll(req.GetDir(), 0750); err != nil {
+			return nil, fmt.Errorf("failed to create dir: %v", req.GetDir())
+		}
+	}
+
+	passwordFile := fmt.Sprintf("%s/orapw%s", req.GetDir(), req.GetDatabaseName())
 
 	params := []string{fmt.Sprintf("file=%s", passwordFile)}
 	params = append(params, fmt.Sprintf("password=%s", req.SysPassword))
@@ -330,6 +338,16 @@ func (s *Server) CreatePasswordFile(ctx context.Context, req *dbdpb.CreatePasswo
 	return &dbdpb.CreatePasswordFileResponse{}, nil
 }
 
+// CreateFile creates file based on request.
+func (s *Server) CreateFile(ctx context.Context, req *dbdpb.CreateFileRequest) (*dbdpb.CreateFileResponse, error) {
+	klog.InfoS("dbdaemon/CreateFile: ", "req", req)
+
+	if err := s.osUtil.createFile(req.Path, strings.NewReader(req.Content)); err != nil {
+		return nil, fmt.Errorf("dbdaemon/CreateFile: create failed: %v", err)
+	}
+	return &dbdpb.CreateFileResponse{}, nil
+}
+
 // SetListenerRegistration is a Database Daemon method to create a static listener registration.
 func (s *Server) SetListenerRegistration(ctx context.Context, req *dbdpb.SetListenerRegistrationRequest) (*dbdpb.BounceListenerResponse, error) {
 	return nil, fmt.Errorf("not implemented")
@@ -339,6 +357,7 @@ func (s *Server) SetListenerRegistration(ctx context.Context, req *dbdpb.SetList
 //  1. RMAN restore command
 //  2. SQL to get latest SCN
 //  3. RMAN recover command, created by applying SCN value
+//
 // to the recover statement template passed as a parameter.
 func (s *Server) physicalRestore(ctx context.Context, req *dbdpb.PhysicalRestoreRequest) (*empty.Empty, error) {
 	errorPrefix := "dbdaemon/physicalRestore: "
@@ -347,27 +366,29 @@ func (s *Server) physicalRestore(ctx context.Context, req *dbdpb.PhysicalRestore
 		return nil, fmt.Errorf(errorPrefix+"failed to restore a database: %v", err)
 	}
 
-	scnResp, err := s.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{req.GetLatestRecoverableScnQuery()}})
-	if err != nil || len(scnResp.GetMsg()) < 1 {
-		return nil, fmt.Errorf(errorPrefix+"failed to query archive log SCNs, results: %v, err: %v", scnResp, err)
+	if req.GetPitrRestoreInput() != nil {
+		if err := s.stageAndCatalog(ctx, req); err != nil {
+			return nil, fmt.Errorf(errorPrefix+"failed to stage or catalog redo logs: %v", err)
+		}
 	}
 
-	row := make(map[string]string)
-	if err := json.Unmarshal([]byte(scnResp.GetMsg()[0]), &row); err != nil {
-		return nil, err
+	var recoverStmt string
+	if req.GetPitrRestoreInput() == nil {
+		scn, err := s.latestSCN(ctx, req.GetLatestRecoverableScnQuery())
+		if err != nil {
+			return nil, fmt.Errorf(errorPrefix+"failed to get the latest SCN: %v", err)
+		}
+		recoverStmt = fmt.Sprintf(req.GetRecoverStatementTemplate(), fmt.Sprintf("scn %d", scn))
+	} else if req.GetPitrRestoreInput().GetEndTime() != nil {
+		recoverStmt = fmt.Sprintf(req.GetRecoverStatementTemplate(), fmt.Sprintf(`time "to_date('%s','DD-MON-YYYY HH24:MI:SS')"`, req.GetPitrRestoreInput().GetEndTime().AsTime().Format("02-Jan-2006 15:04:05")))
+	} else if req.GetPitrRestoreInput().GetEndScn() != 0 {
+		recoverStmt = fmt.Sprintf(req.GetRecoverStatementTemplate(), fmt.Sprintf("scn %d", req.GetPitrRestoreInput().GetEndScn()))
 	}
 
-	scn, ok := row["SCN"]
-	if !ok {
-		return nil, fmt.Errorf(errorPrefix + "failed to find column SCN in the archive log query")
+	if recoverStmt == "" {
+		return nil, fmt.Errorf(errorPrefix+"failed to build recover statement from req %+v", req)
 	}
 
-	latestSCN, err := strconv.ParseInt(scn, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf(errorPrefix+"failed to parse the SCN query (%v) to find int64: %v", scn, err)
-	}
-
-	recoverStmt := fmt.Sprintf(req.GetRecoverStatementTemplate(), latestSCN)
 	klog.InfoS(errorPrefix+"final recovery request", "recoverStmt", recoverStmt)
 
 	recoverReq := &dbdpb.RunRMANRequest{Scripts: []string{recoverStmt}}
@@ -380,6 +401,78 @@ func (s *Server) physicalRestore(ctx context.Context, req *dbdpb.PhysicalRestore
 		klog.Warningf("physicalRestore: can't cleanup staging dir from local disk.")
 	}
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) latestSCN(ctx context.Context, query string) (int64, error) {
+	scnResp, err := s.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{query}})
+	if err != nil || len(scnResp.GetMsg()) < 1 {
+		return 0, fmt.Errorf("failed to query archive log SCNs, results: %v, err: %v", scnResp, err)
+	}
+
+	row := make(map[string]string)
+	if err := json.Unmarshal([]byte(scnResp.GetMsg()[0]), &row); err != nil {
+		return 0, err
+	}
+
+	scn, ok := row["SCN"]
+	if !ok {
+		return 0, fmt.Errorf("failed to find column SCN in the archive log query")
+	}
+
+	scnNum, err := strconv.ParseInt(scn, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse the SCN query (%v) to find int64: %v", scn, err)
+	}
+	return scnNum, nil
+}
+
+func (s *Server) stageAndCatalog(ctx context.Context, req *dbdpb.PhysicalRestoreRequest) error {
+	var include func(entry pitr.LogMetadataEntry) bool
+	input := req.GetPitrRestoreInput()
+	if input.GetEndTime() != nil {
+		if input.GetStartTime() == nil {
+			return fmt.Errorf("failed to find recover end time in req %+v", req)
+		}
+		include = func(entry pitr.LogMetadataEntry) bool {
+			return !(entry.NextTime.Before(input.GetStartTime().AsTime()) || entry.FirstTime.After(input.GetEndTime().AsTime()))
+		}
+	} else if input.GetEndScn() != 0 {
+		include = func(entry pitr.LogMetadataEntry) bool {
+			entryS, err := strconv.ParseInt(entry.FirstChange, 10, 64)
+			if err != nil {
+				klog.ErrorS(err, "failed to parse replicated log FirstChange scn in metadata %+v", entry)
+				return true
+			}
+
+			entryE, err := strconv.ParseInt(entry.NextChange, 10, 64)
+			if err != nil {
+				klog.ErrorS(err, "failed to parse replicated log NextChange scn in metadata %+v", entry)
+				return true
+			}
+
+			return !(entryE < input.GetStartScn() || entryS > input.GetEndScn())
+		}
+	}
+
+	if include == nil {
+		return fmt.Errorf("either start SCN or timestamp must be specified in req %+v", req)
+	}
+
+	dir := filepath.Join(consts.RMANStagingDir, "pitr")
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return fmt.Errorf("failed to create redo logs staging dir: %v", err)
+	}
+	if err := pitr.StageLogs(ctx, dir, include, input.GetLogGcsPath()); err != nil {
+		return fmt.Errorf("failed to stage redo logs: %v", err)
+	}
+	if _, err := s.RunRMAN(ctx, &dbdpb.RunRMANRequest{
+		Scripts: []string{
+			fmt.Sprintf("catalog start with '%s' noprompt;", dir),
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to catalog redo logs: %v", err)
+	}
+	return nil
 }
 
 // PhysicalRestoreAsync turns physicalRestore into an async call.
@@ -1002,11 +1095,15 @@ func (s *Server) RunRMAN(ctx context.Context, req *dbdpb.RunRMANRequest) (*dbdpb
 	}
 	var res []string
 	for _, script := range scripts {
+		var args []string
 		target := "/"
 		if req.GetTarget() != "" {
 			target = req.GetTarget()
 		}
-		args := []string{fmt.Sprintf("target=%s", target)}
+
+		if !req.GetWithoutTarget() {
+			args = append(args, fmt.Sprintf("target=%s", target))
+		}
 
 		if req.GetAuxiliary() != "" {
 			args = append(args, fmt.Sprintf("auxiliary=%s", req.Auxiliary))
@@ -1022,7 +1119,7 @@ func (s *Server) RunRMAN(ctx context.Context, req *dbdpb.RunRMANRequest) (*dbdpb
 		}
 		res = append(res, string(out))
 
-		if req.GetGcsPath() != "" && req.GetCmd() == consts.RMANBackup {
+		if req.GetGcsPath() != "" && req.GetGcsOp() == dbdpb.RunRMANRequest_UPLOAD {
 			if err = s.uploadDirectoryContentsToGCS(ctx, consts.RMANStagingDir, req.GetGcsPath()); err != nil {
 				klog.ErrorS(err, "GCS Upload error:")
 				return nil, err
@@ -1334,15 +1431,6 @@ func (s *Server) createCDB(ctx context.Context, req *dbdpb.CreateCDBRequest) (*d
 	return &dbdpb.CreateCDBResponse{}, nil
 }
 
-// CreateFile creates file based on request.
-func (s *Server) CreateFile(ctx context.Context, req *dbdpb.CreateFileRequest) (*dbdpb.CreateFileResponse, error) {
-	klog.InfoS("dbdaemon/CreateFile: ", "req", req)
-	if err := s.osUtil.createFile(req.GetPath(), strings.NewReader(req.GetContent())); err != nil {
-		return nil, fmt.Errorf("dbdaemon/CreateFile: create failed: %v", err)
-	}
-	return &dbdpb.CreateFileResponse{}, nil
-}
-
 // CreateCDBAsync turns CreateCDB into an async call.
 func (s *Server) CreateCDBAsync(ctx context.Context, req *dbdpb.CreateCDBAsyncRequest) (*lropb.Operation, error) {
 	job, err := lro.CreateAndRunLROJobWithID(ctx, req.GetLroInput().GetOperationId(), "CreateCDB", s.lroServer,
@@ -1430,23 +1518,31 @@ func (s *Server) CreateListener(ctx context.Context, req *dbdpb.CreateListenerRe
 	if req.GetDbDomain() != "" {
 		domain = fmt.Sprintf(".%s", req.GetDbDomain())
 	}
+	// default CDB service name is <CDB Name>.<domain>
+	cdbServiceName := req.GetDatabaseName() + domain
+	if req.GetCdbServiceName() != "" {
+		cdbServiceName = req.GetCdbServiceName()
+	}
 	uid, gid, err := oracleUserUIDGID(true)
 	if err != nil {
 		return nil, fmt.Errorf("initDBListeners: get uid gid failed: %v", err)
 	}
 	l := &provision.ListenerInput{
-		DatabaseName: req.DatabaseName,
-		DatabaseBase: consts.OracleBase,
-		DatabaseHome: s.databaseHome,
-		DatabaseHost: s.hostName,
-		DBDomain:     domain,
+		DatabaseName:   req.DatabaseName,
+		DatabaseBase:   consts.OracleBase,
+		DatabaseHome:   s.databaseHome,
+		DatabaseHost:   s.hostName,
+		DBDomain:       domain,
+		CDBServiceName: cdbServiceName,
 	}
 
-	pdbNames, err := s.fetchPDBNames(ctx)
-	if err != nil {
-		return nil, err
+	if !req.GetExcludePdb() {
+		pdbNames, err := s.fetchPDBNames(ctx)
+		if err != nil {
+			return nil, err
+		}
+		l.PluggableDatabaseNames = pdbNames
 	}
-	l.PluggableDatabaseNames = pdbNames
 
 	lType := consts.SECURE
 	lDir := filepath.Join(listenerDir, lType)
@@ -1566,7 +1662,7 @@ func (s *Server) ReadDir(ctx context.Context, req *dbdpb.ReadDirRequest) (*dbdpb
 	if err != nil {
 		return nil, fmt.Errorf("dbdaemon/ReadDir os.Stat(%v) failed: %v ", req.GetPath(), err)
 	}
-	rpcCurrFileInfo, err := convertToRpcFileInfo(currFileInfo, req.GetPath())
+	rpcCurrFileInfo, err := convertToRpcFileInfo(currFileInfo, req.GetPath(), req.GetReadFileContent())
 	if err != nil {
 		return nil, fmt.Errorf("dbdaemon/ReadDir failed: %v ", err)
 	}
@@ -1591,7 +1687,7 @@ func (s *Server) ReadDir(ctx context.Context, req *dbdpb.ReadDirRequest) (*dbdpb
 			if path == req.GetPath() {
 				return nil
 			}
-			rpcInfo, err := convertToRpcFileInfo(info, path)
+			rpcInfo, err := convertToRpcFileInfo(info, path, req.GetReadFileContent())
 			if err != nil {
 				return fmt.Errorf("visit %v, %v failed: %v ", info, path, err)
 			}
@@ -1606,7 +1702,7 @@ func (s *Server) ReadDir(ctx context.Context, req *dbdpb.ReadDirRequest) (*dbdpb
 			return nil, fmt.Errorf("dbdaemon/ReadDir ioutil.ReadDir(%v) failed: %v ", req.GetPath(), err)
 		}
 		for _, info := range subFileInfos {
-			rpcInfo, err := convertToRpcFileInfo(info, filepath.Join(req.GetPath(), info.Name()))
+			rpcInfo, err := convertToRpcFileInfo(info, filepath.Join(req.GetPath(), info.Name()), req.GetReadFileContent())
 			if err != nil {
 				return nil, fmt.Errorf("dbdaemon/ReadDir failed: %v ", err)
 			}
@@ -1617,11 +1713,20 @@ func (s *Server) ReadDir(ctx context.Context, req *dbdpb.ReadDirRequest) (*dbdpb
 	return resp, nil
 }
 
-func convertToRpcFileInfo(info os.FileInfo, absPath string) (*dbdpb.ReadDirResponse_FileInfo, error) {
+func convertToRpcFileInfo(info os.FileInfo, absPath string, readContent bool) (*dbdpb.ReadDirResponse_FileInfo, error) {
 	timestampProto, err := ptypes.TimestampProto(info.ModTime())
 	if err != nil {
 		return nil, fmt.Errorf("convertToRpcFileInfo(%v) failed: %v", info, err)
 	}
+
+	var content []byte
+	if readContent && !info.IsDir() {
+		content, err = ioutil.ReadFile(absPath)
+		if err != nil {
+			return nil, fmt.Errorf("convertToRpcFileInfo(%v) failed reading file: %v", info, err)
+		}
+	}
+
 	return &dbdpb.ReadDirResponse_FileInfo{
 		Name:    info.Name(),
 		Size:    info.Size(),
@@ -1629,6 +1734,7 @@ func convertToRpcFileInfo(info os.FileInfo, absPath string) (*dbdpb.ReadDirRespo
 		ModTime: timestampProto,
 		IsDir:   info.IsDir(),
 		AbsPath: absPath,
+		Content: string(content),
 	}, nil
 }
 
@@ -1704,7 +1810,7 @@ func New(ctx context.Context, cdbNameFromYaml string) (*Server, error) {
 		dbdClientClose: conn.Close,
 		lroServer:      lro.NewServer(ctx),
 		syncJobs:       &syncJobs{},
-		gcsUtil:        &gcsUtilImpl{},
+		gcsUtil:        &util.GCSUtilImpl{},
 	}
 
 	oracleHome := os.Getenv("ORACLE_HOME")
@@ -1759,6 +1865,7 @@ func (s *Server) DownloadDirectoryFromGCS(ctx context.Context, req *dbdpb.Downlo
 				return nil, fmt.Errorf("failed to download file %s", err)
 			}
 		}
+
 	}
 	return &dbdpb.DownloadDirectoryFromGCSResponse{}, nil
 }

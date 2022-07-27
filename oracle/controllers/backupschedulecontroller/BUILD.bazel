@@ -13,6 +13,7 @@ go_library(
         "//common/controllers",
         "//oracle/api/v1alpha1",
         "//oracle/controllers/cronanythingcontroller",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/labels",
         "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_apimachinery//pkg/types",

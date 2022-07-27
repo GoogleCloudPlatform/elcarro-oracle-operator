@@ -6,10 +6,6 @@ import (
 	"testing"
 	"time"
 
-	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -22,6 +18,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
 const (
@@ -42,6 +43,7 @@ type mockBackupControl struct {
 	getInstance        func(name, namespace string) (*v1alpha1.Instance, error)
 	loadConfig         func(namespace string) (*v1alpha1.Config, error)
 	updateStatus       func(obj client.Object) error
+	updateBackup       func(obj client.Object) error
 }
 
 func (c *mockBackupControl) ValidateBackupSpec(backup *v1alpha1.Backup) bool {
@@ -64,6 +66,10 @@ func (c *mockBackupControl) UpdateStatus(obj client.Object) error {
 	return c.updateStatus(obj)
 }
 
+func (c *mockBackupControl) UpdateBackup(obj client.Object) error {
+	return c.updateBackup(obj)
+}
+
 type mockOracleBackup struct {
 	statusFunc      func(ctx context.Context) (done bool, err error)
 	createCalledCnt int
@@ -75,9 +81,17 @@ func (b *mockOracleBackup) create(ctx context.Context) error {
 	return nil
 }
 
+func (b *mockOracleBackup) delete(ctx context.Context) error {
+	return nil
+}
+
 func (b *mockOracleBackup) status(ctx context.Context) (done bool, err error) {
 	b.statusCalledCnt++
 	return b.statusFunc(ctx)
+}
+
+func (b *mockOracleBackup) metadata(ctx context.Context) (metadata *oracleBackupMetadata, err error) {
+	return &oracleBackupMetadata{}, nil
 }
 
 func (b *mockOracleBackup) generateID() string {
@@ -173,6 +187,9 @@ func TestReconcileBackupErrors(t *testing.T) {
 			backupCtrl.updateStatus = func(obj client.Object) error {
 				gotNewStatus = obj.(*v1alpha1.Backup).Status
 				return tc.updateStatusError
+			}
+			backupCtrl.updateBackup = func(obj client.Object) error {
+				return nil
 			}
 
 			_, gotReconcileError := reconciler.Reconcile(context.Background(), reconcile.Request{
@@ -363,6 +380,9 @@ func TestReconcileBackupCreation(t *testing.T) {
 				if _, ok := obj.(*v1alpha1.Backup); ok {
 					gotNewStatus = obj.(*v1alpha1.Backup).Status
 				}
+				return nil
+			}
+			backupCtrl.updateBackup = func(obj client.Object) error {
 				return nil
 			}
 			backupCtrl.validateBackupSpec = func(backup *v1alpha1.Backup) bool {

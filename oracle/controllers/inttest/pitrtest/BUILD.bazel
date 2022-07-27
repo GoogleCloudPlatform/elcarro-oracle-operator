@@ -1,0 +1,37 @@
+load("//oracle:scripts/ginkgo_test.bzl", "ginkgo_test")
+
+# gazelle:map_kind go_test ginkgo_test //oracle:scripts/ginkgo_test.bzl
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
+
+ginkgo_test(
+    name = "pitrtest_test",
+    timeout = "eternal",  # 60m
+    srcs = ["pitr_test.go"],
+    nodes = 1,
+    tags = ["integration"],
+    deps = [
+        "//common/api/v1alpha1",
+        "//oracle/api/v1alpha1",
+        "//oracle/controllers/testhelpers",
+        "//oracle/pkg/k8s",
+        "@com_github_onsi_ginkgo//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_klog_v2//:klog",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/envtest/printer",
+    ],
+)

@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/databasecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
@@ -380,12 +379,50 @@ func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string
 		return 85, fmt.Errorf("failed to find the right Pod %s in status Running: %s", name+"-0", foundPod.Status.Phase)
 	}
 
-	for _, c := range foundPod.Status.ContainerStatuses {
-		if c.Name == databasecontroller.DatabaseContainerName && c.Ready {
-			return 100, nil
+	for _, podCondition := range foundPod.Status.Conditions {
+		if podCondition.Type == "Ready" && podCondition.Status == "False" {
+			log.Info("statusProgress: podCondition.Type ready is False")
+			return 85, fmt.Errorf("failed to find the right Pod %s in status Running: %s", name+"-0", foundPod.Status.Phase)
+		}
+		if podCondition.Type == "ContainersReady" && podCondition.Status == "False" {
+			msg := "statusProgress: podCondition.Type ContainersReady is False"
+			log.Info(msg)
+			return 85, fmt.Errorf(msg)
 		}
 	}
-	return 85, fmt.Errorf("failed to find a database container in %+v", foundPod.Status.ContainerStatuses)
+
+	for _, c := range foundPod.Status.ContainerStatuses {
+		if !c.Ready {
+			msg := fmt.Sprintf("container %s is not ready", c.Name)
+			log.Info(msg)
+			return 85, fmt.Errorf(msg)
+		}
+		log.Info("container %s is ready", c.Name)
+	}
+	for _, c := range foundPod.Status.InitContainerStatuses {
+		if !c.Ready {
+			msg := fmt.Sprintf("init container %s is not ready", c.Name)
+			log.Info(msg)
+			return 85, fmt.Errorf(msg)
+		}
+		log.Info("container %s is ready", c.Name)
+	}
+
+	log.Info("Stateful set creation is complete")
+	return 100, nil
+}
+
+func IsPatchingStateMachineEntryCondition(enabledServices map[commonv1alpha1.Service]bool, activeImages map[string]string, spImages map[string]string, lastFailedImages map[string]string, instanceReadyCond *v1.Condition, dbInstanceCond *v1.Condition) bool {
+	if !(enabledServices[commonv1alpha1.Patching] &&
+		instanceReadyCond != nil &&
+		dbInstanceCond != nil &&
+		k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue)) {
+		return false
+	}
+	if !reflect.DeepEqual(activeImages, spImages) && (lastFailedImages == nil || !reflect.DeepEqual(lastFailedImages, spImages)) {
+		return true
+	}
+	return false
 }
 
 func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1alpha1.Instance, namespace string, log logr.Logger) (bool, error) {
@@ -399,6 +436,19 @@ func (r *InstanceReconciler) isOracleUpAndRunning(ctx context.Context, inst *v1a
 		return false, nil
 	}
 	return true, nil
+}
+
+func (r *InstanceReconciler) updateDatabaseIncarnationStatus(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) error {
+	incResp, err := controllers.FetchDatabaseIncarnation(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name)
+	if err != nil {
+		return fmt.Errorf("failed to fetch current database incarnation: %v", err)
+	}
+
+	if inst.Status.CurrentDatabaseIncarnation != incResp.Incarnation {
+		inst.Status.LastDatabaseIncarnation = inst.Status.CurrentDatabaseIncarnation
+	}
+	inst.Status.CurrentDatabaseIncarnation = incResp.Incarnation
+	return r.Status().Update(ctx, inst)
 }
 
 func CloneMap(source map[string]string) map[string]string {

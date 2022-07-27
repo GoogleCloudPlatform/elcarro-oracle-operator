@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,13 +46,23 @@ func (r *RealBackupScheduleControl) UpdateStatus(schedule commonv1alpha1.BackupS
 }
 
 func (r *RealBackupScheduleControl) GetBackupBytes(schedule commonv1alpha1.BackupSchedule) ([]byte, error) {
+	// json.Marshal and json.Unmarshal are used back-to-back to transform struct into map[string]interface{} type
 	specBytes, err := json.Marshal(schedule.(*v1alpha1.BackupSchedule).Spec.BackupSpec)
 	if err != nil {
 		return nil, err
 	}
-
 	var specMap map[string]interface{}
 	err = json.Unmarshal(specBytes, &specMap)
+	if err != nil {
+		return nil, err
+	}
+
+	metadataBytes, err := json.Marshal(metav1.ObjectMeta{Labels: schedule.(*v1alpha1.BackupSchedule).Spec.BackupLabels})
+	if err != nil {
+		return nil, err
+	}
+	var metadataMap map[string]interface{}
+	err = json.Unmarshal(metadataBytes, &metadataMap)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +71,7 @@ func (r *RealBackupScheduleControl) GetBackupBytes(schedule commonv1alpha1.Backu
 	backupMap["apiVersion"] = backupKind.GroupVersion().String()
 	backupMap["kind"] = backupKind.Kind
 	backupMap["spec"] = specMap
+	backupMap["metadata"] = metadataMap
 	return json.Marshal(backupMap)
 }
 

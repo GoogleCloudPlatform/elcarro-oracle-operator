@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
 	"github.com/godror/godror"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
@@ -495,7 +496,7 @@ func NewMockServer(ctx context.Context, cdbNameFromYaml string) (*Server, error)
 		dbdClientClose: nil,
 		lroServer:      nil,
 		syncJobs:       &syncJobs{},
-		gcsUtil:        &gcsUtilImpl{},
+		gcsUtil:        &util.GCSUtilImpl{},
 	}
 	s.databaseHome = "DBHOME"
 	s.databaseSid.val = "MOCK_DB"
