@@ -50,7 +50,6 @@ var (
 func NewDatabase(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database, dbDomain, cdbName string, log logr.Logger) (bool, error) {
 	r.Recorder.Eventf(db, corev1.EventTypeNormal, k8s.CreatingDatabase, fmt.Sprintf("Creating new database %q", db.Spec.Name))
 
-	// Establish a connection to a Config Agent.
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 
@@ -165,7 +164,6 @@ func NewUsers(ctx context.Context, r *DatabaseReconciler, db *v1alpha1.Database,
 
 	r.Recorder.Eventf(db, corev1.EventTypeNormal, k8s.CreatingUser, "Creating new users %v", usernames)
 
-	// Establish a connection to a Config Agent.
 	ctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
 

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -37,9 +38,10 @@ import (
 // ExportReconciler reconciles an export object.
 type ExportReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	InstanceLocks *sync.Map
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }

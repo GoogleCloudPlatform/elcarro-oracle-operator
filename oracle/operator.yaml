@@ -1851,6 +1851,21 @@ spec:
           spec:
             description: InstanceSpec defines the desired state of Instance.
             properties:
+              adminUser:
+                description: AdminUser represents the admin user specification
+                properties:
+                  forceResetPassword:
+                    description: ForceResetPassword defines the flag needed to reset
+                      admin user password
+                    type: boolean
+                  requestTime:
+                    description: RequestTime is a date-time to avoid triggering of
+                      a password reset repeatedly. If at least one password reset
+                      operation has occurred, any further reset operation that have
+                      RequestTime same or earlier than CreateTime will be ignored.
+                    format: date-time
+                    type: string
+                type: object
               cdbName:
                 description: CDBName is the intended name of the CDB attribute. If
                   the CDBName is different from the original name (with which the
@@ -1874,6 +1889,10 @@ spec:
                   a database.
                 format: int64
                 type: integer
+              databasePatchingTimeout:
+                description: Max threshold for database patching. This timeout is
+                  used independently for sts patching and OPatch/datapatch execution.
+                type: string
               databaseResources:
                 description: Resource specification for the database container. If
                   not specified, a default of 4.0Gi memory request will be used to
@@ -2094,22 +2113,12 @@ spec:
                   operator.
                 enum:
                 - ManuallySetUpStandby
+                - Pause
                 type: string
               parameters:
                 additionalProperties:
                   type: string
                 description: Parameters contains the database flags in the map format
-                type: object
-              patching:
-                description: Patching contains all the patching related attributes
-                  like patch version and image.
-                properties:
-                  patchVersion:
-                    description: Patch version
-                    type: string
-                  patchedServiceImage:
-                    description: gcr link containing the patched service image.
-                    type: string
                 type: object
               replicationSettings:
                 description: ReplicationSettings provides configuration for initializing
@@ -2299,6 +2308,34 @@ spec:
                 description: DnfsEnabled stores whether dNFS has already been enabled
                   or not.
                 type: boolean
+              adminUser:
+                description: AdminUser represents the observed state of the admin
+                  user
+                properties:
+                  createTime:
+                    description: CreateTime is the time admin user is created or last
+                      updated
+                    format: date-time
+                    type: string
+                  expireTime:
+                    description: ExpireTime is the expire time of the secret that
+                      contains admin user password
+                    format: date-time
+                    type: string
+                  secretRef:
+                    description: SecretRef is a reference to the secret that contains
+                      admin user password
+                    properties:
+                      name:
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                type: object
               backupid:
                 description: Last backup ID.
                 type: string

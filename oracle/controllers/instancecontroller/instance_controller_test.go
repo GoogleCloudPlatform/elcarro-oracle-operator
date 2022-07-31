@@ -18,10 +18,10 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -29,11 +29,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
@@ -60,20 +62,22 @@ func TestInstanceController(t *testing.T) {
 	}
 
 	fakeDatabaseClientFactory = &testhelpers.FakeDatabaseClientFactory{}
+	var locker = sync.Map{}
+
 	testhelpers.CdToRoot(t)
-	testhelpers.RunFunctionalTestSuite(t,
-		&k8sClient,
-		&k8sManager,
+	testhelpers.RunFunctionalTestSuite(t, &k8sClient, &k8sManager,
 		[]*runtime.SchemeBuilder{&v1alpha1.SchemeBuilder.SchemeBuilder},
-		"Instance controller", func() []testhelpers.Reconciler {
+		"Instance controller",
+		func() []testhelpers.Reconciler {
 			reconciler = &InstanceReconciler{
 				Client: k8sManager.GetClient(),
 				Log:    ctrl.Log.WithName("controllers").WithName("Instance"),
 				Scheme: k8sManager.GetScheme(),
 				// We need a clone of 'images' to avoid race conditions between reconciler
 				// goroutine and the test goroutine.
-				Images:   CloneMap(images),
-				Recorder: k8sManager.GetEventRecorderFor("instance-controller"),
+				Images:        CloneMap(images),
+				Recorder:      k8sManager.GetEventRecorderFor("instance-controller"),
+				InstanceLocks: &locker,
 
 				DatabaseClientFactory: fakeDatabaseClientFactory,
 			}
@@ -91,18 +95,17 @@ var _ = Describe("Instance controller", func() {
 		fakeDatabaseClientFactory.Reset()
 		fakeDatabaseClientFactory.Dbclient.SetMethodToResp(
 			"FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
-				Version:     "12.2",
+				Version:     "19.3",
 				CdbName:     "GCLOUD",
-				OracleHome:  "/u01/app/oracle/product/12.2/db",
+				OracleHome:  "/u01/app/oracle/product/19.3/db",
 				SeededImage: true,
 			})
 	})
 
 	Context("New instance", testInstanceProvision)
-
-	Context("instance status observedGeneration and isChangeApplied fields", testInstanceParameterUpdate)
-
 	Context("Existing instance restore from RMAN backup", testInstanceRestore)
+	Context("instance status observedGeneration and isChangeApplied fields", testInstanceParameterUpdate)
+	Context("Test pause mode", testInstancePauseUpdate)
 })
 
 func testInstanceProvision() {
@@ -206,6 +209,80 @@ func testInstanceProvision() {
 		Expect(fakeDatabaseClientFactory.Dbclient.BootstrapDatabaseAsyncCalledCnt()).Should(BeNumerically(">=", 1))
 
 		testhelpers.K8sDeleteWithRetry(k8sClient, ctx, objKey, instance)
+	})
+}
+
+func testInstancePauseUpdate() {
+	const (
+		Namespace    = "default"
+		InstanceName = "test-instance-parameter"
+		timeout      = time.Second * 25
+		interval     = time.Millisecond * 15
+	)
+	It("should update observedGeneration", func() {
+		objKey := client.ObjectKey{Namespace: Namespace, Name: InstanceName}
+		By("creating a new Instance")
+		ctx := context.Background()
+		instance := v1alpha1.Instance{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      objKey.Name,
+				Namespace: objKey.Namespace,
+			},
+			Spec: v1alpha1.InstanceSpec{
+				CDBName: "GCLOUD",
+				InstanceSpec: commonv1alpha1.InstanceSpec{
+					Images: images,
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, &instance)).Should(Succeed())
+		createdInstance := &v1alpha1.Instance{}
+		Eventually(
+			func() error {
+				return k8sClient.Get(ctx, objKey, createdInstance)
+			}, timeout, interval).Should(Succeed())
+
+		By("set instance mode in spec to pause")
+		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			if err := k8sClient.Get(ctx, objKey, &instance); err != nil {
+				return err
+			}
+			instance.Status = v1alpha1.InstanceStatus{
+				InstanceStatus: commonv1alpha1.InstanceStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               k8s.Ready,
+							Status:             metav1.ConditionTrue,
+							Reason:             k8s.CreateComplete,
+							LastTransitionTime: metav1.Now().Rfc3339Copy(),
+						},
+						{
+							Type:               k8s.DatabaseInstanceReady,
+							Status:             metav1.ConditionTrue,
+							Reason:             k8s.CreateComplete,
+							LastTransitionTime: metav1.Now().Rfc3339Copy(),
+						},
+					},
+				},
+			}
+			return k8sClient.Status().Update(ctx, &instance)
+		})).Should(Succeed())
+
+		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			if err := k8sClient.Get(ctx, objKey, &instance); err != nil {
+				return err
+			}
+			instance.Spec.Mode = "Pause"
+			return k8sClient.Update(ctx, &instance)
+		})).Should(Succeed())
+
+		// Wait for Instance status to show the PauseMode state
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, &instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.PauseMode)
+		}, timeout, interval).Should(Equal(true))
+		Expect(k8sClient.Delete(ctx, &instance)).Should(Succeed())
 	})
 }
 

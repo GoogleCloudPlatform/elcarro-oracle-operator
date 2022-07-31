@@ -17,6 +17,7 @@ package backupschedulecontroller_func_test
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,9 +85,10 @@ func TestBackupsScheduleController(t *testing.T) {
 				&cronanythingcontroller.RealCronAnythingControl{Client: k8sManager.GetClient()},
 				&backupschedulecontroller.RealBackupControl{Client: k8sManager.GetClient()},
 			)
+			instanceLocks := sync.Map{}
 			cronanythingReconciler, err := cronanythingcontroller.NewCronAnythingReconciler(k8sManager, ctrl.Log.WithName("controllers").WithName("CronAnything"), &cronanythingcontroller.RealCronAnythingControl{
 				Client: k8sManager.GetClient(),
-			})
+			}, &instanceLocks)
 			if err != nil {
 				t.Fatalf("failed to create cronanythingcontroller for backup schedule test")
 			}

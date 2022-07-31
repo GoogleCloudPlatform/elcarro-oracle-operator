@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
@@ -45,10 +46,11 @@ var CheckStatusInstanceFunc = controllers.CheckStatusInstanceFunc
 // InstanceReconciler reconciles an Instance object.
 type InstanceReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Images   map[string]string
-	Recorder record.EventRecorder
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Images        map[string]string
+	Recorder      record.EventRecorder
+	InstanceLocks *sync.Map
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }
@@ -113,6 +115,17 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
 	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
+
+	if inst.Spec.Mode == commonv1alpha1.Pause {
+		if instanceReadyCond == nil || dbInstanceCond == nil || instanceReadyCond.Reason != k8s.CreateComplete {
+			log.Info("Ignoring pause mode since only instances in a stable state can be paused.")
+		} else {
+			r.InstanceLocks.Store(fmt.Sprintf("%s-%s", inst.Namespace, inst.Name), true)
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PauseMode, "Instance switched to pause mode")
+			log.Info("Instance has been set to pause for further reconciliation reset the pause mode")
+			return ctrl.Result{}, nil
+		}
+	}
 
 	var enabledServices []commonv1alpha1.Service
 	for service, enabled := range inst.Spec.Services {

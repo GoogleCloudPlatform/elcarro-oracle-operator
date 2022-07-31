@@ -17,6 +17,7 @@ package importcontroller
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -36,9 +37,10 @@ import (
 // ImportReconciler reconciles an Import object.
 type ImportReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	InstanceLocks *sync.Map
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }

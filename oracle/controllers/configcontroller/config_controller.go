@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,10 +33,11 @@ import (
 // ConfigReconciler reconciles a Config object
 type ConfigReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Images   map[string]string
-	Recorder record.EventRecorder
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Images        map[string]string
+	Recorder      record.EventRecorder
+	InstanceLocks *sync.Map
 }
 
 var (
