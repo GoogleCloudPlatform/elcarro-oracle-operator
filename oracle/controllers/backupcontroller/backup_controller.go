@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -51,8 +52,9 @@ type BackupReconciler struct {
 	client.Client
 	Log                 logr.Logger
 	Scheme              *runtime.Scheme
-	OracleBackupFactory oracleBackupFactory
 	Recorder            record.EventRecorder
+	InstanceLocks       *sync.Map
+	OracleBackupFactory oracleBackupFactory
 	BackupCtrl          backupControl
 
 	DatabaseClientFactory controllers.DatabaseClientFactory

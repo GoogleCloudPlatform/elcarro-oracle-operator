@@ -17,6 +17,7 @@ package databasecontroller
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -53,10 +54,10 @@ var (
 // DatabaseReconciler reconciles a Database object
 type DatabaseReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-
+	Log                   logr.Logger
+	Scheme                *runtime.Scheme
+	Recorder              record.EventRecorder
+	InstanceLocks         *sync.Map
 	DatabaseClientFactory controllers.DatabaseClientFactory
 }
 

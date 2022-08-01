@@ -15,6 +15,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,6 +48,13 @@ const (
 	// ManuallySetUpStandby means that operator will skip DB creation during
 	// provisioning, instance will be ready for users to manually set up standby.
 	ManuallySetUpStandby InstanceMode = "ManuallySetUpStandby"
+
+	// Pause Mode means the instance will stop processing incoming API calls and
+	// terminate any pending LRO operation after a grace period
+	Pause InstanceMode = "Pause"
+
+	// AdminPasswordTimeoutMinute is the timeout period for admin password
+	AdminPasswordTimeoutMinute time.Duration = 20 * time.Minute
 )
 
 //+kubebuilder:object:generate=true
@@ -81,7 +90,7 @@ type InstanceSpec struct {
 	Version string `json:"version,omitempty"`
 
 	// Edition of a database.
-	// +required
+	// +optional
 	Edition string `json:"edition,omitempty"`
 
 	// Disks slice describes at minimum two disks:
@@ -107,10 +116,6 @@ type InstanceSpec struct {
 	// +optional
 	Parameters map[string]string `json:"parameters,omitempty"`
 
-	// Patching contains all the patching related attributes like patch version and image.
-	// +optional
-	Patching *PatchingSpec `json:"patching,omitempty"`
-
 	// Services list the optional semi-managed services that
 	// the customers can choose from.
 	// +optional
@@ -128,8 +133,16 @@ type InstanceSpec struct {
 
 	// Mode specifies how this instance will be managed by the operator.
 	// +optional
-	// +kubebuilder:validation:Enum=ManuallySetUpStandby
+	// +kubebuilder:validation:Enum=ManuallySetUpStandby;Pause
 	Mode InstanceMode `json:"mode,omitempty"`
+
+	// Max threshold for database patching. This timeout is used independently for sts patching and OPatch/datapatch execution.
+	// +optional
+	DatabasePatchingTimeout *metav1.Duration `json:"databasePatchingTimeout,omitempty"`
+
+	// AdminUser represents the admin user specification
+	// +optional
+	AdminUser *AdminUserSpec `json:"adminUser,omitempty"`
 }
 
 // DBLoadBalancerOptions contains customization options for the Kubernetes
@@ -156,12 +169,36 @@ type DBLoadBalancerOptionsGCP struct {
 }
 
 //+kubebuilder:object:generate=true
-// PatchingSpec contains the patching related details.
-type PatchingSpec struct {
-	// Patch version
-	PatchVersion string `json:"patchVersion,omitempty"`
-	// gcr link containing the patched service image.
-	PatchedServiceImage string `json:"patchedServiceImage,omitempty"`
+
+// AdminUserSpec defines the desired state of admin user
+type AdminUserSpec struct {
+	// ForceResetPassword defines the flag needed to reset admin user password
+	// +optional
+	ForceResetPassword bool `json:"forceResetPassword,omitempty"`
+
+	// RequestTime is a date-time to avoid triggering of a password reset repeatedly.
+	// If at least one password reset operation has occurred, any further reset
+	// operation that have RequestTime same or earlier than CreateTime will be ignored.
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Format=date-time
+	RequestTime metav1.Time `json:"requestTime,omitempty"`
+}
+
+// AdminUserStatus defines the observed state of admin user
+// +kubebuilder:object:generate=true
+type AdminUserStatus struct {
+	// SecretRef is a reference to the secret that contains admin user password
+	// +optional
+	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
+
+	// CreateTime is the time admin user is created or last updated
+	// +optional
+	CreateTime metav1.Time `json:"createTime,omitempty"`
+
+	// ExpireTime is the expire time of the secret that contains admin user password
+	// +optional
+	ExpireTime metav1.Time `json:"expireTime,omitempty"`
 }
 
 //+kubebuilder:object:generate=true
@@ -199,6 +236,10 @@ type InstanceStatus struct {
 	// IsChangeApplied indicates whether instance changes have been applied
 	// +optional
 	IsChangeApplied metav1.ConditionStatus `json:"isChangeApplied,omitempty"`
+
+	// AdminUser represents the observed state of the admin user
+	// +optional
+	AdminUser *AdminUserStatus `json:"adminUser,omitempty"`
 }
 
 // Instance represents the contract for the Anthos DB Operator compliant
