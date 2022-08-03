@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "pitr_agent_lib",
+    srcs = ["pitr_agent.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/cmd/pitr_agent",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/agents/pitr",
+        "//oracle/pkg/agents/pitr/proto",
+        "//oracle/pkg/agents/pitr/server",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "pitr_agent",
+    embed = [":pitr_agent_lib"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)
