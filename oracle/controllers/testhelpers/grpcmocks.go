@@ -20,21 +20,18 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"google.golang.org/genproto/googleapis/longrunning"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
+	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	lropb "google.golang.org/genproto/googleapis/longrunning"
-	grpcstatus "google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
-// FakeOperationStatus is an enum type for LRO statuses managed by FakeConfigAgentClient.
+// FakeOperationStatus is an enum type for LRO statuses.
 type FakeOperationStatus int32
 
 const (
@@ -49,10 +46,6 @@ const (
 	//StatusNotFound not found.
 	StatusNotFound
 )
-
-// FakeConfigAgentClient a client for capturing calls the various ConfigAgent api.
-type FakeConfigAgentClient struct {
-}
 
 // FakeDatabaseClient mocks DatabaseDaemon
 type FakeDatabaseClient struct {
@@ -74,6 +67,7 @@ type FakeDatabaseClient struct {
 	createListenerCalledCnt           int32
 	createFileCalledCnt               int32
 	downloadDirectoryFromGCSCalledCnt int32
+	runRMANCalledCnt                  int32
 	runRMANAsyncCalledCnt             int32
 	readDirCalledCnt                  int32
 	physicalRestoreAsyncCalledCnt     int32
@@ -82,6 +76,11 @@ type FakeDatabaseClient struct {
 	deleteDirCalledCnt                int32
 	dataPumpImportAsyncCalledCnt      int32
 	dataPumpExportAsyncCalledCnt      int32
+	runDataGuardCalledCnt             int32
+	tnspingCalledCnt                  int32
+	nidCalledCnt                      int32
+	createPasswordFileCalledCnt       int32
+	applyDataPatchAsyncCalledCnt      int32
 
 	GotRMANAsyncRequest *dbdpb.RunRMANAsyncRequest
 
@@ -152,7 +151,17 @@ func (cli *FakeDatabaseClient) RunSQLPlus(ctx context.Context, in *dbdpb.RunSQLP
 // RunSQLPlusFormatted RPC is similar to RunSQLPlus, but for queries.
 func (cli *FakeDatabaseClient) RunSQLPlusFormatted(ctx context.Context, in *dbdpb.RunSQLPlusCMDRequest, opts ...grpc.CallOption) (*dbdpb.RunCMDResponse, error) {
 	atomic.AddInt32(&cli.runSQLPlusFormattedCalledCnt, 1)
-	return nil, nil
+	method := "RunSQLPlusFormatted"
+	resp, err := cli.getMethodRespErr(method)
+	if resp != nil {
+		return resp.(*dbdpb.RunCMDResponse), nil
+	}
+	return nil, err
+}
+
+// RunSQLPlusFormattedCalledCnt return call count.
+func (cli *FakeDatabaseClient) RunSQLPlusFormattedCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.runSQLPlusFormattedCalledCnt))
 }
 
 // KnownPDBs RPC call returns a list of known PDBs.
@@ -162,7 +171,13 @@ func (cli *FakeDatabaseClient) KnownPDBs(ctx context.Context, in *dbdpb.KnownPDB
 
 // RunRMAN RPC call executes Oracle's rman utility.
 func (cli *FakeDatabaseClient) RunRMAN(ctx context.Context, in *dbdpb.RunRMANRequest, opts ...grpc.CallOption) (*dbdpb.RunRMANResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.runRMANCalledCnt, 1)
+	method := "RunRMAN"
+	resp, _ := cli.getMethodRespErr(method)
+	if resp != nil {
+		return resp.(*dbdpb.RunRMANResponse), nil
+	}
+	return nil, nil
 }
 
 // RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
@@ -170,12 +185,13 @@ func (cli *FakeDatabaseClient) RunRMANAsync(ctx context.Context, in *dbdpb.RunRM
 	atomic.AddInt32(&cli.runRMANAsyncCalledCnt, 1)
 	cli.GotRMANAsyncRequest = in
 	_, err := cli.getMethodRespErr("RunRMANAsync")
-	return &longrunning.Operation{Done: !cli.asyncPhysicalBackup}, err
+	return &lropb.Operation{Done: !cli.asyncPhysicalBackup}, err
 }
 
 // NID changes a database id and/or database name.
 func (cli *FakeDatabaseClient) NID(ctx context.Context, in *dbdpb.NIDRequest, opts ...grpc.CallOption) (*dbdpb.NIDResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.nidCalledCnt, 1)
+	return &dbdpb.NIDResponse{}, nil
 }
 
 // GetDatabaseType returns database type(eg. ORACLE_12_2_ENTERPRISE_NONCDB)
@@ -190,7 +206,8 @@ func (cli *FakeDatabaseClient) GetDatabaseName(ctx context.Context, in *dbdpb.Ge
 
 // CreatePasswordFile creates a password file for the database.
 func (cli *FakeDatabaseClient) CreatePasswordFile(ctx context.Context, in *dbdpb.CreatePasswordFileRequest, opts ...grpc.CallOption) (*dbdpb.CreatePasswordFileResponse, error) {
-	panic("implement me")
+	atomic.AddInt32(&cli.createPasswordFileCalledCnt, 1)
+	return &dbdpb.CreatePasswordFileResponse{}, nil
 }
 
 // SetListenerRegistration sets a static listener registration and restarts
@@ -244,19 +261,19 @@ func (cli *FakeDatabaseClient) FileExists(ctx context.Context, in *dbdpb.FileExi
 func (cli *FakeDatabaseClient) PhysicalRestoreAsync(ctx context.Context, in *dbdpb.PhysicalRestoreAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
 	atomic.AddInt32(&cli.physicalRestoreAsyncCalledCnt, 1)
 	_, err := cli.getMethodRespErr("PhysicalRestoreAsync")
-	return &longrunning.Operation{Done: !cli.asyncPhysicalRestore}, err
+	return &lropb.Operation{Done: !cli.asyncPhysicalRestore}, err
 }
 
 // DataPumpImportAsync imports data from a .dmp file to an existing PDB.
 func (cli *FakeDatabaseClient) DataPumpImportAsync(ctx context.Context, in *dbdpb.DataPumpImportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
 	atomic.AddInt32(&cli.dataPumpImportAsyncCalledCnt, 1)
-	return &longrunning.Operation{Done: false}, nil
+	return &lropb.Operation{Done: false}, nil
 }
 
 // DataPumpExportAsync exports data to a .dmp file using expdp
 func (cli *FakeDatabaseClient) DataPumpExportAsync(ctx context.Context, in *dbdpb.DataPumpExportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error) {
 	atomic.AddInt32(&cli.dataPumpExportAsyncCalledCnt, 1)
-	return &longrunning.Operation{Done: false}, nil
+	return &lropb.Operation{Done: false}, nil
 }
 
 // ListOperations lists operations that match the specified filter in the
@@ -323,53 +340,52 @@ var (
 	emptyConnCloseFunc = func() {}
 )
 
-// FakeClientFactory is a simple factory to create our FakeConfigAgentClient.
-type FakeClientFactory struct {
-	Caclient *FakeConfigAgentClient
-}
-
 // FakeDatabaseClientFactory is a simple factory to create our FakeDatabaseClient.
 type FakeDatabaseClientFactory struct {
+	lock     sync.Mutex
 	Dbclient *FakeDatabaseClient
 }
 
 // New returns a new fake DatabaseClient.
 func (g *FakeDatabaseClientFactory) New(context.Context, client.Reader, string, string) (dbdpb.DatabaseDaemonClient, func() error, error) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
 	if g.Dbclient == nil {
-		g.Reset()
+		g.Dbclient = &FakeDatabaseClient{}
 	}
 	return g.Dbclient, func() error { return nil }, nil
 }
 
-// Reset clears the inner ConfigAgent.
 func (g *FakeDatabaseClientFactory) Reset() {
+	g.lock.Lock()
+	defer g.lock.Unlock()
 	g.Dbclient = &FakeDatabaseClient{}
 }
 
-// Reset reset's the config agent's counters.
+// Reset reset's the database client's counters.
 func (cli *FakeDatabaseClient) Reset() {
 	*cli = FakeDatabaseClient{}
 }
 
 // GetOperation gets the latest state of a long-running operation. Clients can
 // use this method to poll the operation result.
-func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOperationRequest, ...grpc.CallOption) (*longrunning.Operation, error) {
+func (cli *FakeDatabaseClient) GetOperation(context.Context, *lropb.GetOperationRequest, ...grpc.CallOption) (*lropb.Operation, error) {
 	atomic.AddInt32(&cli.getOperationCalledCnt, 1)
 
 	switch cli.NextGetOperationStatus() {
 	case StatusDone:
-		return &longrunning.Operation{Done: true}, nil
+		return &lropb.Operation{Done: true}, nil
 
 	case StatusDoneWithError:
-		return &longrunning.Operation{
+		return &lropb.Operation{
 			Done: true,
-			Result: &longrunning.Operation_Error{
+			Result: &lropb.Operation_Error{
 				Error: &status.Status{Code: int32(codes.Unknown), Message: "Test Error"},
 			},
 		}, nil
 
 	case StatusRunning:
-		return &longrunning.Operation{}, nil
+		return &lropb.Operation{}, nil
 
 	case StatusNotFound:
 		return nil, grpcstatus.Errorf(codes.NotFound, "")
@@ -382,9 +398,14 @@ func (cli *FakeDatabaseClient) GetOperation(context.Context, *longrunning.GetOpe
 	}
 }
 
-// BootstrapDatabaseCalledCnt returns call count.
+// BootstrapDatabaseAsyncCalledCnt returns call count.
 func (cli *FakeDatabaseClient) BootstrapDatabaseAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.bootstrapDatabaseAsyncCalledCnt))
+}
+
+// RMANAsyncCalledCnt returns call count.
+func (cli *FakeDatabaseClient) RunRMANCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.runRMANCalledCnt))
 }
 
 // RMANAsyncCalledCnt returns call count.

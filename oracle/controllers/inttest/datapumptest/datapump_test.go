@@ -97,7 +97,7 @@ var _ = Describe("Datapump", func() {
 				createdExport := &v1alpha1.Export{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: schemaExport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute)
+					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute, k8s.FindConditionOrFailed)
 			}
 
 			By("Creating a new Table export")
@@ -124,7 +124,7 @@ var _ = Describe("Datapump", func() {
 				createdExport := &v1alpha1.Export{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: tableExport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute)
+					objKey, createdExport, k8s.Ready, metav1.ConditionTrue, k8s.ExportComplete, 5*time.Minute, k8s.FindConditionOrFailed)
 			}
 
 			By("Erasing scott user")
@@ -151,7 +151,7 @@ drop user scott cascade;`
 				createdImport := &v1alpha1.Import{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: schemaImport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute)
+					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute, k8s.FindConditionOrFailed)
 			}
 
 			By("Granting unlimited tablespace to scott")
@@ -179,7 +179,7 @@ drop table test_table;`
 				createdImport := &v1alpha1.Import{}
 				objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: tableImport.Name}
 				testhelpers.WaitForObjectConditionState(k8sEnv,
-					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute)
+					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute, k8s.FindConditionOrFailed)
 			}
 
 			testhelpers.VerifySimpleData(k8sEnv)

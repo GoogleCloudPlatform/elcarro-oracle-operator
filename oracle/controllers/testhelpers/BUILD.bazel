@@ -22,6 +22,7 @@ go_library(
         "@com_github_onsi_ginkgo//:ginkgo",
         "@com_github_onsi_ginkgo//config",
         "@com_github_onsi_gomega//:gomega",
+        "@com_google_cloud_go_storage//:storage",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@go_googleapis//google/rpc:status_go_proto",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
