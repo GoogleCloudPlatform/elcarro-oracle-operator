@@ -110,6 +110,7 @@ filegroup(
         "//oracle/cmd/init_oracle:all-srcs",
         "//oracle/cmd/logging:all-srcs",
         "//oracle/cmd/monitoring:all-srcs",
+        "//oracle/cmd/pitr_agent:all-srcs",
         "//oracle/controllers:all-srcs",
         "//oracle/pkg/agents/backup:all-srcs",
         "//oracle/pkg/agents/common:all-srcs",
