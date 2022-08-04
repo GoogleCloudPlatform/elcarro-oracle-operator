@@ -1,0 +1,14 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: PITR
+metadata:
+  name: mydb-pitr
+spec:
+  images:
+    agent: "gcr.io/elcarro/oracle.db.anthosapis.com/pitragent:latest"
+  instanceRef:
+    name: "mydb"
+  storageURI: "gs://mydb-pitr-bucket"
+  # Uncomment and change the backupSchedule value for customized backup schedule.
+  # For allowed syntax, see en.wikipedia.org/wiki/Cron and godoc.org/github.com/robfig/cron.
+  # Default to backup every 4 hours if not specified.
+  # backupSchedule: "0 */4 * * *"
