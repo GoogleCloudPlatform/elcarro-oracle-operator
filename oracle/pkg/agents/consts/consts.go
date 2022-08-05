@@ -66,6 +66,9 @@ const (
 	// ListPluggableDatabaseExcludeSeedSQL is used to list pluggable databases exclude PDB$SEED
 	ListPluggableDatabaseExcludeSeedSQL = "select pdb_name from dba_pdbs where pdb_name!='PDB$SEED'"
 
+	// GetDatabaseIncarnationSQL is used to get current database incarnation number.
+	GetDatabaseIncarnationSQL = "select incarnation# from v$database_incarnation where status='CURRENT'"
+
 	// DefaultPGAMB is the default size of the PGA which the CDBs are created.
 	DefaultPGAMB = 1200
 

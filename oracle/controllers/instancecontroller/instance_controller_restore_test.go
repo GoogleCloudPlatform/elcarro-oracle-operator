@@ -7,17 +7,18 @@ import (
 	"strings"
 	"time"
 
-	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
-	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
 func testInstanceRestore() {
@@ -168,12 +169,13 @@ func testInstanceRestore() {
 		instance, backup := testCaseHappyPathLRORestore()
 
 		// reset method call counters used later
-		fakeDatabaseClient.Reset()
+		fakeDatabaseClientFactory.Reset()
+		fakeDatabaseClient = fakeDatabaseClientFactory.Dbclient
 
 		fakeDatabaseClient.SetMethodToResp("FetchServiceImageMetaData", &dbdpb.FetchServiceImageMetaDataResponse{
-			Version:    "12.2",
+			Version:    "19.3",
 			CdbName:    "GCLOUD",
-			OracleHome: "/u01/app/oracle/product/12.2/db",
+			OracleHome: "/u01/app/oracle/product/19.3/db",
 		})
 		fakeDatabaseClient.SetAsyncPhysicalRestore(true)
 

@@ -20,7 +20,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
@@ -55,31 +57,42 @@ const (
 				%s
 				incremental level %d
 				to destination '%s'
-				(%s);
+				tag='%s' (%s)
+				plus archivelog;
 			backup
 				to destination '%s'
-				(spfile) (current controlfile)
-				plus archivelog;
+ 				tag='%s'
+				(spfile) (current controlfile);
 		}
 	`
+
+	backupDeletionStmt = `delete noprompt backup tag='%s';`
 )
 
 // Params that can be passed to PhysicalBackup.
 type Params struct {
-	InstanceName string
-	CDBName      string
-	Client       dbdpb.DatabaseDaemonClient
-	Granularity  string
-	Backupset    bool
-	DOP          int32
-	CheckLogical bool
-	Compressed   bool
-	Level        int32
-	Filesperset  int32
-	SectionSize  resource.Quantity
-	LocalPath    string
-	GCSPath      string
-	OperationID  string
+	InstanceName      string
+	CDBName           string
+	Client            dbdpb.DatabaseDaemonClient
+	Granularity       string
+	Backupset         bool
+	DOP               int32
+	CheckLogical      bool
+	Compressed        bool
+	Level             int32
+	Filesperset       int32
+	SectionSize       resource.Quantity
+	LocalPath         string
+	GCSPath           string
+	BackupTag         string
+	OperationID       string
+	LogGcsDir         string
+	Incarnation       string
+	BackupIncarnation string
+	StartTime         *timestamppb.Timestamp
+	EndTime           *timestamppb.Timestamp
+	StartSCN          int64
+	EndSCN            int64
 }
 
 // PhysicalBackup takes a physical backup of the oracle database.
@@ -159,11 +172,12 @@ func PhysicalBackup(ctx context.Context, params *Params) (*lropb.Operation, erro
 	// and it causes flaky behaviour (ORA-00246) in Oracle 19.3
 	initStatement := fmt.Sprintf("CONFIGURE SNAPSHOT CONTROLFILE NAME TO '%s/snapcf_%s.f';", backupDir, params.CDBName)
 
-	backupStmt := fmt.Sprintf(backupStmtTemplate, initStatement, channels, compressed, backupset, checklogical, filesperset, sectionSize, params.Level, backupDir, granularity, backupDir)
+	tag := params.BackupTag
+	backupStmt := fmt.Sprintf(backupStmtTemplate, initStatement, channels, compressed, backupset, checklogical, filesperset, sectionSize, params.Level, backupDir, tag, granularity, backupDir, tag)
 	klog.InfoS("oracle/PhysicalBackup", "finalBackupRequest", backupStmt)
 
 	backupReq := &dbdpb.RunRMANAsyncRequest{
-		SyncRequest: &dbdpb.RunRMANRequest{Scripts: []string{backupStmt}, GcsPath: params.GCSPath, LocalPath: params.LocalPath, Cmd: consts.RMANBackup},
+		SyncRequest: &dbdpb.RunRMANRequest{Scripts: []string{backupStmt}, GcsPath: params.GCSPath, LocalPath: params.LocalPath, GcsOp: dbdpb.RunRMANRequest_UPLOAD},
 		LroInput:    &dbdpb.LROInput{OperationId: params.OperationID},
 	}
 	klog.InfoS("oracle/PhysicalBackup", "backupReq", backupReq)
@@ -193,4 +207,21 @@ func sectionSize(sectionSize resource.Quantity) string {
 		return fmt.Sprintf("section size %dK", scaledValue)
 	}
 	return fmt.Sprintf("section size %d", sectionSizeInt64)
+}
+
+// PhysicalBackupDelete deletes a physical backup of the oracle database.
+func PhysicalBackupDelete(ctx context.Context, params *Params) error {
+	if params.GCSPath != "" {
+		gcsutil := util.GCSUtilImpl{}
+		if err := gcsutil.Delete(ctx, params.GCSPath); err != nil {
+			return fmt.Errorf("oracle/PhysicalBackupDelete: failed to delete backup from GCS: %v", err)
+		}
+		return nil
+	}
+
+	resp, err := params.Client.RunRMAN(ctx, &dbdpb.RunRMANRequest{Scripts: []string{fmt.Sprintf(backupDeletionStmt, params.BackupTag)}, GcsPath: params.GCSPath})
+	if err != nil {
+		return fmt.Errorf("oracle/PhysicalBackupDelete: failed to delete physical backup: %v. RMAN output: %v", err, resp)
+	}
+	return nil
 }

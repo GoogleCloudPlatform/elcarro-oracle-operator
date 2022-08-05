@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 )
 
 type oracleBackupFactory interface {
@@ -45,8 +46,18 @@ func (f *RealOracleBackupFactory) newOracleBackup(r *BackupReconciler, backup *v
 
 type oracleBackup interface {
 	create(ctx context.Context) error
+	delete(ctx context.Context) error
 	status(ctx context.Context) (done bool, err error)
+	metadata(ctx context.Context) (metadata *oracleBackupMetadata, err error)
 	generateID() string
+}
+
+type oracleBackupMetadata struct {
+	timestamp         time.Time
+	incarnation       string
+	parentIncarnation string
+	scn               string
+	databaseImage     string
 }
 
 type snapshotBackup struct {
@@ -86,6 +97,11 @@ func (b *snapshotBackup) create(ctx context.Context) error {
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("backup-controller")}
 
 	return utils.SnapshotDisks(ctx, controllers.DiskSpecs(b.inst, config), b.backup, b.r.Client, b.r.Scheme, getPvcNames, applyOpts)
+}
+
+func (b *snapshotBackup) delete(ctx context.Context) error {
+	// snapshot backup deletion is handled by k8s garbage collection.
+	return nil
 }
 
 func (b *snapshotBackup) status(ctx context.Context) (done bool, err error) {
@@ -155,6 +171,11 @@ func (b *snapshotBackup) generateID() string {
 	return fmt.Sprintf(backupName, b.backup.Spec.Instance, timeNow().Format("20060102"), "snap", timeNow().Nanosecond())
 }
 
+func (b *snapshotBackup) metadata(ctx context.Context) (metadata *oracleBackupMetadata, err error) {
+	b.log.Info("metadata() is not yet implemented for snapshot backup.")
+	return nil, nil
+}
+
 type physicalBackup struct {
 	r      *BackupReconciler
 	backup *v1alpha1.Backup
@@ -192,12 +213,24 @@ func (b *physicalBackup) create(ctx context.Context) error {
 		Filesperset:   b.backup.Spec.Filesperset,
 		SectionSize:   b.backup.SectionSize(),
 		LocalPath:     b.backup.Spec.LocalPath,
+		BackupTag:     b.backup.Status.BackupTime,
 		GcsPath:       b.backup.Spec.GcsPath,
 		LroInput:      &controllers.LROInput{OperationId: lroOperationID(b.backup)},
 	}
 	if _, err := controllers.PhysicalBackup(ctxBackup, b.r, b.r.DatabaseClientFactory, b.backup.Namespace, b.backup.Spec.Instance, *req); err != nil &&
 		!controllers.IsAlreadyExistsError(err) {
 		return fmt.Errorf("failed on PhysicalBackup gRPC call: %v", err)
+	}
+	return nil
+}
+
+func (b *physicalBackup) delete(ctx context.Context) error {
+	if err := controllers.PhysicalBackupDelete(ctx, b.r, b.r.DatabaseClientFactory, b.backup.Namespace, b.backup.Spec.Instance, controllers.PhysicalBackupDeleteRequest{
+		LocalPath: b.backup.Spec.LocalPath,
+		GcsPath:   controllers.GetBackupGcsPath(b.backup),
+		BackupTag: b.backup.Status.BackupTime,
+	}); err != nil {
+		return fmt.Errorf("failed on PhysicalBackupDelete call: %v", err)
 	}
 	return nil
 }
@@ -226,4 +259,19 @@ func (b *physicalBackup) status(ctx context.Context) (done bool, err error) {
 
 func (b *physicalBackup) generateID() string {
 	return fmt.Sprintf(backupName, b.backup.Spec.Instance, time.Now().Format("20060102"), "phys", time.Now().Nanosecond())
+}
+
+func (b *physicalBackup) metadata(ctx context.Context) (metadata *oracleBackupMetadata, err error) {
+	resp, err := controllers.PhysicalBackupMetadata(ctx, b.r, b.r.DatabaseClientFactory, b.backup.Namespace, b.backup.Spec.Instance, controllers.PhysicalBackupMetadataRequest{BackupTag: b.backup.Status.BackupTime})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch physical backup metadata: %v", err)
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	return &oracleBackupMetadata{
+		timestamp:   resp.BackupTimestamp.AsTime(),
+		incarnation: resp.BackupIncarnation,
+		scn:         resp.BackupScn,
+	}, nil
 }

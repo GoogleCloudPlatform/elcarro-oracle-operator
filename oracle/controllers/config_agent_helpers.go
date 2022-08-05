@@ -15,13 +15,16 @@
 package controllers
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup"
@@ -30,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -513,6 +517,9 @@ func fetchAndParseSingleResultQuery(ctx context.Context, client dbdpb.DatabaseDa
 	if err != nil {
 		return "", fmt.Errorf("failed to run query %q; DSN: %q; error: %v", query, sqlRequest.GetDsn(), err)
 	}
+	if response == nil {
+		return "", nil
+	}
 	result, err := parseSQLResponse(response)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing query response: %q; error: %v", query, err)
@@ -950,6 +957,7 @@ type PhysicalBackupRequest struct {
 	LocalPath   string
 	GcsPath     string
 	LroInput    *LROInput
+	BackupTag   string
 }
 
 type PhysicalBackupRequest_Type int32
@@ -1008,6 +1016,7 @@ func PhysicalBackup(ctx context.Context, r client.Reader, dbClientFactory Databa
 		SectionSize:  *sectionSize,
 		LocalPath:    req.LocalPath,
 		GCSPath:      req.GcsPath,
+		BackupTag:    req.BackupTag,
 		OperationID:  req.LroInput.OperationId,
 	})
 }
@@ -1016,10 +1025,17 @@ type PhysicalRestoreRequest struct {
 	InstanceName string
 	CdbName      string
 	// DOP = degree of parallelism for a restore from a physical backup.
-	Dop       int32
-	LocalPath string
-	GcsPath   string
-	LroInput  *LROInput
+	Dop               int32
+	LocalPath         string
+	GcsPath           string
+	LroInput          *LROInput
+	LogGcsPath        string
+	Incarnation       string
+	BackupIncarnation string
+	StartTime         *timestamppb.Timestamp
+	EndTime           *timestamppb.Timestamp
+	StartScn          int64
+	EndScn            int64
 }
 
 // PhysicalRestore restores an RMAN backup (downloaded from GCS).
@@ -1033,13 +1049,20 @@ func PhysicalRestore(ctx context.Context, r client.Reader, dbClientFactory Datab
 	defer closeConn()
 
 	return backup.PhysicalRestore(ctx, &backup.Params{
-		Client:       dbClient,
-		InstanceName: req.InstanceName,
-		CDBName:      req.CdbName,
-		DOP:          req.Dop,
-		LocalPath:    req.LocalPath,
-		GCSPath:      req.GcsPath,
-		OperationID:  req.LroInput.OperationId,
+		Client:            dbClient,
+		InstanceName:      req.InstanceName,
+		CDBName:           req.CdbName,
+		DOP:               req.Dop,
+		LocalPath:         req.LocalPath,
+		GCSPath:           req.GcsPath,
+		OperationID:       req.LroInput.OperationId,
+		LogGcsDir:         req.LogGcsPath,
+		Incarnation:       req.Incarnation,
+		BackupIncarnation: req.BackupIncarnation,
+		StartTime:         req.StartTime,
+		EndTime:           req.EndTime,
+		StartSCN:          req.StartScn,
+		EndSCN:            req.EndScn,
 	})
 }
 
@@ -1228,4 +1251,135 @@ func GetParameterTypeValue(ctx context.Context, r client.Reader, dbClientFactory
 	}
 
 	return &GetParameterTypeValueResponse{Types: types, Values: values}, nil
+}
+
+type PhysicalBackupDeleteRequest struct {
+	BackupTag string
+	LocalPath string
+	GcsPath   string
+}
+
+// PhysicalBackupDelete deletes backup data on local or GCS.
+func PhysicalBackupDelete(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req PhysicalBackupDeleteRequest) error {
+	klog.InfoS("config_agent_helpers/PhysicalBackupDelete", "namespace", namespace, "instName", instName, "backupTag", req.BackupTag, "localPath", req.LocalPath, "gcsPath", req.GcsPath)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/PhysicalBackupDelete: failed to create database daemon client: %v", err)
+	}
+	defer closeConn()
+
+	if err := backup.PhysicalBackupDelete(ctx, &backup.Params{
+		Client:    dbClient,
+		LocalPath: req.LocalPath,
+		GCSPath:   req.GcsPath,
+		BackupTag: req.BackupTag,
+	}); err != nil {
+		return fmt.Errorf("config_agent_helpers/PhysicalBackupDelete: failed to delete physical backup: %v", err)
+	}
+
+	return nil
+}
+
+type PhysicalBackupMetadataRequest struct {
+	BackupTag string
+}
+
+type PhysicalBackupMetadataResponse struct {
+	BackupScn         string
+	BackupIncarnation string
+	BackupTimestamp   *timestamppb.Timestamp
+}
+
+// PhysicalBackupMetadata fetches backup scn/timestamp/incarnation with provided backup tag.
+func PhysicalBackupMetadata(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req PhysicalBackupMetadataRequest) (*PhysicalBackupMetadataResponse, error) {
+	klog.InfoS("config_agent_helpers/PhysicalBackupMetadata", "namespace", namespace, "instName", instName, "backupTag", req.BackupTag)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to create database daemon client: %v", err)
+	}
+	defer closeConn()
+
+	// Find the max "Next SCN" in current archivelog backup, this will be the backup scn.
+	// Example of list backup of archivelog output:
+	//  Thrd Seq     Low SCN    Low Time  Next SCN   Next Time
+	//  ---- ------- ---------- --------- ---------- ---------
+	//  1    1       1527386    30-JUL-21 1530961    30-JUL-21
+	listArchiveLogBackupCmd := "list backup of archivelog all tag '%s';"
+	res, err := dbClient.RunRMAN(ctx, &dbdpb.RunRMANRequest{Scripts: []string{fmt.Sprintf(listArchiveLogBackupCmd, req.BackupTag)}})
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to list backup of archivelog: %v", err)
+	}
+
+	var threeLinesBuffer [3]string
+	maxSCN := int64(-1)
+	scanner := bufio.NewScanner(strings.NewReader(res.GetOutput()[0]))
+	for scanner.Scan() {
+		threeLinesBuffer[0] = threeLinesBuffer[1]
+		threeLinesBuffer[1] = threeLinesBuffer[2]
+		threeLinesBuffer[2] = scanner.Text()
+
+		if strings.Contains(threeLinesBuffer[0], "Next SCN") {
+			fields := strings.Fields(threeLinesBuffer[2])
+			if len(fields) != 6 {
+				return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: unexpected number of fields: %v", threeLinesBuffer[2])
+			}
+			currentSCN, err := strconv.ParseInt(fields[4], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to parse 'Next SCN' %v: %v", fields[2], err)
+			}
+			if currentSCN > maxSCN {
+				maxSCN = currentSCN
+			}
+		}
+	}
+
+	if maxSCN < 0 {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to find backup scn")
+	}
+
+	scnToTimestampSQL := "select to_char(scn_to_timestamp(%s) at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') as backuptime from dual"
+	backupTimeResp, err := fetchAndParseSingleResultQuery(ctx, dbClient, fmt.Sprintf(scnToTimestampSQL, strconv.FormatInt(maxSCN, 10)))
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to query backup time: %s", err)
+	}
+	if backupTimeResp == "" {
+		return nil, nil
+	}
+	backupTime, err := time.Parse(time.RFC3339, backupTimeResp)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to parse backup time: %s", err)
+	}
+
+	incResp, err := FetchDatabaseIncarnation(ctx, r, dbClientFactory, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/PhysicalBackupMetadata: failed to query database incarnation: %s", err)
+	}
+
+	klog.InfoS("config_agent_helpers/PhysicalBackupMetadata", "backup incarnation", incResp.Incarnation, "backup scn", maxSCN, "backup time", backupTime)
+	return &PhysicalBackupMetadataResponse{
+		BackupIncarnation: incResp.Incarnation,
+		BackupScn:         strconv.FormatInt(maxSCN, 10),
+		BackupTimestamp:   timestamppb.New(backupTime),
+	}, nil
+}
+
+type FetchDatabaseIncarnationResponse struct {
+	Incarnation string
+}
+
+// FetchDatabaseIncarnation fetches the database incarnation number.
+func FetchDatabaseIncarnation(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string) (*FetchDatabaseIncarnationResponse, error) {
+	klog.InfoS("config_agent_helpers/FetchDatabaseIncarnation", "namespace", namespace, "instName", instName)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	defer func() { _ = closeConn() }()
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/FetchDatabaseIncarnation: failed to create database daemon client: %w", err)
+	}
+	inc, err := fetchAndParseSingleResultQuery(ctx, dbClient, consts.GetDatabaseIncarnationSQL)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/FetchDatabaseIncarnation: failed to query database incarnation: %s", err)
+	}
+	return &FetchDatabaseIncarnationResponse{Incarnation: inc}, nil
 }

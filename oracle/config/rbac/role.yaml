@@ -320,6 +320,26 @@ rules:
 - apiGroups:
   - oracle.db.anthosapis.com
   resources:
+  - pitrs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
+  - pitrs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - oracle.db.anthosapis.com
+  resources:
   - releases
   verbs:
   - create

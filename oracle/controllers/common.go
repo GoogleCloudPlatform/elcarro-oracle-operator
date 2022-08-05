@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,12 +36,20 @@ import (
 )
 
 const (
+	FinalizerName              = "oracle.db.anthosapis.com"
 	PhysBackupTimeLimitDefault = 60 * time.Minute
 	StatusReady                = "Ready"
 	StatusInProgress           = "InProgress"
 
 	RestoreInProgress = "Restore" + StatusInProgress
 	CreateInProgress  = "Create" + StatusInProgress
+
+	PITRLabel               = "pitr"
+	IncarnationLabel        = "incarnation"
+	ParentIncarnationLabel  = "parent-incarnation"
+	SCNAnnotation           = "scn"
+	TimestampAnnotation     = "timestamp"
+	DatabaseImageAnnotation = "database-image"
 )
 
 var (
@@ -63,7 +72,8 @@ var (
 	CmName = "%s-cm"
 	// DatabasePodAppLabel is the 'app' label assigned to db pod.
 	DatabasePodAppLabel = "db-op"
-	defaultDiskSpecs    = map[string]commonv1alpha1.DiskSpec{
+	// DefaultDiskSpecs is the default DiskSpec settings.
+	DefaultDiskSpecs = map[string]commonv1alpha1.DiskSpec{
 		"DataDisk": {
 			Name: "DataDisk",
 			Size: resource.MustParse("100Gi"),
@@ -116,7 +126,6 @@ type AgentDeploymentParams struct {
 
 type ConnCloseFunc func()
 
-//
 type GRPCDatabaseClientFactory struct {
 	dbclient *dbdpb.DatabaseDaemonClient
 }
@@ -131,7 +140,7 @@ type DatabaseClientFactory interface {
 
 // GetPVCNameAndMount returns PVC names and their corresponding mount.
 func GetPVCNameAndMount(instName, diskName string) (string, string) {
-	spec := defaultDiskSpecs[diskName]
+	spec := DefaultDiskSpecs[diskName]
 	mountLocation := defaultDiskMountLocations[spec.Name]
 	pvcName := fmt.Sprintf(PvcMountName, instName, mountLocation)
 	return pvcName, mountLocation
@@ -160,4 +169,16 @@ func Contains(array []string, elem string) bool {
 		}
 	}
 	return false
+}
+
+// GetBackupGcsPath resolves the actual gcs path based on backup spec.
+func GetBackupGcsPath(backup *v1alpha1.Backup) string {
+	gcsPath := backup.Spec.GcsPath
+	if backup.Spec.GcsDir != "" {
+		if !strings.HasSuffix(backup.Spec.GcsDir, "/") {
+			gcsPath = backup.Spec.GcsDir + "/"
+		}
+		gcsPath = gcsPath + backup.Name
+	}
+	return gcsPath
 }

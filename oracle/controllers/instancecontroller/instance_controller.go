@@ -218,7 +218,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
 		log.Info("instance has already been provisioned and ready")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.updateDatabaseIncarnationStatus(ctx, &inst, r.Log)
 	}
 
 	if result, err := r.createStatefulSet(ctx, &inst, sp, applyOpts, log); err != nil {
@@ -303,6 +303,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		// ensure the correctness under retry.
 		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.PromoteStandbyComplete, "")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.StandbyReady, v1.ConditionFalse, k8s.PromoteStandbyComplete, "")
 		return ctrl.Result{Requeue: true}, err
 	}

@@ -8,7 +8,7 @@
 SID_LIST_{{ .ListenerName }} =
   (SID_LIST =
     (SID_DESC =
-      (GLOBAL_DBNAME = {{ .DatabaseName }}{{ .DBDomain }})
+      (GLOBAL_DBNAME = {{.CDBServiceName}})
       (ORACLE_HOME = {{ .DatabaseHome }})
       (SID_NAME = {{ .DatabaseName }})
     )

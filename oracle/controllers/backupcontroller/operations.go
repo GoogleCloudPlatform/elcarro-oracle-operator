@@ -58,6 +58,10 @@ func (c *RealBackupControl) UpdateStatus(obj client.Object) error {
 	return c.Client.Status().Update(context.TODO(), obj)
 }
 
+func (c *RealBackupControl) UpdateBackup(obj client.Object) error {
+	return c.Client.Update(context.TODO(), obj)
+}
+
 func (c *RealBackupControl) ValidateBackupSpec(backup *v1alpha1.Backup) bool {
 	var errMsgs []string
 	if backup.Spec.Type != commonv1alpha1.BackupTypeSnapshot && backup.Spec.Type != commonv1alpha1.BackupTypePhysical {

@@ -14,6 +14,7 @@ filegroup(
         "//oracle/controllers/inttest/namespacetest:all-srcs",
         "//oracle/controllers/inttest/parameterupdatetest:all-srcs",
         "//oracle/controllers/inttest/physbackuptest:all-srcs",
+        "//oracle/controllers/inttest/pitrtest:all-srcs",
         "//oracle/controllers/inttest/releasetest:all-srcs",
         "//oracle/controllers/inttest/snapbackuptest:all-srcs",
         "//oracle/controllers/inttest/usertest:all-srcs",

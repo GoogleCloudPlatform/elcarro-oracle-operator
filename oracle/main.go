@@ -20,6 +20,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/pitrcontroller"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -173,6 +174,20 @@ func main() {
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Import")
+		os.Exit(1)
+	}
+	if err = (&pitrcontroller.PITRReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("PITR"),
+		Scheme: mgr.GetScheme(),
+		BackupCtrl: &pitrcontroller.RealBackupControl{
+			Client: mgr.GetClient(),
+		},
+		PITRCtrl: &pitrcontroller.RealPITRControl{
+			Client: mgr.GetClient(),
+		},
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PITR")
 		os.Exit(1)
 	}
 

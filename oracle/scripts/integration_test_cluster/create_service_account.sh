@@ -32,6 +32,6 @@ gcloud iam service-accounts create "${PROW_INT_TEST_SA}" || true
 # GCS bucket permissions for integration tests
 gsutil iam ch serviceAccount:"$SA":objectCreator gs://"${PROW_PROJECT}"
 gsutil iam ch serviceAccount:"$SA":objectViewer gs://"${PROW_PROJECT}"
-gsutil iam ch serviceAccount:"$SA":legacyBucketReader gs://"${PROW_PROJECT}"
+gsutil iam ch serviceAccount:"$SA":legacyBucketOwner gs://"${PROW_PROJECT}"
 
 set +x #echo off

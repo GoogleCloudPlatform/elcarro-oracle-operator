@@ -5,13 +5,16 @@ go_library(
     srcs = [
         "test.go",
         "test_dbdaemon.go",
+        "test_pitr_agent.go",
     ],
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/scripts/manual_test",
     visibility = ["//visibility:private"],
     deps = [
         "//oracle/controllers",
+        "//oracle/controllers/pitrcontroller",
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/agents/pitr/proto",
         "@io_k8s_klog_v2//:klog",
         "@org_golang_google_grpc//:go_default_library",
     ],

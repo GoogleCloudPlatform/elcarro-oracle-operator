@@ -473,7 +473,8 @@ func (s *Server) SetDnfsState(ctx context.Context, req *dbdpb.SetDnfsStateReques
 	return &dbdpb.SetDnfsStateResponse{}, nil
 }
 
-//Sets Oracle specific environment variables and creates the .env file
+// initializeEnvironment sets Oracle specific environment variables, creates
+// the .env file.
 func initializeEnvironment(s *Server, home string, dbName string) error {
 	s.databaseHome = home
 	s.databaseSid.val = dbName
@@ -512,5 +513,12 @@ func New(hostname, cdbNameFromYaml string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("an error occured while initializing the environment for Oracle: %v", err)
 	}
+
+	if _, err := os.Stat(consts.UnseededImageFile); err == nil {
+		if err := provision.RelinkConfigFiles(oracleHome, cdbNameFromYaml); err != nil {
+			return nil, err
+		}
+	}
+
 	return s, nil
 }

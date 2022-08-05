@@ -71,10 +71,10 @@ export PROW_INT_TEST_SA=$(shell\
 
 # Define number of bazel test jobs for integration tests
 # Chosen arbitrarily, up to total number of jobs
-export INT_TEST_PARALLEL_JOBS=10
+export INT_TEST_PARALLEL_JOBS=11
 # Define number of integration test cluster nodes = INT_TEST_PARALLEL_JOBS x 2
 # as each job can use up to 2 nodes
-export INT_TEST_CLUSTER_NODE_COUNT=20
+export INT_TEST_CLUSTER_NODE_COUNT=22
 
 env:
 	@echo "export PROW_IMAGE_REPO=${PROW_IMAGE_REPO}"
@@ -170,6 +170,9 @@ buildah-push-operator:
 buildah-push-dbinit:
 	bazel run //oracle/build:dbinit_push
 
+buildah-push-pitragent:
+	bazel run //oracle/build:pitragent_push
+
 buildah-push-dbdaemon-client:
 	bazel run //oracle/build:dbdaemonclient_push
 
@@ -180,7 +183,7 @@ buildah-push-monitoring:
 	bazel run //oracle/build:monitoring_push
 
 # Build and push everything except the db image for integration tests.
-buildah-push-all: buildah-push-operator buildah-push-dbinit buildah-push-logging buildah-push-monitoring
+buildah-push-all: buildah-push-operator buildah-push-dbinit buildah-push-logging buildah-push-monitoring buildah-push-pitragent
 
 # Install CRDs into a cluster
 install: generate-config

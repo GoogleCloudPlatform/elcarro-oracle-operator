@@ -3,7 +3,7 @@
       (ADDRESS = (PROTOCOL = {{ .ListenerProtocol }})(HOST = localhost)(PORT = {{ .ListenerPort }}))
       (CONNECT_DATA =
         (SERVER = DEDICATED)
-        (SERVICE_NAME = {{ .DatabaseName }}{{ .DBDomain }})
+        (SERVICE_NAME = {{.CDBServiceName}})
       )
   )
 

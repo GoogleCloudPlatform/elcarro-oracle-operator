@@ -64,6 +64,7 @@ type ListenerInput struct {
 	ListenerProtocol       string
 	DatabaseHost           string
 	DBDomain               string
+	CDBServiceName         string
 }
 
 type controlfileInput struct {
@@ -354,7 +355,7 @@ func getConfigFilesMapping(OracleHome, CDBName string) map[string]string {
 	configDir := fmt.Sprintf(consts.ConfigDir, consts.DataMount, CDBName)
 	sourceConfigDir := filepath.Join(OracleHome, "dbs")
 
-	for _, f := range []string{fmt.Sprintf("spfile%s.ora", CDBName), fmt.Sprintf("orapw%s", CDBName)} {
+	for _, f := range []string{fmt.Sprintf("spfile%s.ora", CDBName), fmt.Sprintf("init%s.ora", CDBName), fmt.Sprintf("orapw%s", CDBName)} {
 		link := filepath.Join(sourceConfigDir, f)
 		file := filepath.Join(configDir, f)
 		mapping[link] = file

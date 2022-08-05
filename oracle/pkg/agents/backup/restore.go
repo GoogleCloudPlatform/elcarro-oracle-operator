@@ -43,21 +43,26 @@ const (
 				)
 	`
 
-	restoreStmtTemplate = `run {
+	restoreStmtTemplate = `
+	run {
 				startup force nomount;
 				restore spfile to '%s' from '%s';
 				shutdown immediate;
 				startup nomount;
 				restore controlfile from '%s';
 				startup mount;
+		}
+	reset database to incarnation %s;
+	run {
 				%s
 				restore database;
 				delete foreign archivelog all;
 		}
+	reset database to incarnation %s;
 	`
 
 	recoverStmtTemplate = `run {
-				recover database until scn %d;
+				recover database until %s;
 				alter database open resetlogs;
 				alter pluggable database all open;
 		}
@@ -134,16 +139,35 @@ func PhysicalRestore(ctx context.Context, params *Params) (*lropb.Operation, err
 		fmt.Sprintf(consts.ConfigDir, consts.DataMount, params.CDBName),
 		fmt.Sprintf("spfile%s.ora", params.CDBName),
 	)
-	restoreStmt := fmt.Sprintf(restoreStmtTemplate, spfileLoc, latestSpfileBackup, latestControlfileBackup, channels)
+	restoreStmt := fmt.Sprintf(restoreStmtTemplate, spfileLoc, latestSpfileBackup, latestControlfileBackup, params.BackupIncarnation, channels, params.Incarnation)
 
-	operation, err := params.Client.PhysicalRestoreAsync(ctx, &dbdpb.PhysicalRestoreAsyncRequest{
+	req := &dbdpb.PhysicalRestoreAsyncRequest{
 		SyncRequest: &dbdpb.PhysicalRestoreRequest{
 			RestoreStatement:          restoreStmt,
 			LatestRecoverableScnQuery: maxSCNquery,
 			RecoverStatementTemplate:  recoverStmtTemplate,
 		},
 		LroInput: &dbdpb.LROInput{OperationId: params.OperationID},
-	})
+	}
+
+	if params.EndTime != nil || params.EndSCN != 0 {
+		req = &dbdpb.PhysicalRestoreAsyncRequest{
+			SyncRequest: &dbdpb.PhysicalRestoreRequest{
+				RestoreStatement:         restoreStmt,
+				RecoverStatementTemplate: recoverStmtTemplate,
+				PitrRestoreInput: &dbdpb.PhysicalRestoreRequest_PITRRestoreInput{
+					LogGcsPath:  params.LogGcsDir,
+					Incarnation: params.Incarnation,
+					StartTime:   params.StartTime,
+					EndTime:     params.EndTime,
+					StartScn:    params.StartSCN,
+					EndScn:      params.EndSCN,
+				},
+			},
+			LroInput: &dbdpb.LROInput{OperationId: params.OperationID},
+		}
+	}
+	operation, err := params.Client.PhysicalRestoreAsync(ctx, req)
 
 	if err != nil {
 		return nil, fmt.Errorf("oracle/PhysicalRestore: failed to create database restore request: %v", err)

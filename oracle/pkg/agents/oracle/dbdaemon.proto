@@ -176,6 +176,8 @@ message ReadDirRequest {
   // file tree rooted at path. set recursive to false if only collect the first
   // level files and directories metadata.
   bool recursive = 2;
+  // set readFileContent to true if want to read file content as well.
+  bool readFileContent = 3;
 }
 
 message ReadDirResponse {
@@ -187,6 +189,7 @@ message ReadDirResponse {
     google.protobuf.Timestamp modTime = 4;
     bool isDir = 5;
     string absPath = 6;
+    string content = 7;
   }
   FileInfo currPath = 1;
   repeated FileInfo subPaths = 2;
@@ -269,6 +272,7 @@ message KnownPDBsResponse {
 }
 
 message RunRMANRequest {
+  enum GCSOptType { UPLOAD = 0; }
   // Scripts to be executed by RMAN in sequence.
   repeated string scripts = 1;
   // sets TNS_ADMIN to override location for network configuration.
@@ -287,6 +291,12 @@ message RunRMANRequest {
   string local_path = 7;
   // rman command to run, currently support backup and restore
   string cmd = 8;
+
+  // extra gcs operation to perform, currently support "upload"
+  GCSOptType gcs_op = 9;
+  // run rman without target. This is required for rman duplicate "BACKUP
+  // LOCATION" option.
+  bool without_target = 10;
 }
 
 // LROInput is a common part of input requests for all Async operations.
@@ -371,6 +381,8 @@ message CreateListenerRequest {
   string protocol = 3;
   string oracle_home = 4;
   string db_domain = 5;
+  bool exclude_pdb = 6;
+  string cdb_service_name = 7;
 }
 
 message CreateListenerResponse {}
@@ -387,6 +399,15 @@ message PhysicalRestoreRequest {
   string restore_statement = 1;
   string latest_recoverable_scn_query = 2;
   string recover_statement_template = 3;
+  message PITRRestoreInput {
+    string log_gcs_path = 1;
+    string incarnation = 2;
+    google.protobuf.Timestamp start_time = 3;
+    google.protobuf.Timestamp end_time = 4;
+    int64 start_scn = 5;
+    int64 end_scn = 6;
+  }
+  PITRRestoreInput pitr_restore_input = 4;
 }
 
 message PhysicalRestoreAsyncRequest {
