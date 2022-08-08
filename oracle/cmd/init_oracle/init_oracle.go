@@ -213,7 +213,7 @@ func main() {
 			os.Exit(consts.DefaultExitErrorCode)
 		}
 
-		klog.ErrorS(err, "CDB provisioning DONE")
+		klog.InfoS("CDB provisioning DONE")
 	}
 }
 
