@@ -99,8 +99,23 @@ const (
 	// DefaultExitErrorCode is default exit code
 	DefaultExitErrorCode = 128
 
-	// RMANBackup is the oracle rman command for taking backups.
-	RMANBackup = "backup"
+	// ListMRPSql lists managed recovery processes.
+	ListMRPSql = "select process, delay_mins from v$managed_standby where process like 'MRP%'"
+
+	// CancelMRPSql cancels managed recovery processes.
+	CancelMRPSql = "alter database recover managed standby database cancel"
+
+	// ListPrimaryRoleSql lists if current database role is primary.
+	ListPrimaryRoleSql = "select database_role from v$database where database_role='PRIMARY'"
+
+	// ActivateStandbySql promotes standby database to primary.
+	ActivateStandbySql = "alter database activate physical standby database"
+
+	// ListOpenDatabaseSql lists if database is open.
+	ListOpenDatabaseSql = "select instance_name, status from v$instance where status='OPEN'"
+
+	// OpenDatabaseSql opens database.
+	OpenDatabaseSql = "alter database open"
 )
 
 var (
@@ -159,6 +174,9 @@ var (
 	// PDBPathPrefix is the directory where PDB data directory exists.
 	PDBPathPrefix = DataDir + "/%s"
 
+	// ConfigBaseDir is where the DG config files are persisted.
+	ConfigBaseDir = "/%s/app/oracle/oraconfig"
+
 	// ConfigDir is where the spfile, pfile and pwd file are persisted.
 	ConfigDir = "/%s/app/oracle/oraconfig/%s"
 
@@ -188,4 +206,7 @@ var (
 
 	// RMANStagingDir sets the staging directory for rman backup to GCS.
 	RMANStagingDir = "/u03/app/oracle/rmanstaging"
+
+	// OracleTimestampToRFC3339Format defines the format used in Oracle to_char() to cast timestamp to RFC3339 format.
+	OracleTimestampToRFC3339Format = `YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"`
 )
