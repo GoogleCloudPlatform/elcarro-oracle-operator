@@ -1,0 +1,64 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "standby",
+    srcs = [
+        "bootstrap_standby_task.go",
+        "create_standby_task.go",
+        "dbmocks.go",
+        "promote_standby_task.go",
+        "set_up_data_guard_task.go",
+        "standby.go",
+        "standby_init_file_generator.go",
+        "verify_standby_settings_task.go",
+    ],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/standby",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//oracle/controllers/standbyhelpers",
+        "//oracle/pkg/agents/common",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/database/provision",
+        "//oracle/pkg/util/task",
+        "@go_googleapis//google/longrunning:longrunning_go_proto",
+        "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)
+
+go_test(
+    name = "standby_test",
+    srcs = [
+        "bootstrap_standby_task_test.go",
+        "promote_standby_task_test.go",
+        "standby_test.go",
+        "verify_standby_settings_task_test.go",
+    ],
+    embed = [":standby"],
+    deps = [
+        "//oracle/controllers/standbyhelpers",
+        "//oracle/pkg/agents/consts",
+        "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/util/task",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_google_go_cmp//cmp",
+    ],
+)
+
+filegroup(
+    name = "package-srcs",
+    srcs = glob(["**"]),
+    tags = ["automanaged"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
+    name = "all-srcs",
+    srcs = [":package-srcs"],
+    tags = ["automanaged"],
+    visibility = ["//visibility:public"],
+)

@@ -27,10 +27,13 @@ import (
 	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/standbyhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/standby"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util/secret"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	lropb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -811,48 +814,11 @@ func BootstrapStandby(ctx context.Context, r client.Reader, dbClientFactory Data
 		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: failed to create database daemon client: %v", err)
 	}
 	defer closeConn()
-	klog.InfoS("config_agent_helpers/CreateUsers", "client", dbClient)
-
-	// skip if already bootstrapped
-	resp, err := dbClient.FileExists(ctx, &dbdpb.FileExistsRequest{Name: consts.ProvisioningDoneFile})
-	if err != nil {
-		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: failed to check a provisioning file: %v", err)
-	}
-
-	if resp.Exists {
-		klog.InfoS("config_agent_helpers/BootstrapStandby: standby is already provisioned")
-		return nil, nil
-	}
-
-	task := provision.NewBootstrapDatabaseTaskForStandby(req.CdbName, req.Dbdomain, dbClient)
-
-	if err := task.Call(ctx); err != nil {
+	klog.InfoS("BootstrapStandby", "client", dbClient)
+	if err := standby.BootstrapStandby(ctx, dbClient); err != nil {
 		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: failed to bootstrap standby database : %v", err)
 	}
 	klog.InfoS("config_agent_helpers/BootstrapStandby: bootstrap task completed successfully")
-
-	// create listeners
-	err = CreateListener(ctx, r, dbClientFactory, namespace, instName, &CreateListenerRequest{
-		Name:     req.CdbName,
-		Port:     consts.SecureListenerPort,
-		Protocol: "TCP",
-		DbDomain: req.Dbdomain,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: failed to create listener: %v", err)
-	}
-
-	if _, err := dbClient.BootstrapStandby(ctx, &dbdpb.BootstrapStandbyRequest{
-		CdbName: req.CdbName,
-	}); err != nil {
-		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: dbdaemon failed to bootstrap standby: %v", err)
-	}
-	klog.InfoS("config_agent_helpers/BootstrapStandby: dbdaemon completed bootstrap standby successfully")
-
-	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{consts.OpenPluggableDatabaseSQL}, Suppress: false})
-	if err != nil {
-		return nil, fmt.Errorf("config_agent_helpers/BootstrapStandby: failed to open pluggable database: %v", err)
-	}
 
 	// fetch existing pdbs/users to create database resources for
 	knownPDBsResp, err := dbClient.KnownPDBs(ctx, &dbdpb.KnownPDBsRequest{
@@ -1382,4 +1348,276 @@ func FetchDatabaseIncarnation(ctx context.Context, r client.Reader, dbClientFact
 		return nil, fmt.Errorf("config_agent_helpers/FetchDatabaseIncarnation: failed to query database incarnation: %s", err)
 	}
 	return &FetchDatabaseIncarnationResponse{Incarnation: inc}, nil
+}
+
+type VerifyStandbySettingsRequest struct {
+	PrimaryHost         string
+	PrimaryPort         int32
+	PrimaryService      string
+	PrimaryUser         string
+	PrimaryCredential   *Credential
+	StandbyDbUniqueName string
+	StandbyCdbName      string
+	BackupGcsPath       string
+	PasswordFileGcsPath string
+	StandbyVersion      string
+}
+
+type VerifyStandbySettingsResponse struct {
+	Errors []*standbyhelpers.StandbySettingErr
+}
+
+type Credential struct {
+	// Types that are assignable to Source:
+	//	*Credential_GsmSecretReference
+	Source isCredentialSource
+}
+
+func (x *Credential) GetGsmSecretReference() *GsmSecretReference {
+	if x, ok := x.Source.(*CredentialGsmSecretReference); ok {
+		return x.GsmSecretReference
+	}
+	return nil
+}
+
+type isCredentialSource interface {
+	isCredentialSource()
+}
+
+type CredentialGsmSecretReference struct {
+	GsmSecretReference *GsmSecretReference
+}
+
+func (*CredentialGsmSecretReference) isCredentialSource() {}
+
+// VerifyStandbySettings does preflight checks on standby settings.
+func VerifyStandbySettings(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req VerifyStandbySettingsRequest) (*VerifyStandbySettingsResponse, error) {
+	klog.InfoS("config_agent_helpers/VerifyStandbySettings", "namespace", namespace, "instName", instName, "primaryHost", req.PrimaryHost, "standbyDbUniqueName", req.StandbyDbUniqueName)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/VerifyStandbySettings: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	sa := secret.NewGSMSecretAccessor(
+		req.PrimaryCredential.GetGsmSecretReference().ProjectId,
+		req.PrimaryCredential.GetGsmSecretReference().SecretId,
+		req.PrimaryCredential.GetGsmSecretReference().Version,
+	)
+	defer sa.Clear()
+
+	primaryDB := &standby.Primary{
+		Host:             req.PrimaryHost,
+		Port:             int(req.PrimaryPort),
+		Service:          req.PrimaryService,
+		User:             req.PrimaryUser,
+		PasswordAccessor: sa,
+	}
+
+	standbyDB := &standby.Standby{
+		CDBName:      req.StandbyCdbName,
+		DBUniqueName: req.StandbyDbUniqueName,
+		Version:      req.StandbyVersion,
+	}
+
+	settingErrs := standby.VerifyStandbySettings(ctx, primaryDB, standbyDB, req.PasswordFileGcsPath, req.BackupGcsPath, dbClient)
+	//the returned error is always nil because all the errors that occurred during the verification have been added in settingErrs.
+	return &VerifyStandbySettingsResponse{
+		Errors: settingErrs,
+	}, nil
+}
+
+type CreateStandbyRequest struct {
+	PrimaryHost         string
+	PrimaryPort         int32
+	PrimaryService      string
+	PrimaryUser         string
+	PrimaryCredential   *Credential
+	StandbyDbUniqueName string
+	StandbyLogDiskSize  int64
+	StandbyDbDomain     string
+	BackupGcsPath       string
+	LroInput            *LROInput
+}
+
+// CreateStandby creates a standby database.
+func CreateStandby(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req CreateStandbyRequest) (*lropb.Operation, error) {
+	klog.InfoS("config_agent_helpers/CreateStandby",
+		"namespace", namespace,
+		"instName", instName,
+		"primaryHost", req.PrimaryHost,
+		"primaryPort", req.PrimaryPort,
+		"primaryService", req.PrimaryService,
+		"primaryUser", req.PrimaryUser,
+		"standbyDbUniqueName", req.StandbyDbUniqueName,
+	)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/CreateStandby: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	sa := secret.NewGSMSecretAccessor(
+		req.PrimaryCredential.GetGsmSecretReference().ProjectId,
+		req.PrimaryCredential.GetGsmSecretReference().SecretId,
+		req.PrimaryCredential.GetGsmSecretReference().Version,
+	)
+	defer sa.Clear()
+
+	primaryDB := &standby.Primary{
+		Host:             req.PrimaryHost,
+		Port:             int(req.PrimaryPort),
+		Service:          req.PrimaryService,
+		User:             req.PrimaryUser,
+		PasswordAccessor: sa,
+	}
+
+	standbyDB := &standby.Standby{
+		DBUniqueName: req.StandbyDbUniqueName,
+		Port:         consts.SecureListenerPort,
+		DBDomain:     req.StandbyDbDomain,
+		LogDiskSize:  req.StandbyLogDiskSize,
+	}
+
+	lro, err := standby.CreateStandby(ctx, primaryDB, standbyDB, req.BackupGcsPath, req.LroInput.OperationId, dbClient)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/CreateStandby: failed to create standby: %v", err)
+	}
+
+	return lro, nil
+}
+
+type SetUpDataGuardRequest struct {
+	PrimaryHost         string
+	PrimaryPort         int32
+	PrimaryService      string
+	PrimaryUser         string
+	PrimaryCredential   *Credential
+	StandbyDbUniqueName string
+	StandbyHost         string
+	PasswordFileGcsPath string
+}
+
+// SetUpDataGuard updates Data Guard configuration.
+func SetUpDataGuard(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req SetUpDataGuardRequest) error {
+	klog.InfoS("config_agent_helpers/SetupDataGuard",
+		"namespace", namespace,
+		"instName", instName,
+		"primaryHost", req.PrimaryHost,
+		"primaryPort", req.PrimaryPort,
+		"primaryService", req.PrimaryService,
+		"primaryUser", req.PrimaryUser,
+		"standbyDbUniqueName", req.StandbyDbUniqueName,
+		"standbyHost", req.StandbyHost,
+	)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/SetupDataGuard: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	sa := secret.NewGSMSecretAccessor(
+		req.PrimaryCredential.GetGsmSecretReference().ProjectId,
+		req.PrimaryCredential.GetGsmSecretReference().SecretId,
+		req.PrimaryCredential.GetGsmSecretReference().Version,
+	)
+	defer sa.Clear()
+
+	primaryDB := &standby.Primary{
+		Host:             req.PrimaryHost,
+		Port:             int(req.PrimaryPort),
+		Service:          req.PrimaryService,
+		User:             req.PrimaryUser,
+		PasswordAccessor: sa,
+	}
+
+	standbyDB := &standby.Standby{
+		DBUniqueName: req.StandbyDbUniqueName,
+		Host:         req.StandbyHost,
+		Port:         consts.SecureListenerPort,
+	}
+
+	if err := standby.SetUpDataGuard(ctx, primaryDB, standbyDB, req.PasswordFileGcsPath, dbClient); err != nil {
+		return fmt.Errorf("failed to set up Data Guard: %v", err)
+	}
+
+	return nil
+}
+
+type PromoteStandbyRequest struct {
+	PrimaryHost         string
+	PrimaryPort         int32
+	PrimaryService      string
+	PrimaryUser         string
+	PrimaryCredential   *Credential
+	StandbyDbUniqueName string
+	StandbyHost         string
+}
+
+// PromoteStandby promotes standby database to primary.
+func PromoteStandby(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req PromoteStandbyRequest) error {
+	klog.InfoS("config_agent_helpers/PromoteStandby",
+		"namespace", namespace,
+		"instName", instName,
+		"primaryHost", req.PrimaryHost,
+		"primaryPort", req.PrimaryPort,
+		"primaryService", req.PrimaryService,
+		"primaryUser", req.PrimaryUser,
+		"standbyDbUniqueName", req.StandbyDbUniqueName,
+		"standbyHost", req.StandbyHost,
+	)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/PromoteStandby: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	sa := secret.NewGSMSecretAccessor(
+		req.PrimaryCredential.GetGsmSecretReference().ProjectId,
+		req.PrimaryCredential.GetGsmSecretReference().SecretId,
+		req.PrimaryCredential.GetGsmSecretReference().Version,
+	)
+	defer sa.Clear()
+
+	primaryDB := &standby.Primary{
+		Host:             req.PrimaryHost,
+		Port:             int(req.PrimaryPort),
+		Service:          req.PrimaryService,
+		User:             req.PrimaryUser,
+		PasswordAccessor: sa,
+	}
+
+	standbyDB := &standby.Standby{
+		DBUniqueName: req.StandbyDbUniqueName,
+	}
+
+	if err := standby.PromoteStandby(ctx, primaryDB, standbyDB, dbClient); err != nil {
+		return fmt.Errorf("failed to promote standby: %v", err)
+	}
+
+	return nil
+}
+
+type DataGuardStatusRequest struct {
+	StandbyDbUniqueName string
+}
+
+type DataGuardStatusResponse struct {
+	Output []string
+}
+
+// DataGuardStatus returns Data Guard configuration status and standby DB status.
+func DataGuardStatus(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req DataGuardStatusRequest) (*DataGuardStatusResponse, error) {
+	klog.InfoS("config_agent_helpers/DataGuardStatus", "namespace", namespace, "instName", instName, "standbyDbUniqueName", req.StandbyDbUniqueName)
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/DataGuardStatus: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	output, err := standby.DataGuardStatus(ctx, req.StandbyDbUniqueName, dbClient)
+	return &DataGuardStatusResponse{
+		Output: output,
+	}, err
 }

@@ -136,7 +136,11 @@ func SetupUserPwConnStringByClient(ctx context.Context, onClient runSQLOnClient,
 	if _, err := onClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: applySQL, Suppress: true}); err != nil {
 		return "", err
 	}
-	return connect.EZ(username, passwd, consts.Localhost, fmt.Sprint(consts.SecureListenerPort), db, DBDomain, false), nil
+	svc := db
+	if DBDomain != "" {
+		svc = fmt.Sprintf("%s.%s", db, DBDomain)
+	}
+	return connect.EZ(username, passwd, consts.Localhost, fmt.Sprint(consts.SecureListenerPort), svc, false), nil
 }
 
 // SetupUserPwConnStringOnServer sets the password for the given user to
@@ -150,7 +154,11 @@ func SetupUserPwConnStringOnServer(ctx context.Context, onServer runSQLOnServer,
 	if _, err := onServer.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: applySQL, Suppress: true}); err != nil {
 		return "", err
 	}
-	return connect.EZ(username, passwd, consts.Localhost, fmt.Sprint(consts.SecureListenerPort), db, DBDomain, false), nil
+	svc := db
+	if DBDomain != "" {
+		svc = fmt.Sprintf("%s.%s", db, DBDomain)
+	}
+	return connect.EZ(username, passwd, consts.Localhost, fmt.Sprint(consts.SecureListenerPort), svc, false), nil
 }
 
 // SetupConnStringOnServer generates and sets a random password for the given user
@@ -165,7 +173,11 @@ func SetupConnStringOnServer(ctx context.Context, onServer runSQLOnServer, usern
 	if _, err := onServer.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: applySQL, Suppress: true}); err != nil {
 		return "", "", err
 	}
-	return connect.EZ("", "", consts.Localhost, fmt.Sprint(consts.SecureListenerPort), db, DBDomain, false), passwd, nil
+	svc := db
+	if DBDomain != "" {
+		svc = fmt.Sprintf("%s.%s", db, DBDomain)
+	}
+	return connect.EZ("", "", consts.Localhost, fmt.Sprint(consts.SecureListenerPort), svc, false), passwd, nil
 }
 
 // SetupUserPwConnString sets the password for the given user to a randomized password and returns the connection string.
