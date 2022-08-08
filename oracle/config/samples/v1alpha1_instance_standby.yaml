@@ -6,17 +6,33 @@ spec:
   type: Oracle
   version: "12.2"
   edition: Enterprise
+  dbUniqueName: "GCLOUD_gke"
+  dbDomain: "gke"
   services:
     Backup: true
     Monitoring: true
     Logging: true
+# Uncomment this section to trigger automated standby data replication.
+#  replicationSettings:
+#    primaryHost: ""
+#    primaryPort: 6021
+#    primaryServiceName: ""
+#    primaryUser:
+#      name: "sys"
+#      gsmSecretRef:
+#        projectId: ${PROJECT_ID}
+#        secretId: "primary_password"
+#        version: "1"
+#    passwordFileURI: ""
+
   images:
     # Replace below with the actual URIs hosting the service agent images.
-    # It is preferable to use unseeded images to set up standby instance.
-    # Database is expected to be created in the process of manual standby setup.
+    # Use unseeded images to set up standby instance.
     service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-unseeded"
 
   sourceCidrRanges: [0.0.0.0/0]
   # Oracle SID character limit is 8, anything > gets truncated by Oracle
-  cdbName: "GOOG"
-  mode: "ManuallySetUpStandby"
+  cdbName: "GCLOUD"
+  # Uncomment mode to create an instance(without Database), which can
+  # be used to set up standby database manually.
+  # mode: "ManuallySetUpStandby"
