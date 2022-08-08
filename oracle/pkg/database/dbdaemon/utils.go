@@ -39,6 +39,12 @@ var (
 	rman = func(databaseHome string) string {
 		return filepath.Join(databaseHome, "bin", "rman")
 	}
+	dgmgrl = func(databaseHome string) string {
+		return filepath.Join(databaseHome, "bin", "dgmgrl")
+	}
+	tnsping = func(databaseHome string) string {
+		return filepath.Join(databaseHome, "bin", "tnsping")
+	}
 	orapwd = func(databaseHome string) string {
 		return filepath.Join(databaseHome, "bin", "orapwd")
 	}

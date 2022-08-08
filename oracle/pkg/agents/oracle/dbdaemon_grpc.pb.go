@@ -43,6 +43,11 @@ type DatabaseDaemonClient interface {
 	RunRMAN(ctx context.Context, in *RunRMANRequest, opts ...grpc.CallOption) (*RunRMANResponse, error)
 	// RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
 	RunRMANAsync(ctx context.Context, in *RunRMANAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
+	// RunDataGuardBroker RPC call executes Oracle's Data Guard command line
+	// utility.
+	RunDataGuard(ctx context.Context, in *RunDataGuardRequest, opts ...grpc.CallOption) (*RunDataGuardResponse, error)
+	// TNSPing RPC call executes Oracle's tnsping utility.
+	TNSPing(ctx context.Context, in *TNSPingRequest, opts ...grpc.CallOption) (*TNSPingResponse, error)
 	// NID changes a database id and/or database name.
 	NID(ctx context.Context, in *NIDRequest, opts ...grpc.CallOption) (*NIDResponse, error)
 	// GetDatabaseType returns database type(eg. ORACLE_12_2_ENTERPRISE_NONCDB)
@@ -201,6 +206,24 @@ func (c *databaseDaemonClient) RunRMAN(ctx context.Context, in *RunRMANRequest, 
 func (c *databaseDaemonClient) RunRMANAsync(ctx context.Context, in *RunRMANAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
 	out := new(longrunning.Operation)
 	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/RunRMANAsync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *databaseDaemonClient) RunDataGuard(ctx context.Context, in *RunDataGuardRequest, opts ...grpc.CallOption) (*RunDataGuardResponse, error) {
+	out := new(RunDataGuardResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/RunDataGuard", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *databaseDaemonClient) TNSPing(ctx context.Context, in *TNSPingRequest, opts ...grpc.CallOption) (*TNSPingResponse, error) {
+	out := new(TNSPingResponse)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/TNSPing", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -432,6 +455,11 @@ type DatabaseDaemonServer interface {
 	RunRMAN(context.Context, *RunRMANRequest) (*RunRMANResponse, error)
 	// RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
 	RunRMANAsync(context.Context, *RunRMANAsyncRequest) (*longrunning.Operation, error)
+	// RunDataGuardBroker RPC call executes Oracle's Data Guard command line
+	// utility.
+	RunDataGuard(context.Context, *RunDataGuardRequest) (*RunDataGuardResponse, error)
+	// TNSPing RPC call executes Oracle's tnsping utility.
+	TNSPing(context.Context, *TNSPingRequest) (*TNSPingResponse, error)
 	// NID changes a database id and/or database name.
 	NID(context.Context, *NIDRequest) (*NIDResponse, error)
 	// GetDatabaseType returns database type(eg. ORACLE_12_2_ENTERPRISE_NONCDB)
@@ -526,6 +554,12 @@ func (UnimplementedDatabaseDaemonServer) RunRMAN(context.Context, *RunRMANReques
 }
 func (UnimplementedDatabaseDaemonServer) RunRMANAsync(context.Context, *RunRMANAsyncRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RunRMANAsync not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) RunDataGuard(context.Context, *RunDataGuardRequest) (*RunDataGuardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RunDataGuard not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) TNSPing(context.Context, *TNSPingRequest) (*TNSPingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TNSPing not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) NID(context.Context, *NIDRequest) (*NIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NID not implemented")
@@ -800,6 +834,42 @@ func _DatabaseDaemon_RunRMANAsync_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DatabaseDaemonServer).RunRMANAsync(ctx, req.(*RunRMANAsyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DatabaseDaemon_RunDataGuard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunDataGuardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).RunDataGuard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/RunDataGuard",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).RunDataGuard(ctx, req.(*RunDataGuardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DatabaseDaemon_TNSPing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TNSPingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).TNSPing(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/TNSPing",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).TNSPing(ctx, req.(*TNSPingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1250,6 +1320,14 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RunRMANAsync",
 			Handler:    _DatabaseDaemon_RunRMANAsync_Handler,
+		},
+		{
+			MethodName: "RunDataGuard",
+			Handler:    _DatabaseDaemon_RunDataGuard_Handler,
+		},
+		{
+			MethodName: "TNSPing",
+			Handler:    _DatabaseDaemon_TNSPing_Handler,
 		},
 		{
 			MethodName: "NID",

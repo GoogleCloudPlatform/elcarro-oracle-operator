@@ -1145,6 +1145,49 @@ func (s *Server) RunRMANAsync(ctx context.Context, req *dbdpb.RunRMANAsyncReques
 	return &lropb.Operation{Name: job.ID(), Done: false}, nil
 }
 
+// RunDataGuardBroker RPC call executes Oracle's Data Guard command line utility.
+func (s *Server) RunDataGuard(ctx context.Context, req *dbdpb.RunDataGuardRequest) (*dbdpb.RunDataGuardResponse, error) {
+	s.databaseSid.RLock()
+	defer s.databaseSid.RUnlock()
+	if err := os.Setenv("ORACLE_SID", s.databaseSid.val); err != nil {
+		return nil, fmt.Errorf("failed to set env variable: %v", err)
+	}
+	if err := os.Setenv("ORACLE_HOME", s.databaseHome); err != nil {
+		return nil, fmt.Errorf("failed to set env variable: %v", err)
+	}
+
+	scripts := req.GetScripts()
+	if len(scripts) < 1 {
+		return nil, fmt.Errorf("RunDataGuard requires at least 1 script to run, provided: %d", len(scripts))
+	}
+	var res []string
+	for _, script := range scripts {
+		target := "/"
+		if req.GetTarget() != "" {
+			target = req.GetTarget()
+		}
+		args := []string{"-silent", target}
+		args = append(args, script)
+		cmd := exec.CommandContext(ctx, dgmgrl(s.databaseHome), args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("RunDataGuard failed, script: %q\nFailed with: %v\nErr: %v", script, string(out), err)
+		}
+		res = append(res, string(out))
+	}
+	return &dbdpb.RunDataGuardResponse{Output: res}, nil
+}
+
+// TNSPing RPC call executes Oracle's tnsping utility.
+func (s *Server) TNSPing(ctx context.Context, req *dbdpb.TNSPingRequest) (*dbdpb.TNSPingResponse, error) {
+	cmd := exec.CommandContext(ctx, tnsping(s.databaseHome), req.GetConnectionString())
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("tnsping failed \n Failed with: %v\nErr: %v", string(out), err)
+	}
+	return &dbdpb.TNSPingResponse{}, nil
+}
+
 func (s *Server) uploadDirectoryContentsToGCS(ctx context.Context, backupDir, gcsPath string) error {
 	klog.InfoS("RunRMAN: uploadDirectoryContentsToGCS", "backupdir", backupDir, "gcsPath", gcsPath)
 	err := filepath.Walk(backupDir, func(fpath string, info os.FileInfo, errInner error) error {
@@ -1302,47 +1345,6 @@ func (s *Server) close() {
 	if err := s.dbdClientClose(); err != nil {
 		klog.Warningf("failed to close dbdaemon client: %v", err)
 	}
-}
-
-// BootstrapStandby perform bootstrap tasks for standby instance.
-func (s *Server) BootstrapStandby(ctx context.Context, req *dbdpb.BootstrapStandbyRequest) (*dbdpb.BootstrapStandbyResponse, error) {
-	klog.InfoS("dbdaemon/BootstrapStandby", "req", req)
-	cdbName := req.GetCdbName()
-	spfile := filepath.Join(fmt.Sprintf(consts.ConfigDir, consts.DataMount, cdbName), fmt.Sprintf("spfile%s.ora", cdbName))
-
-	resp, err := s.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{"select value from v$parameter where name='spfile'"}})
-	if err != nil || len(resp.GetMsg()) < 1 {
-		return nil, fmt.Errorf("dbdaemon/BootstrapStandby: failed to check spfile, results: %v, err: %v", resp, err)
-	}
-	row := make(map[string]string)
-	if err := json.Unmarshal([]byte(resp.GetMsg()[0]), &row); err != nil {
-		return nil, err
-	}
-
-	value, _ := row["VALUE"]
-	if value != "" {
-		spfile = value
-	} else {
-		_, err := s.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{fmt.Sprintf("create spfile='%s' from memory", spfile)}, Suppress: false})
-		if err != nil {
-			return nil, fmt.Errorf("dbdaemon/BootstrapStandby: failed to create spfile from memory: %v", err)
-		}
-	}
-
-	if _, err = s.dbdClient.SetEnv(ctx, &dbdpb.SetEnvRequest{
-		OracleHome: s.databaseHome,
-		CdbName:    req.GetCdbName(),
-		SpfilePath: spfile,
-	}); err != nil {
-		return nil, fmt.Errorf("dbdaemon/BootstrapStandby: proxy failed to SetEnv: %v", err)
-	}
-	klog.InfoS("dbdaemon/BootstrapStandby: spfile creation/relocation completed successfully")
-
-	if err := markProvisioned(); err != nil {
-		return nil, fmt.Errorf("dbdaemon/BootstrapStandby: error while creating provisioning file: %v", err)
-	}
-	klog.InfoS("dbdaemon/BootstrapStandby: Provisioning file created successfully")
-	return &dbdpb.BootstrapStandbyResponse{}, nil
 }
 
 // createCDB creates a database instance

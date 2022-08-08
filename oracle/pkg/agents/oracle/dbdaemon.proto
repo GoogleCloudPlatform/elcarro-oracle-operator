@@ -64,6 +64,13 @@ service DatabaseDaemon {
   // RunRMANAsync RPC call executes Oracle's rman utility asynchronously.
   rpc RunRMANAsync(RunRMANAsyncRequest) returns (google.longrunning.Operation);
 
+  // RunDataGuardBroker RPC call executes Oracle's Data Guard command line
+  // utility.
+  rpc RunDataGuard(RunDataGuardRequest) returns (RunDataGuardResponse);
+
+  // TNSPing RPC call executes Oracle's tnsping utility.
+  rpc TNSPing(TNSPingRequest) returns (TNSPingResponse);
+
   // NID changes a database id and/or database name.
   rpc NID(NIDRequest) returns (NIDResponse);
 
@@ -289,15 +296,31 @@ message RunRMANRequest {
   string gcs_path = 6;
   // local_path is the destination directory for the backup
   string local_path = 7;
-  // rman command to run, currently support backup and restore
-  string cmd = 8;
-
   // extra gcs operation to perform, currently support "upload"
   GCSOptType gcs_op = 9;
   // run rman without target. This is required for rman duplicate "BACKUP
   // LOCATION" option.
   bool without_target = 10;
 }
+
+message RunDataGuardRequest {
+  // Scripts to be executed by dgmgrl in sequence.
+  repeated string scripts = 1;
+  // target is the primary database to connect to.
+  string target = 2;
+}
+
+message RunDataGuardResponse {
+  // Output of each script executed by dgmgrl.
+  repeated string output = 1;
+}
+
+message TNSPingRequest {
+  // connect information, it can be EZCONNECT/tns connect string
+  string connection_string = 1;
+}
+
+message TNSPingResponse {}
 
 // LROInput is a common part of input requests for all Async operations.
 message LROInput {

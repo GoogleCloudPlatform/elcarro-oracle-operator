@@ -321,7 +321,16 @@ func (cli *FakeDatabaseClient) FetchServiceImageMetaData(ctx context.Context, in
 		return resp.(*dbdpb.FetchServiceImageMetaDataResponse), nil
 	}
 	return nil, nil
+}
 
+func (cli *FakeDatabaseClient) RunDataGuard(ctx context.Context, req *dbdpb.RunDataGuardRequest, opts ...grpc.CallOption) (*dbdpb.RunDataGuardResponse, error) {
+	atomic.AddInt32(&cli.runDataGuardCalledCnt, 1)
+	return &dbdpb.RunDataGuardResponse{}, nil
+}
+
+func (cli *FakeDatabaseClient) TNSPing(ctx context.Context, req *dbdpb.TNSPingRequest, opts ...grpc.CallOption) (*dbdpb.TNSPingResponse, error) {
+	atomic.AddInt32(&cli.tnspingCalledCnt, 1)
+	return &dbdpb.TNSPingResponse{}, nil
 }
 
 // CreateFile creates file based on file path and content.
@@ -418,12 +427,12 @@ func (cli *FakeDatabaseClient) PhysicalRestoreAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.physicalRestoreAsyncCalledCnt))
 }
 
-// DataPumpImportCalledCnt returns call count.
+// DataPumpImportAsyncCalledCnt returns call count for DataPumpImportAsync.
 func (cli *FakeDatabaseClient) DataPumpImportAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.dataPumpImportAsyncCalledCnt))
 }
 
-// DataPumpExportCalledCnt returns call count.
+// DataPumpExportAsyncCalledCnt returns call count for DataPumpExportAsync.
 func (cli *FakeDatabaseClient) DataPumpExportAsyncCalledCnt() int {
 	return int(atomic.LoadInt32(&cli.dataPumpExportAsyncCalledCnt))
 }
