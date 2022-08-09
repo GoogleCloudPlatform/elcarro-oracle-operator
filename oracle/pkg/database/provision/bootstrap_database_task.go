@@ -803,8 +803,8 @@ func NewBootstrapDatabaseTaskForUnseeded(cdbName, dbUniqueName, dbDomain string,
 	return bootstrapTask
 }
 
-// NewBootstrapDatabaseTaskForStandby returns a Task for bootstrapping a standby instance.
-func NewBootstrapDatabaseTaskForStandby(cdbName, dbDomain string, dbdClient dbdpb.DatabaseDaemonClient) *BootstrapTask {
+// NewSetupUsersTaskForStandby returns setupUsers subtask for standby instance.
+func NewSetupUsersTaskForStandby(cdbName string, dbdClient dbdpb.DatabaseDaemonClient) *BootstrapTask {
 	cdb := &oracleCDB{
 		cdbName: cdbName,
 	}

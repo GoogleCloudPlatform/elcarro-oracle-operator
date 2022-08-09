@@ -120,6 +120,7 @@ filegroup(
         "//oracle/pkg/agents/oracle:all-srcs",
         "//oracle/pkg/agents/pitr:all-srcs",
         "//oracle/pkg/agents/security:all-srcs",
+        "//oracle/pkg/agents/standby:all-srcs",
         "//oracle/pkg/database/dbdaemon:all-srcs",
         "//oracle/pkg/database/dbdaemonproxy:all-srcs",
         "//oracle/pkg/database/lib/detach:all-srcs",

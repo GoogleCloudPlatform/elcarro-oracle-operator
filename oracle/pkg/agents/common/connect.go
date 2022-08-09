@@ -31,11 +31,7 @@ import (
 // EZ returns EZConnect string compatible with oracle tooling.
 // All parameters except host are optional, refer to documentation.
 // See https://docs.oracle.com/database/121/NETAG/naming.htm#NETAG1112.
-func EZ(user, pass, host, port, db, domain string, asSysDba bool) string {
-	svc := db
-	if domain != "" {
-		svc = fmt.Sprintf("%s.%s", db, domain)
-	}
+func EZ(user, pass, host, port, svc string, asSysDba bool) string {
 	if host == "" {
 		return ""
 	}
