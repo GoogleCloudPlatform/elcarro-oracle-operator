@@ -25,7 +25,7 @@ import (
 
 var (
 	// CallTimeout can be set via a flag by the program importing the library.
-	CallTimeout = 5 * time.Minute
+	CallTimeout = 15 * time.Minute
 )
 
 // withTimeout returns a context with a default timeout if the input context has no timeout.
