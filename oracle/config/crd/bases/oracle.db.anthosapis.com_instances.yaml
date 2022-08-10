@@ -105,6 +105,7 @@ spec:
                 description: CDBName is the intended name of the CDB attribute. If
                   the CDBName is different from the original name (with which the
                   CDB was created) the CDB will be renamed.
+                pattern: ^[A-Z][A-Z0-9]{0,7}$
                 type: string
               characterSet:
                 description: CharacterSet used to create a database (the default is
