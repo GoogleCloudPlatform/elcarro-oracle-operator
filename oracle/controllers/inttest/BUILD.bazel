@@ -17,6 +17,7 @@ filegroup(
         "//oracle/controllers/inttest/pitrtest:all-srcs",
         "//oracle/controllers/inttest/releasetest:all-srcs",
         "//oracle/controllers/inttest/snapbackuptest:all-srcs",
+        "//oracle/controllers/inttest/standbydatamigrationtest:all-srcs",
         "//oracle/controllers/inttest/usertest:all-srcs",
     ],
     tags = ["automanaged"],

@@ -134,6 +134,11 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		}
 	}
 
+	// If the instance is ready and DR enabled, we can set up standby DR.
+	if k8s.ConditionReasonEquals(instanceReadyCond, k8s.StandbyDRInProgress) && isStandbyDR(&inst) {
+		return r.standbyStateMachine(ctx, &inst, log)
+	}
+
 	// If the instance and database is ready, we can set the instance parameters
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) &&
 		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && inst.Spec.Parameters != nil {
@@ -282,7 +287,12 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		}
 	}
 
-	// reach here, the instance should be ready.
+	if isStandbyDR(&inst) {
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StandbyDRInProgress, "standby DR in progress")
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// When we reach here, the instance should be ready.
 	if inst.Spec.Mode == commonv1alpha1.ManuallySetUpStandby {
 		log.Info("reconciling instance for manually set up standby: DONE")
 		// the code will return here, so we can rely on defer function to update database status.
@@ -294,7 +304,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	if k8s.ConditionStatusEquals(k8s.FindCondition(inst.Status.Conditions, k8s.StandbyReady), v1.ConditionTrue) {
 		// promote the standby instance, bootstrap is part of promotion.
 		r.Recorder.Eventf(&inst, corev1.EventTypeNormal, k8s.PromoteStandbyInProgress, "")
-		if err := r.bootstrapStandby(ctx, &inst, log); err != nil {
+		if err := r.bootstrapStandby(ctx, &inst); err != nil {
 			r.Recorder.Eventf(&inst, corev1.EventTypeWarning, k8s.PromoteStandbyFailed, fmt.Sprintf("Error promoting standby: %v", err))
 			return ctrl.Result{}, err
 		}
@@ -551,4 +561,13 @@ func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&source.Kind{Type: &v1alpha1.Database{}},
 			&handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+func lroOperationID(opType string, instance *v1alpha1.Instance) string {
+	switch opType {
+	case physicalRestore:
+		return fmt.Sprintf("%s_%s_%s", opType, instance.GetUID(), instance.Status.LastRestoreTime.Format(time.RFC3339))
+	default:
+		return fmt.Sprintf("%s_%s", opType, instance.GetUID())
+	}
 }

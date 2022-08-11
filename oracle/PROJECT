@@ -22,4 +22,7 @@ resources:
 - group: oracle
   kind: BackupSchedule
   version: v1alpha1
+- group: oracle
+  kind: PITR
+  version: v1alpha1
 version: "2"
