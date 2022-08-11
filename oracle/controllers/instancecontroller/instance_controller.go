@@ -74,8 +74,8 @@ type InstanceReconciler struct {
 
 const (
 	physicalRestore                      = "PhysicalRestore"
-	InstanceReadyTimeout                 = 20 * time.Minute
-	DatabaseInstanceReadyTimeoutSeeded   = 20 * time.Minute
+	InstanceReadyTimeout                 = 120 * time.Minute
+	DatabaseInstanceReadyTimeoutSeeded   = 30 * time.Minute
 	DatabaseInstanceReadyTimeoutUnseeded = 60 * time.Minute // 60 minutes because it can take 50+ minutes to create an unseeded CDB
 	dateFormat                           = "20060102"
 )
