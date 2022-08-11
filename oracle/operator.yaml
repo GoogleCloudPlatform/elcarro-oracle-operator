@@ -1867,10 +1867,13 @@ spec:
                     type: string
                 type: object
               cdbName:
-                description: CDBName is the intended name of the CDB attribute. If
+                description: 'CDBName is the intended name of the CDB attribute. If
                   the CDBName is different from the original name (with which the
-                  CDB was created) the CDB will be renamed.
-                pattern: ^[A-Z][A-Z0-9]{0,7}$
+                  CDB was created) the CDB will be renamed.  The CDBName should meet
+                  Oracle SID requirements: uppercase, alphanumeric, max 8 characters,
+                  and not start with a number.'
+                maxLength: 8
+                pattern: '[A-Z][A-Z0-9]*'
                 type: string
               characterSet:
                 description: CharacterSet used to create a database (the default is

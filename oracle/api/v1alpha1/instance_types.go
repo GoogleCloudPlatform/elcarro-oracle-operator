@@ -62,8 +62,11 @@ type InstanceSpec struct {
 
 	// CDBName is the intended name of the CDB attribute. If the CDBName is
 	// different from the original name (with which the CDB was created) the
-	// CDB will be renamed.
+	// CDB will be renamed.  The CDBName should meet Oracle SID requirements:
+	// uppercase, alphanumeric, max 8 characters, and not start with a number.
 	// +optional
+	// +kubebuilder:validation:MaxLength=8
+	// +kubebuilder:validation:Pattern=`[A-Z][A-Z0-9]*`
 	CDBName string `json:"cdbName,omitempty"`
 
 	// DBUniqueName represents a unique database name that would be
