@@ -1,0 +1,33 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
+metadata:
+  name: mydb
+spec:
+  type: Oracle
+  version: "18c"
+  edition: Express
+  dbDomain: "gke"
+  disks:
+  - name: DataDisk
+    size: 45Gi
+    storageClass: "csi-gce-pd"
+  - name: LogDisk
+    size: 55Gi
+    storageClass: "csi-gce-pd"
+  services:
+    Backup: true
+    Monitoring: true
+    Logging: true
+    HA/DR: false
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    service: "gcr.io/PROJECT_ID/oracle-database-images/oracle-18c-xe-seeded-DBNAME"
+    dbinit: "gcr.io/PROJECT_ID/oracle.db.anthosapis.com/dbinit:dev"
+    logging_sidecar: "gcr.io/PROJECT_ID/oracle.db.anthosapis.com/loggingsidecar:dev"
+    monitoring: "gcr.io/PROJECT_ID/oracle.db.anthosapis.com/monitoring:dev"
+  sourceCidrRanges: [0.0.0.0/0]
+  # Oracle SID character limit is 8, anything > gets truncated by Oracle. Must be all UPPERCASE.
+  cdbName: DBNAME
+  databaseResources:
+    requests:
+      memory: 4.0Gi
