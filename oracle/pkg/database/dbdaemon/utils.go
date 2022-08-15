@@ -15,6 +15,7 @@
 package dbdaemon
 
 import (
+	"bufio"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -104,12 +105,16 @@ func (o *osUtilImpl) createFile(file string, content io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("couldn't create file err: %v", err)
 	}
+	w := bufio.NewWriterSize(f, 16*1024*1024)
 	defer func() {
+		if err := w.Flush(); err != nil {
+			klog.Warningf("failed to flush %v: %v", w, err)
+		}
 		if err := f.Close(); err != nil {
 			klog.Warningf("failed to close %v: %v", f, err)
 		}
 	}()
-	if _, err := io.Copy(f, content); err != nil {
+	if _, err := io.Copy(w, content); err != nil {
 		return fmt.Errorf("copying contents failed: %v", err)
 	}
 	return nil
