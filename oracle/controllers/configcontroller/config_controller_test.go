@@ -116,7 +116,7 @@ func createInstances() {
 				Namespace: Namespace,
 			},
 			Spec: v1alpha1.InstanceSpec{
-				CDBName: fmt.Sprintf("MYDB-%d", i),
+				CDBName: fmt.Sprintf("MYDB%d", i),
 			},
 		}
 		Expect(k8sClient.Create(context.Background(), instance)).Should(Succeed())
