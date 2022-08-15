@@ -108,7 +108,7 @@ spec:
                   Oracle SID requirements: uppercase, alphanumeric, max 8 characters,
                   and not start with a number.'
                 maxLength: 8
-                pattern: '[A-Z][A-Z0-9]*'
+                pattern: ^[A-Z][A-Z0-9]*$
                 type: string
               characterSet:
                 description: CharacterSet used to create a database (the default is

@@ -66,7 +66,7 @@ type InstanceSpec struct {
 	// uppercase, alphanumeric, max 8 characters, and not start with a number.
 	// +optional
 	// +kubebuilder:validation:MaxLength=8
-	// +kubebuilder:validation:Pattern=`[A-Z][A-Z0-9]*`
+	// +kubebuilder:validation:Pattern=^[A-Z][A-Z0-9]*$
 	CDBName string `json:"cdbName,omitempty"`
 
 	// DBUniqueName represents a unique database name that would be
