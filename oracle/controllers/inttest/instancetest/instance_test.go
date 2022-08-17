@@ -49,6 +49,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("Instance and Database provisioning", func() {
 	var namespace string
 	var firstInstanceName string
+	var firstDatabaseName string
 	var secondInstanceName string
 	var cdbName string
 
@@ -58,6 +59,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 		namespace = testhelpers.RandName("instance-crd-test")
 		firstInstanceName = "mydb-1"
 		secondInstanceName = "mydb-2"
+		firstDatabaseName = "pdb1"
 		cdbName = "MYDB"
 		k8sEnv.Init(namespace, namespace)
 	})
@@ -93,9 +95,16 @@ var _ = Describe("Instance and Database provisioning", func() {
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, instanceTimeout)
 
-			By("By checking that Database is provisioned")
+			By("By checking that Database (CDB) is provisioned")
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey2, k8s.DatabaseInstanceReady, metav1.ConditionTrue, k8s.CreateComplete, dbTimeout)
+
+			By("By creating a database (PDB) in the first instance")
+			createDatabase(firstInstanceName, firstDatabaseName, namespace)
+
+			By("By checking that Database (PDB) is Ready")
+			databaseKey := client.ObjectKey{Namespace: namespace, Name: firstDatabaseName}
+			testhelpers.WaitForDatabaseConditionState(k8sEnv, databaseKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 5*time.Minute)
 
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
@@ -109,6 +118,21 @@ var _ = Describe("Instance and Database provisioning", func() {
 			var svc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
 			Expect(len(svc.Items)).Should(Equal(4)) // 2 services (LB, DBDaemon) per instance
+
+			By("Deleting a database")
+			database := &v1alpha1.Database{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: namespace,
+					Name:      firstDatabaseName,
+				},
+			}
+			testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Name: firstDatabaseName, Namespace: namespace}, database)
+			Eventually(func() ([]string, error) {
+				updatedInstance := &v1alpha1.Instance{}
+				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: firstInstanceName, Namespace: namespace}, updatedInstance)).Should(Succeed())
+				return updatedInstance.Status.DatabaseNames, nil
+			}, 60*time.Second, 5*time.Second).Should(BeEmpty())
+
 		})
 	}
 
@@ -150,12 +174,14 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 				Version: version,
 				Disks: []commonv1alpha1.DiskSpec{
 					{
-						Name: "DataDisk",
-						Size: resource.MustParse("45Gi"),
+						Name:         "DataDisk",
+						Size:         resource.MustParse("45Gi"),
+						StorageClass: "premium-rwo",
 					},
 					{
-						Name: "LogDisk",
-						Size: resource.MustParse("55Gi"),
+						Name:         "LogDisk",
+						Size:         resource.MustParse("55Gi"),
+						StorageClass: "premium-rwo",
 					},
 				},
 				DatabaseResources: corev1.ResourceRequirements{
@@ -173,6 +199,28 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 		},
 	}
 	testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, instance)
+}
+
+func createDatabase(instanceName, databaseName, namespace string) {
+	database := &v1alpha1.Database{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      databaseName,
+			Labels:    map[string]string{"instance": instanceName},
+		},
+		Spec: v1alpha1.DatabaseSpec{
+			DatabaseSpec: commonv1alpha1.DatabaseSpec{
+				Name:     databaseName,
+				Instance: instanceName,
+			},
+			AdminPassword: "pwd123",
+			Users: []v1alpha1.UserSpec{
+				{UserSpec: commonv1alpha1.UserSpec{Name: "test", CredentialSpec: commonv1alpha1.CredentialSpec{Password: "pwd123"}}, Privileges: []v1alpha1.PrivilegeSpec{"connect"}},
+			},
+		},
+	}
+
+	testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, database)
 }
 
 func TestInstance(t *testing.T) {

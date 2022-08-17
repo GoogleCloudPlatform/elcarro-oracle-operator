@@ -1095,6 +1095,13 @@ func WaitForInstanceConditionState(k8sEnv K8sOperatorEnvironment, key client.Obj
 	WaitForObjectConditionState(k8sEnv, key, instance, condition, targetStatus, targetReason, timeout, k8s.FindConditionOrFailed)
 }
 
+// WaitForDatabaseConditionState waits until the Database condition object status = targetStatus and reason = targetReason.
+// Depends on the Ginkgo asserts.
+func WaitForDatabaseConditionState(k8sEnv K8sOperatorEnvironment, key client.ObjectKey, condition string, targetStatus metav1.ConditionStatus, targetReason string, timeout time.Duration) {
+	database := &v1alpha1.Database{}
+	WaitForObjectConditionState(k8sEnv, key, database, condition, targetStatus, targetReason, timeout, k8s.FindConditionOrFailed)
+}
+
 // K8sCopyFromPodOrFail copies file/dir in src path of the pod to local dest path.
 // Depends on kubectl
 // kubectl cp <pod>:<src> dest -n <ns> -c <container>
