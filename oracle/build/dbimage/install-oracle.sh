@@ -299,6 +299,8 @@ cleanup_post_success() {
     rm -rf "${OHOME}/install/pilot" &&
     # Support tools
     rm -rf "${OHOME}/suptools" &&
+    # Previous patches binaries
+    rm -rf "${OHOME}/.patch_storage" &&
     # Temp location
     rm -rf /tmp/* &&
     # Install files
