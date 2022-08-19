@@ -285,6 +285,12 @@ func (r *BackupReconciler) reconcileBackupCreation(ctx context.Context, backup *
 		// backup type is validated in validateBackupSpec
 		b := r.OracleBackupFactory.newOracleBackup(r, backup, inst, log)
 		done, err := b.status(ctx)
+		if err != nil && strings.Contains(err.Error(), "code = NotFound") {
+			// The backup was interrupted and the LRO is lost.
+			backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupFailed, "Backup interrupted")
+			return ctrl.Result{}, r.updateBackupStatus(ctx, backup, inst)
+		}
+
 		if done {
 			if err == nil {
 				r.Recorder.Eventf(backup, corev1.EventTypeNormal, "BackupCompleted", "BackupId:%v, Elapsed time: %v", backup.Status.BackupID, k8s.ElapsedTimeFromLastTransitionTime(k8s.FindCondition(backup.Status.Conditions, k8s.Ready), time.Second))
