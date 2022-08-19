@@ -24,10 +24,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"google.golang.org/grpc"
-	"k8s.io/klog/v2"
 
 	connect "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
@@ -39,11 +36,6 @@ const (
 	alterUserSQL = "alter user %s identified by %s"
 )
 
-type dockerClient interface {
-	client.ContainerAPIClient
-	Close() error
-}
-
 type runSQLOnClient interface {
 	RunSQLPlus(context.Context, *dbdpb.RunSQLPlusCMDRequest, ...grpc.CallOption) (*dbdpb.RunCMDResponse, error)
 }
@@ -54,7 +46,6 @@ type runSQLOnServer interface {
 
 // Security provides login and encryption methods.
 type Security struct {
-	dockerClient dockerClient
 	sqlOpen      func(string, string) (*sql.DB, error)
 	pollInterval time.Duration
 	dbdConn      *grpc.ClientConn
@@ -63,17 +54,6 @@ type Security struct {
 
 // Close closes any Security resources and connections.
 func (s *Security) Close() error {
-	if s.dockerClient != nil {
-		if err := s.dockerClient.Close(); err != nil {
-			if s.dbdConn != nil {
-				if err2 := s.dbdConn.Close(); err2 != nil {
-					return err2
-				}
-			}
-			return err
-		}
-	}
-
 	if s.dbdConn != nil {
 		return s.dbdConn.Close()
 	}
@@ -183,43 +163,6 @@ func SetupConnStringOnServer(ctx context.Context, onServer runSQLOnServer, usern
 // SetupUserPwConnString sets the password for the given user to a randomized password and returns the connection string.
 func (s *Security) SetupUserPwConnString(ctx context.Context, username, db, DBDomain string) (string, error) {
 	return SetupUserPwConnStringByClient(ctx, s.dbdClient, username, db, DBDomain)
-}
-
-// waitForHealthyOracleDBContainer waits until the oracle_db container is healthy or until context times out.
-func (s *Security) waitForHealthyOracleDBContainer(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			isHealthy, err := s.IsContainerHealthy(ctx, consts.OracleDBContainerName)
-			if err != nil {
-				klog.ErrorS(err, "unable to connect to container, will retry", "container", consts.OracleDBContainerName)
-			} else if isHealthy {
-				return nil
-			}
-		}
-		time.Sleep(s.pollInterval)
-	}
-}
-
-// IsContainerHealthy checks the health status of a named container.
-func (s *Security) IsContainerHealthy(ctx context.Context, name string) (bool, error) {
-	cs, err := s.dockerClient.ContainerInspect(ctx, name)
-	if err != nil {
-		return false, err
-	}
-
-	if cs.ContainerJSONBase != nil && cs.State != nil && cs.State.Health != nil {
-		healthStatus := cs.State.Health.Status
-		klog.InfoS("container health status", "container", cs.Name, "healthStatus", healthStatus)
-		if healthStatus == types.Healthy {
-			return true, nil
-		}
-	} else {
-		klog.InfoS("container has no available health status", "container", name)
-	}
-	return false, nil
 }
 
 func randInt(maxInt int) (int64, error) {

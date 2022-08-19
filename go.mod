@@ -6,13 +6,7 @@ require (
 	bitbucket.org/creachadair/stringset v0.0.9
 	cloud.google.com/go v0.81.0
 	cloud.google.com/go/storage v1.10.0
-	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/bazelbuild/rules_go v0.27.0
-	github.com/containerd/containerd v1.3.0 // indirect
-	github.com/docker/distribution v2.7.1+incompatible // indirect
-	github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
-	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/docker/go-units v0.4.0 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.4.0
 	github.com/godror/godror v0.25.3
@@ -25,11 +19,8 @@ require (
 	github.com/hpcloud/tail v1.0.0
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1
-	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.15.2
 	github.com/onsi/gomega v1.11.0
-	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.13.0 // indirect
