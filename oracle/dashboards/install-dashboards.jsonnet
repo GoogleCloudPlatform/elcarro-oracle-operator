@@ -13,13 +13,13 @@ local kp = (import 'kube-prometheus/kube-prometheus.libsonnet') +
   prometheus+:: {
     prometheus+: {
       spec+: {
-        retention: '30d',
+        retentidatabases.oracle.db.anthosapis.comon: '30d',
         storage: {
           volumeClaimTemplate:
             pvc.new() +
             pvc.mixin.spec.withAccessModes('ReadWriteOnce') +
             pvc.mixin.spec.resources.withRequests({ storage: '10Gi' }) +
-            pvc.mixin.spec.withStorageClassName('csi-gce-pd'),
+            pvc.mixin.spec.withStorageClassName('standard-rwo'),
         },  // storage
       },  // spec
     },  // prometheus

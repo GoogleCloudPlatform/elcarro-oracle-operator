@@ -45,8 +45,7 @@ time gcloud beta container clusters create "${PROW_CLUSTER}" \
 gcloud container clusters get-credentials ${PROW_CLUSTER} --zone ${PROW_CLUSTER_ZONE} --project ${PROW_PROJECT}
 kubectl config set-context gke_${PROW_PROJECT}_${PROW_CLUSTER_ZONE}_${PROW_CLUSTER}
 
-# Create the csi-gce-pd storage class and the csi-gce-pd-snapshot-class volume snapshot class
-kubectl create -f scripts/deploy/csi/gce_pd_storage_class.yaml
+# Create the csi-gce-pd-snapshot-class VolumeSnapshotClass
 kubectl create -f scripts/deploy/csi/gce_pd_volume_snapshot_class.yaml
 
 # Create service account for this k8s cluster

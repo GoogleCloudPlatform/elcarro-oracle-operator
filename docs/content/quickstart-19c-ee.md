@@ -408,22 +408,15 @@ following command:
 gcloud container clusters create $CLUSTER_NAME --release-channel rapid --machine-type=n1-standard-4 --num-nodes 2 --zone $ZONE --project $PROJECT_ID --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging --service-account $SERVICE_ACCOUNT
 ```
 
-To get the cluster ready for El Carro, create a k8s storage class and a volume
-snapshot class as follows:
+To get the cluster ready for El Carro, create a VolumeSnapshotClass as follows:
 
 ```sh
-kubectl create -f $PATH_TO_EL_CARRO_RELEASE/deploy/csi/gce_pd_storage_class.yaml
 kubectl create -f $PATH_TO_EL_CARRO_RELEASE/deploy/csi/gce_pd_volume_snapshot_class.yaml
 ```
 
-Verify that both resources have been created properly by running:
+Verify that your VolumeSnapshotClass was properly created by running:
 
 ```sh
-kubectl get storageclasses
-NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-csi-gce-pd           pd.csi.storage.gke.io   Delete          WaitForFirstConsumer   false                  30d
-standard (default)   kubernetes.io/gce-pd    Delete          Immediate              true                   30d
-
 kubectl get volumesnapshotclass
 NAME                        AGE
 csi-gce-pd-snapshot-class   78s

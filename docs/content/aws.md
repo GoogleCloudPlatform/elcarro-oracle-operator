@@ -251,9 +251,15 @@ kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernete
 We are ready to add our storage class into the cluster. Will create the configuration YAML based on the one for GCP, adjusting a few values:
 
 ```sh
-sed -e 's/provisioner: pd.csi.storage.gke.io/provisioner: ebs.csi.aws.com/; /^  type: pd-standard/d; /parameters:/d' ${PATH_TO_EL_CARRO_RELEASE}/deploy/csi/gce_pd_storage_class.yaml > /tmp/aws_pd_storage_class.yaml
+echo "apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard-rwo
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+" > /tmp/aws_pd_storage_class.yaml
 
-kubectl create -f /tmp//aws_pd_storage_class.yaml
+kubectl create -f /tmp/aws_pd_storage_class.yaml
 ```
     
 Now we’re completing the storage configuration and installing the volume snapshot class:
@@ -266,7 +272,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snaps
 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
 ```
 
-And now we add the storage class into the cluster, again by adjusting the GCP configuration file to AWS services:
+And now we add the VolumeSnapshotClass into the cluster, again by adjusting the GCP configuration file to AWS services:
 
 ```sh
 sed -e 's/driver: pd.csi.storage.gke.io/driver: ebs.csi.aws.com/; s#apiVersion: snapshot.storage.k8s.io/v1beta1#apiVersion: snapshot.storage.k8s.io/v1#' ${PATH_TO_EL_CARRO_RELEASE}/deploy/csi/gce_pd_volume_snapshot_class.yaml > /tmp/aws_pd_volume_snapshot_class.yaml

@@ -78,7 +78,6 @@ latest
 ├── db_monitor.yaml
 ├── deploy
 │           ├── csi
-│           │           ├── gce_pd_storage_class.yaml
 │           │           └── gce_pd_volume_snapshot_class.yaml
 │           ├── install-18c-xe.sh
 │           └── install.sh
@@ -181,17 +180,9 @@ See an example run and the end result below:
 ```sh
 $ cd $PATH_TO_EL_CARRO_RELEASE/deploy/csi
 
-$ kubectl create -f gce_pd_storage_class.yaml
-
 $ kubectl create -f gce_pd_volume_snapshot_class.yaml
 
-// Confirm that both resources have been created properly:
-
-$ kubectl get storageclasses
-NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-csi-gce-pd           pd.csi.storage.gke.io   Delete          WaitForFirstConsumer   false                  30d
-standard (default)   kubernetes.io/gce-pd    Delete          Immediate              true                   30d
-
+# Confirm that your VolumeSnapshotClass was properly created:
 $ kubectl get volumesnapshotclass
 NAME                        AGE
 csi-gce-pd-snapshot-class   32d

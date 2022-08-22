@@ -81,11 +81,11 @@ spec:
   - name: DataDisk
     size: 45Gi
     type: pd-standard
-    storageClass: "csi-gce-pd"
+    storageClass: "standard-rwo"
   - name: LogDisk
     size: 55Gi
     type: pd-standard
-    storageClass: "csi-gce-pd"
+    storageClass: "standard-rwo"
   services:
     Backup: true
     Monitoring: true

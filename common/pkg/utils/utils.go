@@ -39,7 +39,7 @@ const (
 	PlatformKind                           = "Kind"
 	EnginePostgres                         = "Postgres"
 	EngineOracle                           = "Oracle"
-	defaultStorageClassNameGCP             = "csi-gce-pd"
+	defaultStorageClassNameGCP             = "standard-rwo"
 	defaultVolumeSnapshotClassNameGCP      = "csi-gce-pd-snapshot-class"
 	defaultStorageClassNameBM              = "csi-trident"
 	defaultVolumeSnapshotClassNameBM       = "csi-trident-snapshot-class"
