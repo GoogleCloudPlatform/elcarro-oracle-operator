@@ -74,14 +74,23 @@ Remember to authenticate yourself using `gcloud init` and select a GCP project t
 ### C - Build and Deploy El Carro
 To build and deploy El Carro, please do the following:
 
-1. Create a GKE cluster if you don't already have one by following [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster).
+1. Create a GKE cluster if you don't already have one by following [this guide](https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-zonal-cluster). 
+If you prefer, you can create a basic dev cluster using the instructions below:
+    ```sh
+    $ export PROJECT_ID=<Name of the project where you created your cluster>
+    $ export COMPUTE_ZONE=<Name of the zone where you created your cluster. i.e. us-central1-a>
+    $ export CLUSTER_NAME=<The Name you gave to your cluster when you created it>
+   
+    $ gcloud services enable container.googleapis.com --project ${PROJECT_ID}
+    $ gcloud container clusters create ${CLUSTER_NAME} --release-channel regular --machine-type=e2-custom-4-15360 --num-nodes 2 --zone ${COMPUTE_ZONE} --project ${PROJECT_ID}
+    ```
 2. [Configure kubectl to access your cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl)
+    ```sh
+    $ gcloud container clusters get-credentials ${CLUSTER_NAME} --zone ${COMPUTE_ZONE}
+    ```
 3. Determine the fully qualified name of your cluster
    ```sh
-   $ export PROJECT_ID=<Name of the project where you created your cluster>
-   $ export GCP_ZONE=<Name of the zone where you created your cluster. i.e. us-central1-a>
-   $ export CLUSTER_NAME=<The Name you gave to your cluster when you created it>
-   $ export FULL_CLUSTER_NAME=gke_${PROJECT_ID}_${GCP_ZONE}_${CLUSTER_NAME}
+   $ export FULL_CLUSTER_NAME=gke_${PROJECT_ID}_${COMPUTE_ZONE}_${CLUSTER_NAME}
    ```
 4. cd into `el-carro/oracle`
    ```sh
@@ -91,7 +100,7 @@ To build and deploy El Carro, please do the following:
    ```sh
    $ export PROW_PROJECT=$PROJECT_ID
    $ export PROW_IMAGE_TAG=dev
-   $ export PROW_CLUSTER_ZONE=$GCP_ZONE
+   $ export PROW_CLUSTER_ZONE=$COMPUTE_ZONE
    $ export PROW_CLUSTER=$CLUSTER_NAME
    ```
 6. Generate Kubernetes objects for El Carro such as CRDs, etc. 
@@ -121,7 +130,10 @@ but take considerably less time on subsequent runs.
      NAME                                          READY   STATUS    RESTARTS   AGE
      operator-controller-manager-cb8856847-pjmfz   2/2     Running   0          2m21s
    ``` 
-10. sss
+10. Create a VolumeSnapshotClass. This will be used by El Carro to take backups.
+    ```sh
+    $ kubectl apply -f $WORKING_DIR/elcarro-oracle-operator/oracle/scripts/deploy/csi/gce_pd_volume_snapshot_class.yaml
+    ```
 
 
 ### D - Create a database Image
