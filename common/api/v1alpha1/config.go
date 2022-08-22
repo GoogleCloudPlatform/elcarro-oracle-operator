@@ -22,13 +22,13 @@ type ConfigSpec struct {
 
 	// Storage class to use for dynamic provisioning.
 	// This value varies depending on a platform.
-	// For GCP (and the default) it is "csi-gce-pd".
+	// For GCP (the default), it is "standard-rwo".
 	// +optional
 	StorageClass string `json:"storageClass,omitempty"`
 
 	// Volume Snapshot class to use for storage snapshots.
-	// This value varies depending on a platform.
-	// For GCP (and the default) it is "csi-gce-pd-snapshot-class".
+	// This value varies from platform to platform.
+	// For GCP (the default), it is "csi-gce-pd-snapshot-class".
 	// +optional
 	VolumeSnapshotClass string `json:"volumeSnapshotClass,omitempty"`
 

@@ -175,13 +175,12 @@ spec:
                 type: string
               storageClass:
                 description: Storage class to use for dynamic provisioning. This value
-                  varies depending on a platform. For GCP (and the default) it is
-                  "csi-gce-pd".
+                  varies depending on a platform. For GCP (the default), it is "standard-rwo".
                 type: string
               volumeSnapshotClass:
                 description: Volume Snapshot class to use for storage snapshots. This
-                  value varies depending on a platform. For GCP (and the default)
-                  it is "csi-gce-pd-snapshot-class".
+                  value varies from platform to platform. For GCP (the default), it
+                  is "csi-gce-pd-snapshot-class".
                 type: string
             type: object
           status:

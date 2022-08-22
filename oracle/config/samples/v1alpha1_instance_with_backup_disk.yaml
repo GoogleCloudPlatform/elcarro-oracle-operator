@@ -10,13 +10,13 @@ spec:
   disks:
   - name: DataDisk
     size: 45Gi
-    storageClass: "csi-gce-pd"
+    storageClass: "standard-rwo"
   - name: LogDisk
     size: 55Gi
-    storageClass: "csi-gce-pd"
+    storageClass: "standard-rwo"
   - name: BackupDisk
     size: 55Gi
-    storageClass: "csi-gce-pd"
+    storageClass: "standard-rwo"
   services:
     Backup: true
     Monitoring: true
