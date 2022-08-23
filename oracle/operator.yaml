@@ -3351,6 +3351,7 @@ spec:
         command:
         - /manager
         image: gcr.io/elcarro/oracle.db.anthosapis.com/operator:latest
+        imagePullPolicy: Always
         name: manager
         resources:
           limits:
