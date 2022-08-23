@@ -265,6 +265,7 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			log.Error(e, "setRestoreSucceeded returned an error, retrying")
 			return ctrl.Result{}, e
 		}
+		return ctrl.Result{Requeue: true}, nil
 	default:
 		log.Info("restoreStateMachine: no action needed, proceed with main reconciliation")
 	}
