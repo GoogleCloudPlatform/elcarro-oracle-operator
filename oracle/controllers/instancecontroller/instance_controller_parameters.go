@@ -35,24 +35,23 @@ import (
 
 // reservedParameters holds the list of parameters that aren't allowed for modification.
 var reservedParameters = map[string]bool{
-	"audit_file_dest":            true,
-	"audit_trail":                true,
-	"compatible":                 true,
-	"control_files":              true,
-	"db_block_size":              true,
-	"db_recovery_file_dest":      true,
-	"db_recovery_file_dest_size": true,
-	"diagnostic_dest":            true,
-	"dispatchers":                true,
-	"enable_pluggable_database":  true,
-	"filesystemio_options":       true,
-	"local_listener":             true,
-	"remote_login_passwordfile":  true,
-	"undo_tablespace":            true,
-	"log_archive_dest_1":         true,
-	"log_archive_dest_state_1":   true,
-	"log_archive_format":         true,
-	"standby_file_management":    true,
+	"audit_file_dest":           true,
+	"audit_trail":               true,
+	"compatible":                true,
+	"control_files":             true,
+	"db_block_size":             true,
+	"db_recovery_file_dest":     true,
+	"diagnostic_dest":           true,
+	"dispatchers":               true,
+	"enable_pluggable_database": true,
+	"filesystemio_options":      true,
+	"local_listener":            true,
+	"remote_login_passwordfile": true,
+	"undo_tablespace":           true,
+	"log_archive_dest_1":        true,
+	"log_archive_dest_state_1":  true,
+	"log_archive_format":        true,
+	"standby_file_management":   true,
 }
 
 func (r *InstanceReconciler) recordEventAndUpdateStatus(ctx context.Context, inst *v1alpha1.Instance, conditionStatus v1.ConditionStatus, reason, msg string, log logr.Logger) {
@@ -70,9 +69,12 @@ func (r *InstanceReconciler) recordEventAndUpdateStatus(ctx context.Context, ins
 // fetchCurrentParameterState infers the type and current value of the
 // parameters by querying the database and is used for the following purpose,
 // * The parameter type (static or dynamic) will be used for deciding whether
-//   a database restart is required.
+//
+//	a database restart is required.
+//
 // * The current parameter value will be used for rollback if the parameter
-//   update fails or the database is non-functional after the restart.
+//
+//	update fails or the database is non-functional after the restart.
 func fetchCurrentParameterState(ctx context.Context, r client.Reader, dbClientFactory controllers.DatabaseClientFactory, inst v1alpha1.Instance) (map[string]string, map[string]string, error) {
 	spec := inst.Spec
 	var unacceptableParams []string
