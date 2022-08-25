@@ -89,6 +89,7 @@ container_push(
     image = ":operator_image",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/operator",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 

@@ -101,7 +101,7 @@ func (r *realResourceResolver) Start(refreshInterval time.Duration, stopCh <-cha
 }
 
 func (r *realResourceResolver) refresh(log logr.Logger) {
-	resources, err := r.dc.ServerResources()
+	_, resources, err := r.dc.ServerGroupsAndResources()
 	if err != nil {
 		log.Error(err, "Unable to fetch server resources")
 		return

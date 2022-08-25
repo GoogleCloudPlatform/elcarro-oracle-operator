@@ -35,6 +35,7 @@ container_push(
     image = ":dbinit",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/dbinit",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 
@@ -52,6 +53,7 @@ container_push(
     image = ":pitragent",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/pitragent",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 
@@ -70,6 +72,7 @@ container_push(
     image = ":dbdaemon_client",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/dbdaemonclient",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 
@@ -90,6 +93,7 @@ container_push(
     image = ":loggingsidecar",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/loggingsidecar",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 
@@ -111,6 +115,7 @@ container_push(
     image = ":monitoring",
     registry = REGISTRY,
     repository = PROJECT + "/oracle.db.anthosapis.com/monitoring",
+    stamp = "@io_bazel_rules_docker//stamp:always",
     tag = TAG,
 )
 

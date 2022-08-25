@@ -107,8 +107,13 @@ func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alph
 	}
 	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
 
-	if err := r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the StatefulSet", "sts.Status", sts.Status)
+	baseSTS := &appsv1.StatefulSet{}
+	sts.DeepCopyInto(baseSTS)
+	if _, err := ctrl.CreateOrUpdate(ctx, r, baseSTS, func() error {
+		sts.Spec.DeepCopyInto(&baseSTS.Spec)
+		return nil
+	}); err != nil {
+		log.Error(err, "failed to create the StatefulSet", "sts.Status", sts.Status)
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -118,7 +123,7 @@ func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1a
 	agentParam := controllers.AgentDeploymentParams{
 		Inst:           &inst,
 		Config:         config,
-		Scheme:         r.Scheme,
+		Scheme:         r.Scheme(),
 		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
 		Images:         images,
 		PrivEscalation: false,
@@ -185,7 +190,7 @@ func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1a
 	}
 
 	// Set the Instance resource to own the Service resource.
-	if err := ctrl.SetControllerReference(inst, svc, r.Scheme); err != nil {
+	if err := ctrl.SetControllerReference(inst, svc, r.Scheme()); err != nil {
 		return nil, err
 	}
 
@@ -197,7 +202,7 @@ func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1a
 }
 
 func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v1alpha1.Instance, applyOpts []client.PatchOption) (dbDaemonSvc *corev1.Service, agentSvc *corev1.Service, err error) {
-	dbDaemonSvc, err = controllers.NewDBDaemonSvc(&inst, r.Scheme)
+	dbDaemonSvc, err = controllers.NewDBDaemonSvc(&inst, r.Scheme())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -206,7 +211,7 @@ func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v
 		return nil, nil, err
 	}
 
-	agentSvc, err = controllers.NewAgentSvc(&inst, r.Scheme)
+	agentSvc, err = controllers.NewAgentSvc(&inst, r.Scheme())
 	if err != nil {
 		return nil, nil, err
 	} else if agentSvc == nil {
@@ -224,7 +229,7 @@ func (r *InstanceReconciler) createDataplaneServices(ctx context.Context, inst v
 
 // isImageSeeded determines from the service image metadata file if the image is seeded or unseeded.
 func (r *InstanceReconciler) isImageSeeded(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (bool, error) {
-	log.Info("isImageSeeded: requesting image metadata...", inst.GetName())
+	log.Info("isImageSeeded: requesting image metadata...", "instance", inst.GetName())
 	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.GetName())
 
 	if err != nil {
@@ -448,7 +453,7 @@ func (r *InstanceReconciler) updateDatabaseIncarnationStatus(ctx context.Context
 		inst.Status.LastDatabaseIncarnation = inst.Status.CurrentDatabaseIncarnation
 	}
 	inst.Status.CurrentDatabaseIncarnation = incResp.Incarnation
-	return r.Status().Update(ctx, inst)
+	return nil
 }
 
 func CloneMap(source map[string]string) map[string]string {

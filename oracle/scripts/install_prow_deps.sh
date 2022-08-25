@@ -35,10 +35,20 @@ EOF
 INSTALL_TMP_DIR=$(mktemp -d)
 cd $INSTALL_TMP_DIR
 
+# upgrade bazel
+apt install apt-transport-https curl gnupg
+curl -fsSL https://storage.googleapis.com/www.bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
+mv bazel.gpg /etc/apt/trusted.gpg.d/
+echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
+
 # everything we can get from debian packages.
 apt-get update -qq
 apt-get install -y \
-  clang-format gettext-base jq
+  bazel clang-format gettext-base jq
+
+# unlink the bazel from image
+unlink /usr/local/bin/bazel
+bazel --version
 
 # Link the kubekins install to the typical debian location to match Dev
 # machines.
