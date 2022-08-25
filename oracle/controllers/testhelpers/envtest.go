@@ -31,6 +31,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -163,6 +164,7 @@ func RunFunctionalTestSuiteWithWebhooks(
 	// Define the test environment.
 	crdPaths = append(crdPaths, filepath.Join("config", "crd", "bases"), filepath.Join("config", "crd", "testing"))
 
+	var testEnvLock sync.Mutex
 	testEnv := envtest.Environment{
 		CRDDirectoryPaths:        crdPaths,
 		ControlPlaneStartTimeout: 60 * time.Second, // Default 20s may not be enough for test pods.
@@ -180,6 +182,8 @@ func RunFunctionalTestSuiteWithWebhooks(
 	}
 
 	BeforeSuite(func(done Done) {
+		testEnvLock.Lock()
+		defer testEnvLock.Unlock()
 		klog.SetOutput(GinkgoWriter)
 		logf.SetLogger(klogr.NewWithOptions(klogr.WithFormat(klogr.FormatKlog)))
 		log := logf.FromContext(nil)
@@ -265,6 +269,8 @@ func RunFunctionalTestSuiteWithWebhooks(
 	}, 600)
 
 	AfterSuite(func() {
+		testEnvLock.Lock()
+		defer testEnvLock.Unlock()
 		By("Stopping control plane")
 		Expect(testEnv.Stop()).To(Succeed())
 	})

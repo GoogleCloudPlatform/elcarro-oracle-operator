@@ -1,7 +1,7 @@
-From 6d633d301aadbeba7a5899ba67fa3c321d32f638 Mon Sep 17 00:00:00 2001
+From 1bae20519f92351b39a3c0a22cb78734a5cf3540 Mon Sep 17 00:00:00 2001
 From: Kurt Kartaltepe <kkartaltepe@google.com>
-Date: Thu, 5 Aug 2021 17:49:56 -0700
-Subject: [PATCH] Add bazel build rules
+Date: Thu, 25 Aug 2022 15:28:22 -0700
+Subject: [PATCH] Add bazel support
 
 ---
  .gitignore        |   1 +
@@ -9,11 +9,11 @@ Subject: [PATCH] Add bazel build rules
  WORKSPACE         |  32 ++++++++
  check/BUILD.bazel |  14 ++++
  deps.bzl          | 195 ++++++++++++++++++++++++++++++++++++++++++++++
- drv.go            |   6 +-
+ drv.go            |   8 +-
  dsn/BUILD.bazel   |  22 ++++++
  num/BUILD.bazel   |  14 ++++
  sid/BUILD.bazel   |  14 ++++
- 9 files changed, 419 insertions(+), 4 deletions(-)
+ 9 files changed, 420 insertions(+), 5 deletions(-)
  create mode 100644 BUILD
  create mode 100644 WORKSPACE
  create mode 100644 check/BUILD.bazel
@@ -422,12 +422,12 @@ index 0000000..6325043
 +        version = "v0.0.0-20200804184101-5ec99f83aff1",
 +    )
 diff --git a/drv.go b/drv.go
-index c25a0e5..e79dfe3 100644
+index c25a0e5..d946cff 100644
 --- a/drv.go
 +++ b/drv.go
 @@ -63,10 +63,8 @@
  package godror
-
+ 
  /*
 -#cgo CFLAGS: -I./odpi/include -I./odpi/src -I./odpi/embed
 -
@@ -437,7 +437,16 @@ index c25a0e5..e79dfe3 100644
 +#include "dpiImpl.h"
  */
  import "C"
-
+ 
+@@ -210,7 +208,7 @@ func (d *drv) Close() error {
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 	dpiCtx, pools := d.dpiContext, d.pools
+-	d.dpiContext, d.pools, d.timezones = nil, nil, nil
++	d.dpiContext, d.pools = nil, nil
+ 	for _, pool := range pools {
+ 		pool.Purge()
+ 	}
 diff --git a/dsn/BUILD.bazel b/dsn/BUILD.bazel
 new file mode 100644
 index 0000000..3312281
@@ -506,5 +515,6 @@ index 0000000..3e53f8a
 +    srcs = ["sid_test.go"],
 +    deps = [":sid"],
 +)
---
-2.32.0.605.g8dce9f2422-goog
+-- 
+2.37.2.672.g94769d06f0-goog
+

@@ -106,7 +106,7 @@ func main() {
 	if err = (&instancecontroller.InstanceReconciler{
 		Client:        mgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("Instance"),
-		Scheme:        mgr.GetScheme(),
+		SchemeVal:     mgr.GetScheme(),
 		Images:        images,
 		Recorder:      mgr.GetEventRecorderFor("instance-controller"),
 		InstanceLocks: &locker,

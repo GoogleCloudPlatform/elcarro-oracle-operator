@@ -70,9 +70,9 @@ func TestInstanceController(t *testing.T) {
 		"Instance controller",
 		func() []testhelpers.Reconciler {
 			reconciler = &InstanceReconciler{
-				Client: k8sManager.GetClient(),
-				Log:    ctrl.Log.WithName("controllers").WithName("Instance"),
-				Scheme: k8sManager.GetScheme(),
+				Client:    k8sManager.GetClient(),
+				Log:       ctrl.Log.WithName("controllers").WithName("Instance"),
+				SchemeVal: k8sManager.GetScheme(),
 				// We need a clone of 'images' to avoid race conditions between reconciler
 				// goroutine and the test goroutine.
 				Images:        CloneMap(images),

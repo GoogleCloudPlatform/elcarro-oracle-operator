@@ -47,12 +47,16 @@ var CheckStatusInstanceFunc = controllers.CheckStatusInstanceFunc
 type InstanceReconciler struct {
 	client.Client
 	Log           logr.Logger
-	Scheme        *runtime.Scheme
+	SchemeVal     *runtime.Scheme
 	Images        map[string]string
 	Recorder      record.EventRecorder
 	InstanceLocks *sync.Map
 
 	DatabaseClientFactory controllers.DatabaseClientFactory
+}
+
+func (r *InstanceReconciler) Scheme() *runtime.Scheme {
+	return r.SchemeVal
 }
 
 // +kubebuilder:rbac:groups=oracle.db.anthosapis.com,resources=instances,verbs=get;list;watch;create;update;patch;delete
@@ -180,7 +184,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
 
-	cm, err := controllers.NewConfigMap(&inst, r.Scheme, fmt.Sprintf(controllers.CmName, inst.Name))
+	cm, err := controllers.NewConfigMap(&inst, r.Scheme(), fmt.Sprintf(controllers.CmName, inst.Name))
 	if err != nil {
 		log.Error(err, "failed to create a ConfigMap", "cm", cm)
 		return ctrl.Result{}, err
@@ -193,7 +197,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 	// Create a StatefulSet if needed.
 	sp := controllers.StsParams{
 		Inst:           &inst,
-		Scheme:         r.Scheme,
+		Scheme:         r.Scheme(),
 		Namespace:      req.NamespacedName.Namespace,
 		Images:         images,
 		SvcName:        fmt.Sprintf(controllers.SvcName, inst.Name),
