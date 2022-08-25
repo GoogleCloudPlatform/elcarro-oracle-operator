@@ -344,6 +344,49 @@ func CreateDatabase(ctx context.Context, r client.Reader, dbClientFactory Databa
 	return "Ready", nil
 }
 
+type DeleteDatabaseRequest struct {
+	Name     string
+	DbDomain string
+}
+
+// DeleteDatabase deletes the specified Database(PDB)
+func DeleteDatabase(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req DeleteDatabaseRequest) error {
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/CreateDatabase: failed to create database daemon dbdClient: %v", err)
+	}
+	defer closeConn()
+
+	pdbName := strings.ToUpper(req.Name)
+
+	pdbCheckCmd := []string{fmt.Sprintf("select open_mode, restricted from v$pdbs where name = '%s'", sql.StringParam(pdbName))}
+	resp, err := dbClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbCheckCmd, Suppress: false})
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/DeleteDatabase: failed to check if a PDB named %s already exists: %v", pdbName, err)
+	}
+
+	if resp != nil && resp.Msg != nil {
+		klog.InfoS("config_agent_helpers/DeleteDatabase completed pre-flight check. The PDB exists.", "pdb", pdbName, "resp", resp)
+	} else {
+		klog.InfoS(fmt.Sprintf("config_agent_helpers/DeleteDatabase: A PDB named %s was not found", pdbName))
+		return nil
+	}
+
+	closePdbCmd := []string{fmt.Sprintf("alter pluggable database %s close immediate", sql.StringParam(pdbName))}
+	_, err = dbClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: closePdbCmd, Suppress: false})
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/DeleteDatabase: failed to close the PDB named %s: %v", pdbName, err)
+	}
+
+	deletePdbCmd := []string{fmt.Sprintf("drop pluggable database %s including datafiles", sql.StringParam(pdbName))}
+	_, err = dbClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: deletePdbCmd, Suppress: false})
+	if err != nil {
+		return fmt.Errorf("config_agent_helpers/DeleteDatabase: failed to delete the PDB named %s: %v", pdbName, err)
+	}
+
+	return nil
+}
+
 type UsersChangedRequest struct {
 	PdbName   string
 	UserSpecs []*User
