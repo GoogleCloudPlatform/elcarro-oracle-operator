@@ -31,12 +31,12 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s/finalizer"
 )
 
 var (
@@ -319,9 +319,9 @@ func (r *BackupReconciler) reconcileBackupCreation(ctx context.Context, backup *
 		return ctrl.Result{RequeueAfter: statusCheckInterval}, nil
 	case k8s.BackupReady:
 		// Add finalizer to clean backup data in case of deletion.
-		if !finalizer.Exists(backup, controllers.FinalizerName) {
+		if !controllerutil.ContainsFinalizer(backup, controllers.FinalizerName) {
 			log.Info("Adding backup finalizer.")
-			backup.Finalizers = append(backup.Finalizers, controllers.FinalizerName)
+			controllerutil.AddFinalizer(backup, controllers.FinalizerName)
 			// Immediately return to update the object and do the rest of work in the next reconcile cycle.
 			return ctrl.Result{}, r.Update(ctx, backup)
 		}
@@ -335,6 +335,11 @@ func (r *BackupReconciler) reconcileBackupCreation(ctx context.Context, backup *
 // reconcileBackupDeletion cleanup backup data when backup object is deleted.
 func (r *BackupReconciler) reconcileBackupDeletion(ctx context.Context, backup *v1alpha1.Backup, log logr.Logger) (ctrl.Result, error) {
 	log.Info("Reconciling backup delete...")
+
+	if !controllerutil.ContainsFinalizer(backup, controllers.FinalizerName) {
+		return ctrl.Result{}, nil
+	}
+
 	if backup.Status.Phase != k8s.BackupDeleting {
 		backup.Status.Conditions = k8s.Upsert(backup.Status.Conditions, k8s.Ready, v1.ConditionFalse, k8s.BackupDeleting, "Backup delete in progress.")
 		backup.Status.Phase = k8s.BackupDeleting
@@ -363,8 +368,8 @@ func (r *BackupReconciler) reconcileBackupDeletion(ctx context.Context, backup *
 	}
 
 	// Remove the finalizer.
-	log.Info("Removing finalizer.")
-	finalizer.Remove(backup, controllers.FinalizerName)
+	log.Info("Removing backup finalizer.")
+	controllerutil.RemoveFinalizer(backup, controllers.FinalizerName)
 	return ctrl.Result{}, r.Update(ctx, backup)
 }
 
