@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s/ownerref"
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -329,6 +330,9 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 				Name:        pvcName,
 				Namespace:   sp.Inst.Namespace,
 				Annotations: pvcAnnotations,
+				OwnerReferences: []metav1.OwnerReference{
+					ownerref.New(sp.Inst, true, true),
+				},
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},

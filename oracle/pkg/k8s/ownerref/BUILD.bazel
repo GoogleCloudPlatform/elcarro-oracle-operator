@@ -1,27 +1,27 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "k8s",
-    srcs = [
-        "condition.go",
-        "event.go",
-    ],
-    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s",
+    name = "ownerref",
+    srcs = ["ownerref.go"],
+    importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s/ownerref",
     visibility = ["//visibility:public"],
     deps = [
-        "//oracle/api/v1alpha1",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_utils//pointer",
     ],
 )
 
 go_test(
-    name = "k8s_test",
-    srcs = ["condition_test.go"],
-    embed = [":k8s"],
+    name = "ownerref_test",
+    srcs = ["ownerref_test.go"],
+    embed = [":ownerref"],
     deps = [
-        "//common/api/v1alpha1",
-        "//oracle/api/v1alpha1",
+        "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_api//apps/v1:apps",
+        "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_utils//pointer",
     ],
 )
 
@@ -34,10 +34,7 @@ filegroup(
 
 filegroup(
     name = "all-srcs",
-    srcs = [
-        ":package-srcs",
-        "//oracle/pkg/k8s/ownerref:all-srcs",
-    ],
+    srcs = [":package-srcs"],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
 )

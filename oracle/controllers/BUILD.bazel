@@ -24,6 +24,7 @@ go_library(
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/agents/standby",
         "//oracle/pkg/database/provision",
+        "//oracle/pkg/k8s/ownerref",
         "//oracle/pkg/util/secret",
         "@com_github_go_logr_logr//:logr",
         "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",

@@ -106,6 +106,11 @@ var _ = Describe("Instance and Database provisioning", func() {
 			databaseKey := client.ObjectKey{Namespace: namespace, Name: firstDatabaseName}
 			testhelpers.WaitForDatabaseConditionState(k8sEnv, databaseKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 5*time.Minute)
 
+			By("By checking that PVCs are created")
+			var pvcList corev1.PersistentVolumeClaimList
+			Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
+			Expect(len(pvcList.Items)).Should(Equal(4))
+
 			By("By checking that statefulset/deployment/svc are created")
 			var sts appsv1.StatefulSetList
 			Expect(k8sClient.List(ctx, &sts, client.InNamespace(namespace))).Should(Succeed())
@@ -120,19 +125,20 @@ var _ = Describe("Instance and Database provisioning", func() {
 			Expect(len(svc.Items)).Should(Equal(4)) // 2 services (LB, DBDaemon) per instance
 
 			By("Deleting a database")
-			database := &v1alpha1.Database{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: namespace,
-					Name:      firstDatabaseName,
-				},
-			}
-			testhelpers.K8sDeleteWithRetry(k8sClient, ctx, client.ObjectKey{Name: firstDatabaseName, Namespace: namespace}, database)
+			deleteDatabase(ctx, firstDatabaseName, namespace)
 			Eventually(func() ([]string, error) {
 				updatedInstance := &v1alpha1.Instance{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: firstInstanceName, Namespace: namespace}, updatedInstance)).Should(Succeed())
 				return updatedInstance.Status.DatabaseNames, nil
 			}, 60*time.Second, 5*time.Second).Should(BeEmpty())
 
+			By("Checking that PVCs get deleted after instances are deleted")
+			deleteInstance(ctx, firstInstanceName, namespace)
+			deleteInstance(ctx, secondInstanceName, namespace)
+			Eventually(func() (int, error) {
+				Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
+				return len(pvcList.Items), nil
+			}, 60*time.Second, 5*time.Second).Should(Equal(0))
 		})
 	}
 
@@ -199,6 +205,26 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 		},
 	}
 	testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, instance)
+}
+
+func deleteInstance(ctx context.Context, instanceName, namespace string) {
+	instance := &v1alpha1.Instance{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      instanceName,
+		},
+	}
+	testhelpers.K8sDeleteWithRetry(k8sEnv.K8sClient, ctx, client.ObjectKey{Name: instanceName, Namespace: namespace}, instance)
+}
+
+func deleteDatabase(ctx context.Context, databaseName, namespace string) {
+	database := &v1alpha1.Database{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      databaseName,
+		},
+	}
+	testhelpers.K8sDeleteWithRetry(k8sEnv.K8sClient, ctx, client.ObjectKey{Name: databaseName, Namespace: namespace}, database)
 }
 
 func createDatabase(instanceName, databaseName, namespace string) {
