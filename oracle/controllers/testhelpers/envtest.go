@@ -181,6 +181,12 @@ func RunFunctionalTestSuiteWithWebhooks(
 		testEnv.BinaryAssetsDirectory = filepath.Join(runfiles, "external/kubebuilder_tools/bin")
 	}
 
+	// k8s 1.21 introduced graceful shutdown so testEnv wont shutdown if we
+	// keep a connection open. By using a context with cancel we can
+	// shutdown our managers before we try to shutdown the testEnv and
+	// ensure no hanging connections keep the apiserver from stopping.
+	mgrCtx, mgrCancel := context.WithCancel(ctrl.SetupSignalHandler())
+
 	BeforeSuite(func(done Done) {
 		testEnvLock.Lock()
 		defer testEnvLock.Unlock()
@@ -246,7 +252,7 @@ func RunFunctionalTestSuiteWithWebhooks(
 
 		go func() {
 			defer GinkgoRecover()
-			err = (*k8sManager).Start(ctrl.SetupSignalHandler())
+			err = (*k8sManager).Start(mgrCtx)
 			Expect(err).ToNot(HaveOccurred())
 		}()
 
@@ -272,6 +278,7 @@ func RunFunctionalTestSuiteWithWebhooks(
 		testEnvLock.Lock()
 		defer testEnvLock.Unlock()
 		By("Stopping control plane")
+		mgrCancel()
 		Expect(testEnv.Stop()).To(Succeed())
 	})
 

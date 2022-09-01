@@ -479,7 +479,9 @@ func (s *Server) stageAndCatalog(ctx context.Context, req *dbdpb.PhysicalRestore
 func (s *Server) PhysicalRestoreAsync(ctx context.Context, req *dbdpb.PhysicalRestoreAsyncRequest) (*lropb.Operation, error) {
 	job, err := lro.CreateAndRunLROJobWithID(ctx, req.GetLroInput().GetOperationId(), "PhysicalRestore", s.lroServer,
 		func(ctx context.Context) (proto.Message, error) {
-			return s.physicalRestore(ctx, req.SyncRequest)
+			msg, err := s.physicalRestore(ctx, req.SyncRequest)
+			klog.InfoS("Physical restore completed", "err", err)
+			return msg, err
 		})
 
 	if err != nil {
@@ -723,25 +725,25 @@ func open(ctx context.Context, dbURL string, prelim bool) (oracleDatabase, error
 	if err == nil {
 		// Force a connection with Ping.
 		err = db.Ping()
-		if err != nil {
-			// Connection pool opened but ping failed, close this pool.
-			if err := db.Close(); err != nil {
-				klog.Warningf("failed to close db connection: %v", err)
-			}
+		if err == nil {
+			return db, nil
+		}
+		// Connection pool opened but ping failed, close this pool.
+		if errC := db.Close(); errC != nil {
+			klog.Warningf("failed to close db connection: %v", errC)
 		}
 	}
 
-	if err != nil {
+	if !prelim {
 		klog.ErrorS(err, "dbdaemon/open: newDB failed", "prelim", prelim)
-		if prelim {
-			// If a prelim connection is requested (e.g. for creating
-			// an spfile, also enable DBMS_OUTPUT.
-			db, err = newDB("godror", dbURL+"&prelim=1")
-		}
+		return nil, err
 	}
 
+	// If a prelim connection is requested (e.g. for creating
+	// an spfile) retry with prelim argument.
+	db, err = newDB("godror", dbURL+"&prelim=1")
 	if err != nil {
-		klog.ErrorS(err, "dbdaemon/open: newDB failed", "prelim", prelim)
+		klog.ErrorS(err, "dbdaemon/open: newDB failed prelim retry", "prelim", prelim)
 		return nil, err
 	}
 
@@ -780,6 +782,7 @@ func (d *DB) runSQL(ctx context.Context, sqls []string, prelim, suppress bool, d
 }
 
 func (d *DB) runQuery(ctx context.Context, sqls []string, db oracleDatabase) ([]string, error) {
+	//TODO: Query suppression
 	klog.InfoS("dbdaemon/runQuery: running sql", "sql", sqls)
 	sqlLen := len(sqls)
 	for i := 0; i < sqlLen-1; i++ {
@@ -876,7 +879,6 @@ func (s *Server) runSQLPlusHelper(ctx context.Context, req *dbdpb.RunSQLPlusCMDR
 		}
 	}
 
-	klog.InfoS("dbdaemon/runSQLPlusHelper: updated env ", "sid", s.databaseSid.val)
 	db, err := open(ctx, connectString, prelim)
 	if err != nil {
 		return nil, fmt.Errorf("dbdaemon/RunSQLPlus failed to open a database connection: %v", err)
@@ -906,33 +908,33 @@ func (s *Server) runSQLPlusHelper(ctx context.Context, req *dbdpb.RunSQLPlusCMDR
 // This function only returns DBMS_OUTPUT and not any row data.
 // To read from SELECTs use RunSQLPlusFormatted.
 func (s *Server) RunSQLPlus(ctx context.Context, req *dbdpb.RunSQLPlusCMDRequest) (*dbdpb.RunCMDResponse, error) {
-	if req.GetSuppress() {
-		klog.InfoS("dbdaemon/RunSQLPlus", "req", "suppressed", "serverObj", s)
-	} else {
-		klog.InfoS("dbdaemon/RunSQLPlus", "req", req, "serverObj", s)
-	}
-
 	// Add lock to protect server state "databaseSid" and os env variable "ORACLE_SID".
 	// Only add lock in top level API to avoid deadlock.
 	s.databaseSid.Lock()
 	defer s.databaseSid.Unlock()
+
+	if req.GetSuppress() {
+		klog.InfoS("dbdaemon/RunSQLPlus", "req", "suppressed", "SID", s.databaseSid.val, "serverObj", s)
+	} else {
+		klog.InfoS("dbdaemon/RunSQLPlus", "req", req, "SID", s.databaseSid.val, "serverObj", s)
+	}
+
 	return s.runSQLPlusHelper(ctx, req, false)
 }
 
 // RunSQLPlusFormatted executes a SQL command and returns the row results.
 // If instead you want DBMS_OUTPUT please issue RunSQLPlus
 func (s *Server) RunSQLPlusFormatted(ctx context.Context, req *dbdpb.RunSQLPlusCMDRequest) (*dbdpb.RunCMDResponse, error) {
-	if req.GetSuppress() {
-		klog.InfoS("dbdaemon/RunSQLPlusFormatted", "req", "suppressed", "serverObj", s)
-	} else {
-		klog.InfoS("dbdaemon/RunSQLPlusFormatted", "req", req, "serverObj", s)
-	}
-	sqls := req.GetCommands()
-	klog.InfoS("dbdaemon/RunSQLPlusFormatted: executing formatted SQL commands", "sql", sqls)
 	// Add lock to protect server state "databaseSid" and os env variable "ORACLE_SID".
 	// Only add lock in top level API to avoid deadlock.
 	s.databaseSid.Lock()
 	defer s.databaseSid.Unlock()
+
+	if req.GetSuppress() {
+		klog.InfoS("dbdaemon/RunSQLPlusFormatted", "req", "suppressed", "SID", s.databaseSid.val, "serverObj", s)
+	} else {
+		klog.InfoS("dbdaemon/RunSQLPlusFormatted", "req", req, "SID", s.databaseSid.val, "serverObj", s)
+	}
 
 	return s.runSQLPlusHelper(ctx, req, true)
 }
@@ -1067,9 +1069,9 @@ func (s *Server) RunRMAN(ctx context.Context, req *dbdpb.RunRMANRequest) (*dbdpb
 	// Add lock to protect server state "databaseSid" and os env variable "ORACLE_SID".
 	// Only add lock in top level API to avoid deadlock.
 	if req.GetSuppress() {
-		klog.Info("RunRMAN", "request", "suppressed")
+		klog.InfoS("RunRMAN", "request", "suppressed")
 	} else {
-		klog.Info("RunRMAN", "request", req)
+		klog.InfoS("RunRMAN", "request", req)
 	}
 
 	s.databaseSid.RLock()
@@ -1317,6 +1319,8 @@ func (s *Server) GetDatabaseName(ctx context.Context, req *dbdpb.GetDatabaseName
 
 // BounceDatabase starts/stops request specified database.
 func (s *Server) BounceDatabase(ctx context.Context, req *dbdpb.BounceDatabaseRequest) (*dbdpb.BounceDatabaseResponse, error) {
+	s.databaseSid.RLock()
+	defer s.databaseSid.RUnlock()
 	klog.InfoS("BounceDatabase request delegated to proxy", "req", req)
 	database, err := s.dbdClient.BounceDatabase(ctx, req)
 	if err != nil {

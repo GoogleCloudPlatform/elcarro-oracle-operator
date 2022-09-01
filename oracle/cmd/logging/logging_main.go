@@ -232,7 +232,7 @@ func queryDB(ctx context.Context, query string) (string, error) {
 	}
 	defer closeConn()
 
-	resp, err := dbdClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{query}, Suppress: true, Quiet: true})
+	resp, err := dbdClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: []string{query}, Suppress: false, Quiet: true})
 	if err != nil {
 		return "", err
 	}

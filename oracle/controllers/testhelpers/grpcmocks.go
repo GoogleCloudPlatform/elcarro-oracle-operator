@@ -515,6 +515,8 @@ func (cli *FakeDatabaseClient) RemoveMethodToError(method string) {
 }
 
 func (cli *FakeDatabaseClient) getMethodRespErr(method string) (interface{}, error) {
+	cli.lock.Lock()
+	defer cli.lock.Unlock()
 	var err error
 	var resp interface{}
 	if cli.methodToResp != nil {

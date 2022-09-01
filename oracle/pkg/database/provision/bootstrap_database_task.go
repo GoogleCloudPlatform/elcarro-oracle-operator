@@ -105,7 +105,7 @@ func (task *BootstrapTask) setParameters(ctx context.Context) error {
 	retry := 0
 	var err error
 	for ; retry < startupRetries; retry++ {
-		_, err := task.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		_, err = task.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
 			Operation:    dbdpb.BounceDatabaseRequest_STARTUP,
 			DatabaseName: task.db.GetDatabaseName(),
 			Option:       "nomount",
