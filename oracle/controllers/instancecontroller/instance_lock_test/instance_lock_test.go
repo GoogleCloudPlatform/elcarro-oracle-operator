@@ -43,7 +43,7 @@ var (
 const (
 	Namespace     = "default"
 	InstanceName  = "myinstance"
-	retryTimeout  = time.Millisecond * 10000
+	retryTimeout  = time.Millisecond * 20000
 	retryInterval = time.Millisecond * 100
 )
 
@@ -62,7 +62,7 @@ func TestInstanceLockBasic(t *testing.T) {
 
 // Simple worker performing read-write operations with 'testmap' in a loop
 // acquiring/releasing instance lock twice
-func updateMapWorker(id int, testmap map[string]int, waitgroup *sync.WaitGroup) {
+func updateMapWorker(id int, testmap map[string]int) {
 	defer GinkgoRecover()
 	logf.FromContext(nil).Info(fmt.Sprintf("Worker %d started", id))
 
@@ -104,7 +104,6 @@ func updateMapWorker(id int, testmap map[string]int, waitgroup *sync.WaitGroup) 
 			}, retryTimeout, retryInterval).Should(Succeed())
 
 	}
-	waitgroup.Done()
 }
 
 var _ = Describe("Instance Lock Test", func() {
@@ -188,7 +187,10 @@ var _ = Describe("Instance Lock Test", func() {
 		var wg sync.WaitGroup
 		for i := 1; i <= 5; i++ {
 			wg.Add(1)
-			go updateMapWorker(i, testMap, &wg)
+			go func(i int) {
+				updateMapWorker(i, testMap)
+				wg.Done()
+			}(i)
 		}
 		wg.Wait()
 		Expect(testMap["COUNTER"]).To(Equal(0))
