@@ -1,6 +1,7 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_test")
+load("//oracle:scripts/ginkgo_test.bzl", "ginkgo_test")
 
-go_test(
+# gazelle:map_kind go_test ginkgo_test //oracle:scripts/ginkgo_test.bzl
+ginkgo_test(
     name = "functest_test",
     size = "medium",
     srcs = ["backupschedule_controller_functional_test.go"],

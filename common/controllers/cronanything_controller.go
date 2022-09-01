@@ -648,7 +648,13 @@ func getResourceName(ca cronanything.CronAnything, scheduleTime time.Time) strin
 func getScheduleTimes(ca cronanything.CronAnything, now time.Time) ([]time.Time, time.Time, error) {
 	schedule, err := cron.ParseStandard(ca.CronAnythingSpec().Schedule)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("unable to parse schedule string: %v", err)
+		// Allow Full Cron formats if its invalid as a standard cron format.
+		var err2 error
+		schedule, err2 = cron.Parse(ca.CronAnythingSpec().Schedule)
+		if err2 != nil {
+			return nil, time.Time{}, fmt.Errorf("unable to parse schedule string: %v", err)
+		}
+		err = nil
 	}
 
 	var scheduleTimes []time.Time

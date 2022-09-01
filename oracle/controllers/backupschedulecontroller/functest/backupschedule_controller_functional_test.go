@@ -106,7 +106,7 @@ var _ = Describe("BackupSchedule controller", func() {
 		instanceName       = "test-instance"
 
 		timeout  = time.Second * 15
-		interval = time.Millisecond * 15
+		interval = time.Millisecond * 100
 	)
 
 	var instance v1alpha1.Instance
@@ -171,6 +171,7 @@ var _ = Describe("BackupSchedule controller", func() {
 })
 
 func testBackupCreation(namespace, backupScheduleName, instanceName string) {
+	timeout := time.Second * 20
 	By("By creating a BackupSchedule of the instance")
 	backupSchedule := &v1alpha1.BackupSchedule{
 		ObjectMeta: metav1.ObjectMeta{
@@ -185,8 +186,8 @@ func testBackupCreation(namespace, backupScheduleName, instanceName string) {
 				},
 			},
 			BackupScheduleSpec: commonv1alpha1.BackupScheduleSpec{
-				Schedule:                "* * * * *",
-				StartingDeadlineSeconds: pointer.Int64Ptr(5),
+				Schedule:                "*/5 * * * * *",
+				StartingDeadlineSeconds: pointer.Int64Ptr(3),
 			},
 		},
 	}
@@ -194,18 +195,19 @@ func testBackupCreation(namespace, backupScheduleName, instanceName string) {
 	By("Checking for the first Backup to be created")
 	Eventually(func() (int, error) {
 		return getBackupsTotal()
-	}, time.Minute*2, time.Second).Should(Equal(1))
+	}, timeout, time.Second).Should(Equal(1))
 	By("Checking for the second Backup to be created")
 	Eventually(func() (int, error) {
 		return getBackupsTotal()
-	}, time.Second*65, time.Second).Should(Equal(2))
+	}, timeout, time.Second).Should(Equal(2))
 	By("Checking for the third Backup to be created")
 	Eventually(func() (int, error) {
 		return getBackupsTotal()
-	}, time.Second*65, time.Second).Should(Equal(3))
+	}, timeout, time.Second).Should(Equal(3))
 }
 
 func testBackupRetention(namespace, backupScheduleName, instanceName string) {
+	timeout := time.Minute
 	By("By creating a BackupSchedule of the instance")
 	backupSchedule := &v1alpha1.BackupSchedule{
 		ObjectMeta: metav1.ObjectMeta{
@@ -220,8 +222,8 @@ func testBackupRetention(namespace, backupScheduleName, instanceName string) {
 				},
 			},
 			BackupScheduleSpec: commonv1alpha1.BackupScheduleSpec{
-				Schedule:                "* * * * *",
-				StartingDeadlineSeconds: pointer.Int64Ptr(5),
+				Schedule:                "*/5 * * * * *",
+				StartingDeadlineSeconds: pointer.Int64Ptr(3),
 				BackupRetentionPolicy: &commonv1alpha1.BackupRetentionPolicy{
 					BackupRetention: pointer.Int32Ptr(2),
 				},
@@ -241,13 +243,13 @@ func testBackupRetention(namespace, backupScheduleName, instanceName string) {
 			toBeDelete = backups[0]
 		}
 		return len(backups), nil
-	}, time.Minute*2, time.Second).Should(Equal(1))
+	}, timeout, time.Second).Should(Equal(1))
 
 	By("Checking for the first Backup to be deleted")
 	Eventually(func() bool {
 		backup := &v1alpha1.Backup{}
 		return apierrors.IsNotFound(k8sClient.Get(context.TODO(), toBeDeleteKey, backup))
-	}, time.Second*200, time.Second).Should(BeTrue())
+	}, timeout, time.Second).Should(BeTrue())
 }
 
 func getBackupsTotal() (int, error) {
