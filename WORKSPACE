@@ -133,9 +133,9 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//visibility:public"],
 )""",
-    sha256 = "fb13a93a800389029b06fcc74ab6a3b969ff74178252709a040e4756251739d2",
+    sha256 = "6d9f0a6ab0119c5060799b4b8cbd0a030562da70b7ad4125c218eaf028c6cc28",
     strip_prefix = "kubebuilder",
-    urls = ["https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.19.2-linux-amd64.tar.gz"],
+    urls = ["https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.24.2-linux-amd64.tar.gz"],
 )
 
 http_archive(
