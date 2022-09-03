@@ -253,6 +253,7 @@ enable_unified_auditing() {
 }
 
 create_cdb() {
+  set +x
   local syspass="$(openssl rand -base64 16 | tr -dc a-zA-Z0-9)"
   sudo -u oracle "${OHOME}/bin/dbca" \
     -silent \
@@ -272,6 +273,7 @@ create_cdb() {
     -recoveryAreaDestination /u01/app/oracle/fast_recovery_area \
     -sysPassword "${syspass}" \
     -systemPassword "${syspass}"
+  set -x
 }
 
 set_environment() {
