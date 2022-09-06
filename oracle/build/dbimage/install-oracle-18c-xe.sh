@@ -44,8 +44,10 @@ SKIP_VALIDATIONS=FALSE" > /etc/sysconfig/oracle-xe-18c.conf
 }
 
 create_cdb() {
+  set +x
   local syspass="$(openssl rand -base64 16 | tr -dc a-zA-Z0-9)"
   (echo "${syspass}"; echo "${syspass}";) | /etc/init.d/oracle-xe-18c configure
+  set -x
 }
 
 set_file_ownership() {
