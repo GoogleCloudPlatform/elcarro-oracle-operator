@@ -520,6 +520,12 @@ spec:
                 required:
                 - requestTime
                 type: object
+              retainDisksAfterInstanceDeletion:
+                description: RetainDisksAfterInstanceDeletion should be set to true
+                  if Persistent Volumes and underlying disks should be retained after
+                  the Instance is deleted. The Default value is false, meaning disks
+                  are deleted with the instance.
+                type: boolean
               services:
                 additionalProperties:
                   type: boolean

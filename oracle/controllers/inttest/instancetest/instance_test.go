@@ -86,9 +86,9 @@ var _ = Describe("Instance and Database provisioning", func() {
 			dbTimeout += 5 * time.Minute // Add some buffer time given that this test runs in a different process space than the instance
 
 			By("By creating two new Instances")
-			createInstance(firstInstanceName, cdbName, namespace, version, edition, extra)
+			createInstance(firstInstanceName, cdbName, namespace, version, edition, extra, true)
 			instKey1 := client.ObjectKey{Namespace: namespace, Name: firstInstanceName}
-			createInstance(secondInstanceName, cdbName, namespace, version, edition, extra)
+			createInstance(secondInstanceName, cdbName, namespace, version, edition, extra, false)
 			instKey2 := client.ObjectKey{Namespace: namespace, Name: secondInstanceName}
 
 			By("By checking that Instance is created")
@@ -132,13 +132,20 @@ var _ = Describe("Instance and Database provisioning", func() {
 				return updatedInstance.Status.DatabaseNames, nil
 			}, 60*time.Second, 5*time.Second).Should(BeEmpty())
 
-			By("Checking that PVCs get deleted after instances are deleted")
+			By("Checking that only PVCs for the first instance are retained")
 			deleteInstance(ctx, firstInstanceName, namespace)
 			deleteInstance(ctx, secondInstanceName, namespace)
 			Eventually(func() (int, error) {
 				Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
 				return len(pvcList.Items), nil
-			}, 60*time.Second, 5*time.Second).Should(Equal(0))
+			}, 60*time.Second, 5*time.Second).Should(Equal(2)) // 2 PVCs kept for the first instance
+			Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
+			pvcNames := make([]string, 2)
+			for i := 0; i < len(pvcList.Items); i++ {
+				pvcNames[i] = pvcList.Items[i].GetName()
+			}
+			Expect(pvcNames).Should(ContainElements(firstInstanceName+"-pvc-u02-"+firstInstanceName+"-sts-0",
+				firstInstanceName+"-pvc-u03-"+firstInstanceName+"-sts-0"))
 		})
 	}
 
@@ -165,7 +172,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	}
 })
 
-func createInstance(instanceName, cdbName, namespace, version, edition, extra string) {
+func createInstance(instanceName, cdbName, namespace, version, edition, extra string, retainDisksOnDelete bool) {
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
@@ -177,7 +184,8 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 			CDBName:      cdbName,
 			DBUniqueName: cdbName,
 			InstanceSpec: commonv1alpha1.InstanceSpec{
-				Version: version,
+				Version:                          version,
+				RetainDisksAfterInstanceDeletion: retainDisksOnDelete,
 				Disks: []commonv1alpha1.DiskSpec{
 					{
 						Name:         "DataDisk",
