@@ -227,7 +227,7 @@ buildah-push-all-containerized:
 		--mount=type=bind,src=$(shell readlink -f ~/.cache/bazel),dst=/root/.cache/bazel \
 		--mount=type=bind,src=$(shell readlink -f ~/.config/),dst=/root/.config/ \
 		gcr.io/k8s-testimages/kubekins-e2e:latest-master \
-		/bin/sh -c "gcloud auth configure-docker --quiet && cd /workspace/code/oracle && make buildah-push-all && rm /workspace/code/bazel-*"
+		/bin/sh -c "gcloud auth configure-docker --quiet && /workspace/code/oracle/scripts/install_prow_deps.sh && cd /workspace/code/oracle && make buildah-push-all && rm /workspace/code/bazel-*"
 
 
 # Install all the required dependencies for prow.
