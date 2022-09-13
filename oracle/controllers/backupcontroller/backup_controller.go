@@ -264,7 +264,7 @@ func (r *BackupReconciler) reconcileBackupCreation(ctx context.Context, backup *
 		if err := r.addBackupMetadata(ctx, backup, &oracleBackupMetadata{
 			incarnation:       inst.Status.CurrentDatabaseIncarnation,
 			parentIncarnation: inst.Status.LastDatabaseIncarnation,
-			databaseImage:     inst.Spec.Images["service"],
+			databaseImage:     inst.Status.ActiveImages["service"],
 		}); err != nil {
 			return ctrl.Result{}, err
 		}

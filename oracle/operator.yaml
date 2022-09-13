@@ -2307,10 +2307,26 @@ spec:
           status:
             description: InstanceStatus defines the observed state of Instance.
             properties:
+              ActiveImages:
+                additionalProperties:
+                  type: string
+                description: ActiveImages stores the stable images used by the active
+                  containers.
+                type: object
+              CurrentActiveStateMachine:
+                description: CurrentActiveStateMachine stores the name of the state
+                  machine currently active.
+                type: string
               DnfsEnabled:
                 description: DnfsEnabled stores whether dNFS has already been enabled
                   or not.
                 type: boolean
+              LastFailedImages:
+                additionalProperties:
+                  type: string
+                description: LastFailedImages stores the images which failed the last
+                  patching workflow..
+                type: object
               adminUser:
                 description: AdminUser represents the observed state of the admin
                   user
@@ -2500,10 +2516,6 @@ spec:
                 - primaryServiceName
                 - primaryUser
                 type: object
-              currentServiceImage:
-                description: CurrentServiceImage stores the image name used by the
-                  database instance.
-                type: string
               dataGuardOutput:
                 description: DataGuardOutput stores the latest Data Guard utility
                   status output.

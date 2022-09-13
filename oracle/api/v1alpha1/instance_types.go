@@ -256,9 +256,6 @@ type InstanceStatus struct {
 	// +kubebuilder:validation:Format=date-time
 	LastRestoreTime *metav1.Time `json:"lastRestoreTime,omitempty"`
 
-	// CurrentServiceImage stores the image name used by the database instance.
-	CurrentServiceImage string `json:"currentServiceImage,omitempty"`
-
 	// CurrentParameters stores the last successfully set instance parameters.
 	CurrentParameters map[string]string `json:"currentParameters,omitempty"`
 
@@ -282,6 +279,15 @@ type InstanceStatus struct {
 	// LastFailedParameterUpdate is used to avoid getting into the failed
 	// parameter update loop.
 	LastFailedParameterUpdate map[string]string `json:"lastFailedParameterUpdate,omitempty"`
+
+	// ActiveImages stores the stable images used by the active containers.
+	ActiveImages map[string]string `json:"ActiveImages,omitempty"`
+
+	// LastFailedImages stores the images which failed the last patching workflow..
+	LastFailedImages map[string]string `json:"LastFailedImages,omitempty"`
+
+	// CurrentActiveStateMachine stores the name of the state machine currently active.
+	CurrentActiveStateMachine string `json:"CurrentActiveStateMachine,omitempty"`
 
 	// LockedByController is a shared lock field granting exclusive access
 	// to maintenance operations to only one controller.
