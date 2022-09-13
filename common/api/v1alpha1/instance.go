@@ -97,6 +97,12 @@ type InstanceSpec struct {
 	// data and log (archive log), and optionally a backup disk.
 	Disks []DiskSpec `json:"disks,omitempty"`
 
+	// RetainDisksAfterInstanceDeletion should be set to true if Persistent Volumes
+	// and underlying disks should be retained after the Instance is deleted.
+	// The Default value is false, meaning disks are deleted with the instance.
+	// +optional
+	RetainDisksAfterInstanceDeletion bool `json:"retainDisksAfterInstanceDeletion,omitempty"`
+
 	// Service agent and other data plane GCR images.
 	// This is an optional map that allows a customer to specify GCR images
 	// different from those chosen/provided.

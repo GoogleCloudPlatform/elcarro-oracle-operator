@@ -324,15 +324,22 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 			pvcAnnotations = diskSpec.Annotations
 		}
 
+		var ownerRef []metav1.OwnerReference
+		if !sp.Inst.Spec.RetainDisksAfterInstanceDeletion {
+			// Instead of manually handling PVCs after an instance is deleted,
+			// we leverage ownerRef to automatically delete PVCs if necessary.
+			ownerRef = []metav1.OwnerReference{
+				ownerref.New(sp.Inst, true, true),
+			}
+		}
+
 		pvc = corev1.PersistentVolumeClaim{
 			TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        pvcName,
-				Namespace:   sp.Inst.Namespace,
-				Annotations: pvcAnnotations,
-				OwnerReferences: []metav1.OwnerReference{
-					ownerref.New(sp.Inst, true, true),
-				},
+				Name:            pvcName,
+				Namespace:       sp.Inst.Namespace,
+				Annotations:     pvcAnnotations,
+				OwnerReferences: ownerRef,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes:      []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
