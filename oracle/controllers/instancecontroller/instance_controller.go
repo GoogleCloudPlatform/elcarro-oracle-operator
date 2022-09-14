@@ -278,7 +278,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 				r.Recorder.Eventf(&inst, corev1.EventTypeNormal, "InstanceReady", "Instance has been created successfully. Elapsed Time: %v", elapsed)
 			}
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
-			inst.Status.CurrentServiceImage = images["service"]
+			inst.Status.ActiveImages = CloneMap(sp.Images)
 			return ctrl.Result{}, nil
 		}
 	}
