@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/backup"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/standby"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util/secret"
@@ -40,8 +41,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 )
 
 const (
@@ -1663,4 +1662,25 @@ func DataGuardStatus(ctx context.Context, r client.Reader, dbClientFactory Datab
 	return &DataGuardStatusResponse{
 		Output: output,
 	}, err
+}
+
+type ApplyDataPatchRequest struct {
+	LroInput *LROInput
+}
+
+// ApplyDataPatch calls dbdaemon->ApplyDataPatch()
+func ApplyDataPatch(ctx context.Context, r client.Reader, dbClientFactory DatabaseClientFactory, namespace, instName string, req ApplyDataPatchRequest) (*lropb.Operation, error) {
+	klog.InfoS("config_agent_helpersApplyDataPatch", "namespace", namespace, "instName", instName)
+
+	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
+	if err != nil {
+		return nil, fmt.Errorf("config_agent_helpers/ApplyDataPatch: failed to create database daemon client: %w", err)
+	}
+	defer func() { _ = closeConn() }()
+
+	return dbClient.ApplyDataPatchAsync(ctx, &dbdpb.ApplyDataPatchAsyncRequest{
+		LroInput: &dbdpb.LROInput{
+			OperationId: req.LroInput.OperationId,
+		},
+	})
 }

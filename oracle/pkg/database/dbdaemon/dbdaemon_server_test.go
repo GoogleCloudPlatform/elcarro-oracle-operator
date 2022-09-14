@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -447,10 +448,6 @@ func (m *mockDatabaseDaemonProxyClient) ProxyRunNID(ctx context.Context, in *dbd
 	panic("implement me")
 }
 
-func (m *mockDatabaseDaemonProxyClient) SetEnv(ctx context.Context, in *dbdpb.SetEnvRequest, opts ...grpc.CallOption) (*dbdpb.SetEnvResponse, error) {
-	panic("implement me")
-}
-
 func (m *mockDatabaseDaemonProxyClient) ProxyRunInitOracle(ctx context.Context, in *dbdpb.ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*dbdpb.ProxyRunInitOracleResponse, error) {
 	panic("implement me")
 }
@@ -501,4 +498,32 @@ func NewMockServer(ctx context.Context, cdbNameFromYaml string) (*Server, error)
 	s.databaseHome = "DBHOME"
 	s.databaseSid.val = "MOCK_DB"
 	return s, nil
+}
+
+func TestApplyDataPatch(t *testing.T) {
+	ctx := context.Background()
+	s, err := NewMockServer(ctx, "")
+	if err != nil {
+		t.Fatalf("error calling New: %v", err)
+	}
+	_, err = s.applyDataPatch(ctx)
+	if err != nil {
+		t.Fatalf("error calling applyDataPatch: %v", err)
+	}
+	if s.dbdClient.(*mockDatabaseDaemonProxyClient).startupCount != 2 {
+		t.Fatalf("error, startupCount = %v", s.dbdClient.(*mockDatabaseDaemonProxyClient).startupCount)
+	}
+	if s.dbdClient.(*mockDatabaseDaemonProxyClient).shutdownCount != 2 {
+		t.Fatalf("error, startupCount = %v", s.dbdClient.(*mockDatabaseDaemonProxyClient).startupCount)
+	}
+	if s.database.(*mockDB).setDatabaseUpgradeModeCount != 1 {
+		t.Fatalf("error setDatabaseUpgradeModeCount")
+	}
+	if s.database.(*mockDB).openPDBsCount != 1 {
+		t.Fatalf("error setDatabaseUpgradeModeCount")
+	}
+	if !reflect.DeepEqual(s.osUtil.(*mockOsUtil).commands, []string{"DBHOME/OPatch/datapatch"}) {
+		t.Fatalf("error s.osUtil.(*mockOsUtil).commands %v", s.osUtil.(*mockOsUtil).commands)
+	}
+
 }

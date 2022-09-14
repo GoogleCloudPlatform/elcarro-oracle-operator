@@ -80,6 +80,9 @@ type DatabaseDaemonClient interface {
 	DataPumpImportAsync(ctx context.Context, in *DataPumpImportAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	// DataPumpExportAsync exports data to a .dmp file using expdp
 	DataPumpExportAsync(ctx context.Context, in *DataPumpExportAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
+	// ApplyDataPatchAsync applies Oracle `datapatch` utility
+	// and starts DB (CDB+PDBs) up after patching
+	ApplyDataPatchAsync(ctx context.Context, in *ApplyDataPatchAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 	// ListOperations lists operations that match the specified filter in the
 	// request.
 	ListOperations(ctx context.Context, in *longrunning.ListOperationsRequest, opts ...grpc.CallOption) (*longrunning.ListOperationsResponse, error)
@@ -347,6 +350,15 @@ func (c *databaseDaemonClient) DataPumpExportAsync(ctx context.Context, in *Data
 	return out, nil
 }
 
+func (c *databaseDaemonClient) ApplyDataPatchAsync(ctx context.Context, in *ApplyDataPatchAsyncRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
+	out := new(longrunning.Operation)
+	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/ApplyDataPatchAsync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *databaseDaemonClient) ListOperations(ctx context.Context, in *longrunning.ListOperationsRequest, opts ...grpc.CallOption) (*longrunning.ListOperationsResponse, error) {
 	out := new(longrunning.ListOperationsResponse)
 	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemon/ListOperations", in, out, opts...)
@@ -492,6 +504,9 @@ type DatabaseDaemonServer interface {
 	DataPumpImportAsync(context.Context, *DataPumpImportAsyncRequest) (*longrunning.Operation, error)
 	// DataPumpExportAsync exports data to a .dmp file using expdp
 	DataPumpExportAsync(context.Context, *DataPumpExportAsyncRequest) (*longrunning.Operation, error)
+	// ApplyDataPatchAsync applies Oracle `datapatch` utility
+	// and starts DB (CDB+PDBs) up after patching
+	ApplyDataPatchAsync(context.Context, *ApplyDataPatchAsyncRequest) (*longrunning.Operation, error)
 	// ListOperations lists operations that match the specified filter in the
 	// request.
 	ListOperations(context.Context, *longrunning.ListOperationsRequest) (*longrunning.ListOperationsResponse, error)
@@ -599,6 +614,9 @@ func (UnimplementedDatabaseDaemonServer) DataPumpImportAsync(context.Context, *D
 }
 func (UnimplementedDatabaseDaemonServer) DataPumpExportAsync(context.Context, *DataPumpExportAsyncRequest) (*longrunning.Operation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DataPumpExportAsync not implemented")
+}
+func (UnimplementedDatabaseDaemonServer) ApplyDataPatchAsync(context.Context, *ApplyDataPatchAsyncRequest) (*longrunning.Operation, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApplyDataPatchAsync not implemented")
 }
 func (UnimplementedDatabaseDaemonServer) ListOperations(context.Context, *longrunning.ListOperationsRequest) (*longrunning.ListOperationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListOperations not implemented")
@@ -1108,6 +1126,24 @@ func _DatabaseDaemon_DataPumpExportAsync_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DatabaseDaemon_ApplyDataPatchAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplyDataPatchAsyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DatabaseDaemonServer).ApplyDataPatchAsync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/agents.oracle.DatabaseDaemon/ApplyDataPatchAsync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DatabaseDaemonServer).ApplyDataPatchAsync(ctx, req.(*ApplyDataPatchAsyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DatabaseDaemon_ListOperations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(longrunning.ListOperationsRequest)
 	if err := dec(in); err != nil {
@@ -1380,6 +1416,10 @@ var DatabaseDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataPumpExportAsync",
 			Handler:    _DatabaseDaemon_DataPumpExportAsync_Handler,
+		},
+		{
+			MethodName: "ApplyDataPatchAsync",
+			Handler:    _DatabaseDaemon_ApplyDataPatchAsync_Handler,
 		},
 		{
 			MethodName: "ListOperations",

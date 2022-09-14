@@ -124,6 +124,11 @@ service DatabaseDaemon {
   rpc DataPumpExportAsync(DataPumpExportAsyncRequest)
       returns (google.longrunning.Operation);
 
+  // ApplyDataPatchAsync applies Oracle `datapatch` utility
+  // and starts DB (CDB+PDBs) up after patching
+  rpc ApplyDataPatchAsync(ApplyDataPatchAsyncRequest)
+      returns (google.longrunning.Operation);
+
   // ListOperations lists operations that match the specified filter in the
   // request.
   rpc ListOperations(google.longrunning.ListOperationsRequest)
@@ -472,6 +477,11 @@ message DataPumpExportAsyncRequest {
 }
 
 message DataPumpExportResponse {}
+
+message ApplyDataPatchAsyncRequest {
+  LROInput lro_input = 1;
+}
+message ApplyDataPatchResponse {}
 
 message RecoverConfigFileRequest {
   string cdbName = 1;

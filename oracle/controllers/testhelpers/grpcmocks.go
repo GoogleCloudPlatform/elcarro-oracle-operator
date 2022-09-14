@@ -97,6 +97,17 @@ func (cli *FakeDatabaseClient) SetDnfsState(ctx context.Context, in *dbdpb.SetDn
 	panic("implement me")
 }
 
+// ApplyDataPatchAsync wrapper.
+func (cli *FakeDatabaseClient) ApplyDataPatchAsync(context.Context, *dbdpb.ApplyDataPatchAsyncRequest, ...grpc.CallOption) (*lropb.Operation, error) {
+	atomic.AddInt32(&cli.applyDataPatchAsyncCalledCnt, 1)
+	return nil, nil
+}
+
+// ApplyDataPatchAsync wrapper.
+func (cli *FakeDatabaseClient) ApplyDataPatchAsyncCalledCnt() int {
+	return int(atomic.LoadInt32(&cli.applyDataPatchAsyncCalledCnt))
+}
+
 // CreateDir RPC call to create a directory named path, along with any
 // necessary parents.
 func (cli *FakeDatabaseClient) CreateDirs(ctx context.Context, in *dbdpb.CreateDirsRequest, opts ...grpc.CallOption) (*dbdpb.CreateDirsResponse, error) {
