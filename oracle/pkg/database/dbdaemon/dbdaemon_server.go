@@ -683,6 +683,111 @@ func (s *Server) DataPumpExportAsync(ctx context.Context, req *dbdpb.DataPumpExp
 	return &lropb.Operation{Name: job.ID(), Done: false}, nil
 }
 
+// Restart database in upgrade mode, apply 'datapath', restart in normal mode
+// Executes following steps:
+// SQL> shutdown immediate
+// SQL> startup nomount
+// SQL> alter database mount
+// SQL> alter database open upgrade
+// SQL> alter pluggable database all open upgrade
+// /u01/app/oracle/product/12.2/db/OPatch/datapatch -verbose
+// SQL> shutdown immediate
+// SQL> startup
+// SQL> alter pluggable database all open
+func (s *Server) applyDataPatch(ctx context.Context) (*dbdpb.ApplyDataPatchResponse, error) {
+	s.syncJobs.maintenanceMutex.Lock()
+	defer s.syncJobs.maintenanceMutex.Unlock()
+
+	klog.InfoS("dbdaemon/applyDataPatch started")
+
+	// Ask proxy to shutdown the DB
+	if _, err := s.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: s.databaseSid.val,
+		Option:       "immediate",
+	}); err != nil {
+		return nil, fmt.Errorf("proxy request to shutdown DB failed: %w", err)
+	}
+
+	klog.InfoS("dbdaemon/applyDataPatch DB is down, starting in upgrade mode")
+
+	// Ask proxy to startup the DB in NOMOUNT mode
+	if _, err := s.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_STARTUP,
+		DatabaseName: s.databaseSid.val,
+		Option:       "nomount",
+	}); err != nil {
+		return nil, fmt.Errorf("proxy request to startup DB failed: %w", err)
+	}
+
+	// Set upgrade mode
+	if err := s.database.setDatabaseUpgradeMode(ctx); err != nil {
+		return nil, err
+	}
+
+	klog.InfoS("dbdaemon/applyDataPatch DB is in migrate state, starting datapatch")
+
+	// oracle/product/12.2/db/OPatch/datapatch -verbose
+	if err := s.runCommand(datapatch(s.databaseHome), []string{"-verbose"}); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("datapatch failed with exit code = %v: %w", exitError.ExitCode(), err)
+		}
+		return nil, fmt.Errorf("datapatch failed: %w", err)
+	}
+
+	klog.InfoS("dbdaemon/applyDataPatch datapatch done, restarting DB in normal mode")
+
+	// Ask proxy to shutdown the DB
+	// SQL> shutdown immediate
+	if _, err := s.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: s.databaseSid.val,
+		Option:       "immediate",
+	}); err != nil {
+		return nil, fmt.Errorf("proxy request to shutdown DB failed: %w", err)
+	}
+
+	// Ask proxy to startup the DB
+	// SQL> startup
+	if _, err := s.dbdClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_STARTUP,
+		DatabaseName: s.databaseSid.val,
+		Option:       "",
+	}); err != nil {
+		return nil, fmt.Errorf("proxy request to startup DB failed: %w", err)
+	}
+
+	// SQL> alter pluggable database all open
+	if err := s.database.openPDBs(ctx); err != nil {
+		return nil, err
+	}
+	// At this point CDB$ROOT, PDB$SEED and all PDBs should be in normal 'RW' or 'RO' state
+
+	klog.InfoS("dbdaemon/applyDataPatch completed, DB is back up")
+	return &dbdpb.ApplyDataPatchResponse{}, nil
+}
+
+// ApplyDataPatchAsync turns applyDataPatch into an async call.
+func (s *Server) ApplyDataPatchAsync(ctx context.Context, req *dbdpb.ApplyDataPatchAsyncRequest) (*lropb.Operation, error) {
+	job, err := lro.CreateAndRunLROJobWithID(ctx, req.GetLroInput().GetOperationId(), "ApplyDataPatch", s.lroServer,
+		func(ctx context.Context) (proto.Message, error) {
+			// Protect databaseSid
+			s.databaseSid.Lock()
+			defer s.databaseSid.Unlock()
+			resp, err := s.applyDataPatch(ctx)
+			if err != nil {
+				klog.ErrorS(err, "dbdaemon/ApplyDataPatchAsync failed")
+			}
+			return resp, err
+		})
+
+	if err != nil {
+		klog.ErrorS(err, "dbdaemon/ApplyDataPatchAsync failed to create an LRO job", "request", req)
+		return nil, err
+	}
+	return &lropb.Operation{Name: job.ID(), Done: false}, nil
+}
+
 // ListOperations returns a paged list of currently managed long running operations.
 func (s *Server) ListOperations(ctx context.Context, req *lropb.ListOperationsRequest) (*lropb.ListOperationsResponse, error) {
 	return s.lroServer.ListOperations(ctx, req)

@@ -20,6 +20,7 @@
 // - [Stop|Start]Listeners
 // - RunSQLPlus[Formatted]
 // - DataPump[Import|Export]Async
+// - ApplyDataPatchAsync
 package main
 
 import (
@@ -72,6 +73,7 @@ type databaseDaemonStub interface {
 	GetDatabaseName(context.Context, *dbdpb.GetDatabaseNameRequest, ...grpc.CallOption) (*dbdpb.GetDatabaseNameResponse, error)
 	DataPumpImportAsync(ctx context.Context, req *dbdpb.DataPumpImportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error)
 	DataPumpExportAsync(ctx context.Context, req *dbdpb.DataPumpExportAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error)
+	ApplyDataPatchAsync(ctx context.Context, req *dbdpb.ApplyDataPatchAsyncRequest, opts ...grpc.CallOption) (*lropb.Operation, error)
 	ListOperations(ctx context.Context, req *lropb.ListOperationsRequest, opts ...grpc.CallOption) (*lropb.ListOperationsResponse, error)
 	GetOperation(ctx context.Context, req *lropb.GetOperationRequest, opts ...grpc.CallOption) (*lropb.Operation, error)
 	DeleteOperation(ctx context.Context, in *lropb.DeleteOperationRequest, opts ...grpc.CallOption) (*empty.Empty, error)
@@ -81,7 +83,7 @@ type databaseDaemonStub interface {
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s -action [CheckDatabase[CDB|PDB],"+
 		" [Start|Stop]Database, [Start|Stop]Listeners, RunSQLPlus[Formatted],"+
-		" DataPump[Import|Export]Async,"+
+		" DataPump[Import|Export]Async, ApplyDataPatchAsync,"+
 		" DownloadDirectoryFromGCS]"+
 		" [-database_name -request_timeout -export_object_type -export_objects -gcs_path -gcs_log_path] [-port|-socket]", os.Args[0])
 	flag.PrintDefaults()
@@ -283,6 +285,16 @@ func main() {
 			os.Exit(exitErrorCode)
 		}
 		klog.InfoS("action succeeded: Successfully started data pump export", "action", *action, "container/host", hostname, "response", resp)
+
+	case "ApplyDataPatchAsync":
+		klog.InfoS("starting ApplyDataPatchAsync...", "container/host", hostname)
+
+		resp, err := client.ApplyDataPatchAsync(ctx, &dbdpb.ApplyDataPatchAsyncRequest{})
+		if err != nil {
+			klog.ErrorS(err, "datapatch failed")
+			os.Exit(exitErrorCode)
+		}
+		klog.InfoS("action succeeded: Finished datapatch", "action", *action, "container/host", hostname, "response", resp)
 
 	case "ListOperations":
 		klog.InfoS("running ListOperations...")

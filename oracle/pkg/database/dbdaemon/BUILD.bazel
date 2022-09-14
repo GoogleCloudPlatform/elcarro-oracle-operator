@@ -23,7 +23,6 @@ go_library(
         "@com_google_cloud_go_storage//:storage",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@io_bazel_rules_go//proto/wkt:empty_go_proto",
-        "@io_k8s_client_go//util/retry",
         "@io_k8s_klog_v2//:klog",
         "@org_golang_google_api//iterator",
         "@org_golang_google_grpc//:go_default_library",
@@ -33,10 +32,7 @@ go_library(
 
 go_test(
     name = "dbdaemon_test",
-    srcs = [
-        "dbdaemon_server_test.go",
-        "utils_test.go",
-    ],
+    srcs = ["dbdaemon_server_test.go"],
     embed = [":dbdaemon"],
     deps = [
         "//oracle/pkg/agents/oracle",

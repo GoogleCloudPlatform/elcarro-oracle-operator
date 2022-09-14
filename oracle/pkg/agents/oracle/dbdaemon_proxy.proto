@@ -34,8 +34,6 @@ service DatabaseDaemonProxy {
   rpc ProxyRunDbca(ProxyRunDbcaRequest) returns (ProxyRunDbcaResponse);
   // ProxyRunNID RPC call executes database rename operations
   rpc ProxyRunNID(ProxyRunNIDRequest) returns (ProxyRunNIDResponse);
-  // SetEnv RPC call moves/relinks oracle config files within oracledb container
-  rpc SetEnv(SetEnvRequest) returns (SetEnvResponse);
   // ProxyRunInitOracle RPC call exec init_oracle binary with specified params
   rpc ProxyRunInitOracle(ProxyRunInitOracleRequest)
       returns (ProxyRunInitOracleResponse) {}
@@ -45,14 +43,6 @@ service DatabaseDaemonProxy {
   // SetDnfsState set dNFS state
   rpc SetDnfsState(SetDnfsStateRequest) returns (SetDnfsStateResponse) {}
 }
-
-message SetEnvRequest {
-  string oracle_home = 1;
-  string cdb_name = 2;
-  string spfile_path = 3;
-}
-
-message SetEnvResponse {}
 
 message ProxyRunNIDRequest {
   string source_db_name = 1;

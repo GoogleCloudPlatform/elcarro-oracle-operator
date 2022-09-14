@@ -38,107 +38,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SetEnvRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	OracleHome string `protobuf:"bytes,1,opt,name=oracle_home,json=oracleHome,proto3" json:"oracle_home,omitempty"`
-	CdbName    string `protobuf:"bytes,2,opt,name=cdb_name,json=cdbName,proto3" json:"cdb_name,omitempty"`
-	SpfilePath string `protobuf:"bytes,3,opt,name=spfile_path,json=spfilePath,proto3" json:"spfile_path,omitempty"`
-}
-
-func (x *SetEnvRequest) Reset() {
-	*x = SetEnvRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[0]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SetEnvRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetEnvRequest) ProtoMessage() {}
-
-func (x *SetEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[0]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetEnvRequest.ProtoReflect.Descriptor instead.
-func (*SetEnvRequest) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SetEnvRequest) GetOracleHome() string {
-	if x != nil {
-		return x.OracleHome
-	}
-	return ""
-}
-
-func (x *SetEnvRequest) GetCdbName() string {
-	if x != nil {
-		return x.CdbName
-	}
-	return ""
-}
-
-func (x *SetEnvRequest) GetSpfilePath() string {
-	if x != nil {
-		return x.SpfilePath
-	}
-	return ""
-}
-
-type SetEnvResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *SetEnvResponse) Reset() {
-	*x = SetEnvResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *SetEnvResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetEnvResponse) ProtoMessage() {}
-
-func (x *SetEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetEnvResponse.ProtoReflect.Descriptor instead.
-func (*SetEnvResponse) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{1}
-}
-
 type ProxyRunNIDRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -152,7 +51,7 @@ type ProxyRunNIDRequest struct {
 func (x *ProxyRunNIDRequest) Reset() {
 	*x = ProxyRunNIDRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -165,7 +64,7 @@ func (x *ProxyRunNIDRequest) String() string {
 func (*ProxyRunNIDRequest) ProtoMessage() {}
 
 func (x *ProxyRunNIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -178,7 +77,7 @@ func (x *ProxyRunNIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunNIDRequest.ProtoReflect.Descriptor instead.
 func (*ProxyRunNIDRequest) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{2}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ProxyRunNIDRequest) GetSourceDbName() string {
@@ -211,7 +110,7 @@ type ProxyRunNIDResponse struct {
 func (x *ProxyRunNIDResponse) Reset() {
 	*x = ProxyRunNIDResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -224,7 +123,7 @@ func (x *ProxyRunNIDResponse) String() string {
 func (*ProxyRunNIDResponse) ProtoMessage() {}
 
 func (x *ProxyRunNIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -237,7 +136,7 @@ func (x *ProxyRunNIDResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunNIDResponse.ProtoReflect.Descriptor instead.
 func (*ProxyRunNIDResponse) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{3}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{1}
 }
 
 type ProxyRunDbcaRequest struct {
@@ -253,7 +152,7 @@ type ProxyRunDbcaRequest struct {
 func (x *ProxyRunDbcaRequest) Reset() {
 	*x = ProxyRunDbcaRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -266,7 +165,7 @@ func (x *ProxyRunDbcaRequest) String() string {
 func (*ProxyRunDbcaRequest) ProtoMessage() {}
 
 func (x *ProxyRunDbcaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +178,7 @@ func (x *ProxyRunDbcaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunDbcaRequest.ProtoReflect.Descriptor instead.
 func (*ProxyRunDbcaRequest) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{4}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ProxyRunDbcaRequest) GetOracleHome() string {
@@ -312,7 +211,7 @@ type ProxyRunDbcaResponse struct {
 func (x *ProxyRunDbcaResponse) Reset() {
 	*x = ProxyRunDbcaResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -325,7 +224,7 @@ func (x *ProxyRunDbcaResponse) String() string {
 func (*ProxyRunDbcaResponse) ProtoMessage() {}
 
 func (x *ProxyRunDbcaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -338,7 +237,7 @@ func (x *ProxyRunDbcaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunDbcaResponse.ProtoReflect.Descriptor instead.
 func (*ProxyRunDbcaResponse) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{5}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{3}
 }
 
 type ProxyRunInitOracleRequest struct {
@@ -352,7 +251,7 @@ type ProxyRunInitOracleRequest struct {
 func (x *ProxyRunInitOracleRequest) Reset() {
 	*x = ProxyRunInitOracleRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -365,7 +264,7 @@ func (x *ProxyRunInitOracleRequest) String() string {
 func (*ProxyRunInitOracleRequest) ProtoMessage() {}
 
 func (x *ProxyRunInitOracleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +277,7 @@ func (x *ProxyRunInitOracleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunInitOracleRequest.ProtoReflect.Descriptor instead.
 func (*ProxyRunInitOracleRequest) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{6}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ProxyRunInitOracleRequest) GetParams() []string {
@@ -397,7 +296,7 @@ type ProxyRunInitOracleResponse struct {
 func (x *ProxyRunInitOracleResponse) Reset() {
 	*x = ProxyRunInitOracleResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -410,7 +309,7 @@ func (x *ProxyRunInitOracleResponse) String() string {
 func (*ProxyRunInitOracleResponse) ProtoMessage() {}
 
 func (x *ProxyRunInitOracleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +322,7 @@ func (x *ProxyRunInitOracleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyRunInitOracleResponse.ProtoReflect.Descriptor instead.
 func (*ProxyRunInitOracleResponse) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{7}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{5}
 }
 
 type ProxyFetchServiceImageMetaDataRequest struct {
@@ -435,7 +334,7 @@ type ProxyFetchServiceImageMetaDataRequest struct {
 func (x *ProxyFetchServiceImageMetaDataRequest) Reset() {
 	*x = ProxyFetchServiceImageMetaDataRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[8]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -448,7 +347,7 @@ func (x *ProxyFetchServiceImageMetaDataRequest) String() string {
 func (*ProxyFetchServiceImageMetaDataRequest) ProtoMessage() {}
 
 func (x *ProxyFetchServiceImageMetaDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[8]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -461,7 +360,7 @@ func (x *ProxyFetchServiceImageMetaDataRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ProxyFetchServiceImageMetaDataRequest.ProtoReflect.Descriptor instead.
 func (*ProxyFetchServiceImageMetaDataRequest) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{8}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{6}
 }
 
 type ProxyFetchServiceImageMetaDataResponse struct {
@@ -478,7 +377,7 @@ type ProxyFetchServiceImageMetaDataResponse struct {
 func (x *ProxyFetchServiceImageMetaDataResponse) Reset() {
 	*x = ProxyFetchServiceImageMetaDataResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[9]
+		mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -491,7 +390,7 @@ func (x *ProxyFetchServiceImageMetaDataResponse) String() string {
 func (*ProxyFetchServiceImageMetaDataResponse) ProtoMessage() {}
 
 func (x *ProxyFetchServiceImageMetaDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[9]
+	mi := &file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -504,7 +403,7 @@ func (x *ProxyFetchServiceImageMetaDataResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use ProxyFetchServiceImageMetaDataResponse.ProtoReflect.Descriptor instead.
 func (*ProxyFetchServiceImageMetaDataResponse) Descriptor() ([]byte, []int) {
-	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{9}
+	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProxyFetchServiceImageMetaDataResponse) GetVersion() string {
@@ -544,15 +443,7 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDesc = []byte{
 	0x0d, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x1a, 0x25,
 	0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61, 0x67, 0x65, 0x6e, 0x74,
 	0x73, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x6c, 0x0a, 0x0d, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x76, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1f, 0x0a, 0x0b, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65,
-	0x5f, 0x68, 0x6f, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x6f, 0x72, 0x61,
-	0x63, 0x6c, 0x65, 0x48, 0x6f, 0x6d, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x63, 0x64, 0x62, 0x5f, 0x6e,
-	0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x64, 0x62, 0x4e, 0x61,
-	0x6d, 0x65, 0x12, 0x1f, 0x0a, 0x0b, 0x73, 0x70, 0x66, 0x69, 0x6c, 0x65, 0x5f, 0x70, 0x61, 0x74,
-	0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x73, 0x70, 0x66, 0x69, 0x6c, 0x65, 0x50,
-	0x61, 0x74, 0x68, 0x22, 0x10, 0x0a, 0x0e, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x76, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x74, 0x0a, 0x12, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x74, 0x0a, 0x12, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75,
 	0x6e, 0x4e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x24, 0x0a, 0x0e, 0x73,
 	0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x64, 0x62, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20,
 	0x01, 0x28, 0x09, 0x52, 0x0c, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x44, 0x62, 0x4e, 0x61, 0x6d,
@@ -588,7 +479,7 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDesc = []byte{
 	0x52, 0x0a, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x48, 0x6f, 0x6d, 0x65, 0x12, 0x21, 0x0a, 0x0c,
 	0x73, 0x65, 0x65, 0x64, 0x65, 0x64, 0x5f, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x18, 0x04, 0x20, 0x01,
 	0x28, 0x08, 0x52, 0x0b, 0x73, 0x65, 0x65, 0x64, 0x65, 0x64, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x32,
-	0xa3, 0x06, 0x0a, 0x13, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x44, 0x61, 0x65, 0x6d,
+	0xdc, 0x05, 0x0a, 0x13, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x44, 0x61, 0x65, 0x6d,
 	0x6f, 0x6e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x12, 0x5d, 0x0a, 0x0e, 0x42, 0x6f, 0x75, 0x6e, 0x63,
 	0x65, 0x44, 0x61, 0x74, 0x61, 0x62, 0x61, 0x73, 0x65, 0x12, 0x24, 0x2e, 0x61, 0x67, 0x65, 0x6e,
 	0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x42, 0x6f, 0x75, 0x6e, 0x63, 0x65,
@@ -612,39 +503,34 @@ var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDesc = []byte{
 	0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e, 0x4e, 0x49, 0x44, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x1a, 0x22, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65,
 	0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e, 0x4e, 0x49, 0x44, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x45, 0x0a, 0x06, 0x53, 0x65, 0x74, 0x45, 0x6e, 0x76, 0x12, 0x1c,
-	0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x53,
-	0x65, 0x74, 0x45, 0x6e, 0x76, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1d, 0x2e, 0x61,
-	0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x53, 0x65, 0x74,
-	0x45, 0x6e, 0x76, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6b, 0x0a, 0x12, 0x50,
-	0x72, 0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e, 0x49, 0x6e, 0x69, 0x74, 0x4f, 0x72, 0x61, 0x63, 0x6c,
-	0x65, 0x12, 0x28, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c,
-	0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e, 0x49, 0x6e, 0x69, 0x74, 0x4f, 0x72,
-	0x61, 0x63, 0x6c, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e, 0x61, 0x67,
-	0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78,
-	0x79, 0x52, 0x75, 0x6e, 0x49, 0x6e, 0x69, 0x74, 0x4f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x8f, 0x01, 0x0a, 0x1e, 0x50, 0x72, 0x6f,
-	0x78, 0x79, 0x46, 0x65, 0x74, 0x63, 0x68, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6d,
-	0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74, 0x61, 0x12, 0x34, 0x2e, 0x61, 0x67,
-	0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78,
-	0x79, 0x46, 0x65, 0x74, 0x63, 0x68, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6d, 0x61,
-	0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x35, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c,
-	0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x46, 0x65, 0x74, 0x63, 0x68, 0x53, 0x65, 0x72, 0x76,
-	0x69, 0x63, 0x65, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74, 0x61,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x59, 0x0a, 0x0c, 0x53, 0x65,
-	0x74, 0x44, 0x6e, 0x66, 0x73, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x22, 0x2e, 0x61, 0x67, 0x65,
-	0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x53, 0x65, 0x74, 0x44, 0x6e,
-	0x66, 0x73, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23,
-	0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x53,
-	0x65, 0x74, 0x44, 0x6e, 0x66, 0x73, 0x53, 0x74, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x58, 0x5a, 0x56, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
-	0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50,
-	0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x65, 0x6c, 0x63, 0x61, 0x72, 0x72, 0x6f, 0x2d,
-	0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2d, 0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f,
-	0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x61, 0x67, 0x65, 0x6e, 0x74,
-	0x73, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x3b, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x62,
-	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x6b, 0x0a, 0x12, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e,
+	0x49, 0x6e, 0x69, 0x74, 0x4f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x12, 0x28, 0x2e, 0x61, 0x67, 0x65,
+	0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79,
+	0x52, 0x75, 0x6e, 0x49, 0x6e, 0x69, 0x74, 0x4f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72,
+	0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x52, 0x75, 0x6e, 0x49, 0x6e, 0x69,
+	0x74, 0x4f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x12, 0x8f, 0x01, 0x0a, 0x1e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x46, 0x65, 0x74, 0x63, 0x68,
+	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61,
+	0x44, 0x61, 0x74, 0x61, 0x12, 0x34, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72,
+	0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79, 0x46, 0x65, 0x74, 0x63, 0x68, 0x53,
+	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x4d, 0x65, 0x74, 0x61, 0x44,
+	0x61, 0x74, 0x61, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x35, 0x2e, 0x61, 0x67, 0x65,
+	0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x50, 0x72, 0x6f, 0x78, 0x79,
+	0x46, 0x65, 0x74, 0x63, 0x68, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x6d, 0x61, 0x67,
+	0x65, 0x4d, 0x65, 0x74, 0x61, 0x44, 0x61, 0x74, 0x61, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x00, 0x12, 0x59, 0x0a, 0x0c, 0x53, 0x65, 0x74, 0x44, 0x6e, 0x66, 0x73, 0x53, 0x74,
+	0x61, 0x74, 0x65, 0x12, 0x22, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2e, 0x6f, 0x72, 0x61,
+	0x63, 0x6c, 0x65, 0x2e, 0x53, 0x65, 0x74, 0x44, 0x6e, 0x66, 0x73, 0x53, 0x74, 0x61, 0x74, 0x65,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73,
+	0x2e, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2e, 0x53, 0x65, 0x74, 0x44, 0x6e, 0x66, 0x73, 0x53,
+	0x74, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x58,
+	0x5a, 0x56, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d,
+	0x2f, 0x65, 0x6c, 0x63, 0x61, 0x72, 0x72, 0x6f, 0x2d, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2d,
+	0x6f, 0x70, 0x65, 0x72, 0x61, 0x74, 0x6f, 0x72, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x2f,
+	0x70, 0x6b, 0x67, 0x2f, 0x61, 0x67, 0x65, 0x6e, 0x74, 0x73, 0x2f, 0x6f, 0x72, 0x61, 0x63, 0x6c,
+	0x65, 0x3b, 0x6f, 0x72, 0x61, 0x63, 0x6c, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -659,44 +545,40 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescGZIP() []byte {
 	return file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDescData
 }
 
-var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_goTypes = []interface{}{
-	(*SetEnvRequest)(nil),                          // 0: agents.oracle.SetEnvRequest
-	(*SetEnvResponse)(nil),                         // 1: agents.oracle.SetEnvResponse
-	(*ProxyRunNIDRequest)(nil),                     // 2: agents.oracle.ProxyRunNIDRequest
-	(*ProxyRunNIDResponse)(nil),                    // 3: agents.oracle.ProxyRunNIDResponse
-	(*ProxyRunDbcaRequest)(nil),                    // 4: agents.oracle.ProxyRunDbcaRequest
-	(*ProxyRunDbcaResponse)(nil),                   // 5: agents.oracle.ProxyRunDbcaResponse
-	(*ProxyRunInitOracleRequest)(nil),              // 6: agents.oracle.ProxyRunInitOracleRequest
-	(*ProxyRunInitOracleResponse)(nil),             // 7: agents.oracle.ProxyRunInitOracleResponse
-	(*ProxyFetchServiceImageMetaDataRequest)(nil),  // 8: agents.oracle.ProxyFetchServiceImageMetaDataRequest
-	(*ProxyFetchServiceImageMetaDataResponse)(nil), // 9: agents.oracle.ProxyFetchServiceImageMetaDataResponse
-	(*BounceDatabaseRequest)(nil),                  // 10: agents.oracle.BounceDatabaseRequest
-	(*BounceListenerRequest)(nil),                  // 11: agents.oracle.BounceListenerRequest
-	(*SetDnfsStateRequest)(nil),                    // 12: agents.oracle.SetDnfsStateRequest
-	(*BounceDatabaseResponse)(nil),                 // 13: agents.oracle.BounceDatabaseResponse
-	(*BounceListenerResponse)(nil),                 // 14: agents.oracle.BounceListenerResponse
-	(*SetDnfsStateResponse)(nil),                   // 15: agents.oracle.SetDnfsStateResponse
+	(*ProxyRunNIDRequest)(nil),                     // 0: agents.oracle.ProxyRunNIDRequest
+	(*ProxyRunNIDResponse)(nil),                    // 1: agents.oracle.ProxyRunNIDResponse
+	(*ProxyRunDbcaRequest)(nil),                    // 2: agents.oracle.ProxyRunDbcaRequest
+	(*ProxyRunDbcaResponse)(nil),                   // 3: agents.oracle.ProxyRunDbcaResponse
+	(*ProxyRunInitOracleRequest)(nil),              // 4: agents.oracle.ProxyRunInitOracleRequest
+	(*ProxyRunInitOracleResponse)(nil),             // 5: agents.oracle.ProxyRunInitOracleResponse
+	(*ProxyFetchServiceImageMetaDataRequest)(nil),  // 6: agents.oracle.ProxyFetchServiceImageMetaDataRequest
+	(*ProxyFetchServiceImageMetaDataResponse)(nil), // 7: agents.oracle.ProxyFetchServiceImageMetaDataResponse
+	(*BounceDatabaseRequest)(nil),                  // 8: agents.oracle.BounceDatabaseRequest
+	(*BounceListenerRequest)(nil),                  // 9: agents.oracle.BounceListenerRequest
+	(*SetDnfsStateRequest)(nil),                    // 10: agents.oracle.SetDnfsStateRequest
+	(*BounceDatabaseResponse)(nil),                 // 11: agents.oracle.BounceDatabaseResponse
+	(*BounceListenerResponse)(nil),                 // 12: agents.oracle.BounceListenerResponse
+	(*SetDnfsStateResponse)(nil),                   // 13: agents.oracle.SetDnfsStateResponse
 }
 var file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_depIdxs = []int32{
-	10, // 0: agents.oracle.DatabaseDaemonProxy.BounceDatabase:input_type -> agents.oracle.BounceDatabaseRequest
-	11, // 1: agents.oracle.DatabaseDaemonProxy.BounceListener:input_type -> agents.oracle.BounceListenerRequest
-	4,  // 2: agents.oracle.DatabaseDaemonProxy.ProxyRunDbca:input_type -> agents.oracle.ProxyRunDbcaRequest
-	2,  // 3: agents.oracle.DatabaseDaemonProxy.ProxyRunNID:input_type -> agents.oracle.ProxyRunNIDRequest
-	0,  // 4: agents.oracle.DatabaseDaemonProxy.SetEnv:input_type -> agents.oracle.SetEnvRequest
-	6,  // 5: agents.oracle.DatabaseDaemonProxy.ProxyRunInitOracle:input_type -> agents.oracle.ProxyRunInitOracleRequest
-	8,  // 6: agents.oracle.DatabaseDaemonProxy.ProxyFetchServiceImageMetaData:input_type -> agents.oracle.ProxyFetchServiceImageMetaDataRequest
-	12, // 7: agents.oracle.DatabaseDaemonProxy.SetDnfsState:input_type -> agents.oracle.SetDnfsStateRequest
-	13, // 8: agents.oracle.DatabaseDaemonProxy.BounceDatabase:output_type -> agents.oracle.BounceDatabaseResponse
-	14, // 9: agents.oracle.DatabaseDaemonProxy.BounceListener:output_type -> agents.oracle.BounceListenerResponse
-	5,  // 10: agents.oracle.DatabaseDaemonProxy.ProxyRunDbca:output_type -> agents.oracle.ProxyRunDbcaResponse
-	3,  // 11: agents.oracle.DatabaseDaemonProxy.ProxyRunNID:output_type -> agents.oracle.ProxyRunNIDResponse
-	1,  // 12: agents.oracle.DatabaseDaemonProxy.SetEnv:output_type -> agents.oracle.SetEnvResponse
-	7,  // 13: agents.oracle.DatabaseDaemonProxy.ProxyRunInitOracle:output_type -> agents.oracle.ProxyRunInitOracleResponse
-	9,  // 14: agents.oracle.DatabaseDaemonProxy.ProxyFetchServiceImageMetaData:output_type -> agents.oracle.ProxyFetchServiceImageMetaDataResponse
-	15, // 15: agents.oracle.DatabaseDaemonProxy.SetDnfsState:output_type -> agents.oracle.SetDnfsStateResponse
-	8,  // [8:16] is the sub-list for method output_type
-	0,  // [0:8] is the sub-list for method input_type
+	8,  // 0: agents.oracle.DatabaseDaemonProxy.BounceDatabase:input_type -> agents.oracle.BounceDatabaseRequest
+	9,  // 1: agents.oracle.DatabaseDaemonProxy.BounceListener:input_type -> agents.oracle.BounceListenerRequest
+	2,  // 2: agents.oracle.DatabaseDaemonProxy.ProxyRunDbca:input_type -> agents.oracle.ProxyRunDbcaRequest
+	0,  // 3: agents.oracle.DatabaseDaemonProxy.ProxyRunNID:input_type -> agents.oracle.ProxyRunNIDRequest
+	4,  // 4: agents.oracle.DatabaseDaemonProxy.ProxyRunInitOracle:input_type -> agents.oracle.ProxyRunInitOracleRequest
+	6,  // 5: agents.oracle.DatabaseDaemonProxy.ProxyFetchServiceImageMetaData:input_type -> agents.oracle.ProxyFetchServiceImageMetaDataRequest
+	10, // 6: agents.oracle.DatabaseDaemonProxy.SetDnfsState:input_type -> agents.oracle.SetDnfsStateRequest
+	11, // 7: agents.oracle.DatabaseDaemonProxy.BounceDatabase:output_type -> agents.oracle.BounceDatabaseResponse
+	12, // 8: agents.oracle.DatabaseDaemonProxy.BounceListener:output_type -> agents.oracle.BounceListenerResponse
+	3,  // 9: agents.oracle.DatabaseDaemonProxy.ProxyRunDbca:output_type -> agents.oracle.ProxyRunDbcaResponse
+	1,  // 10: agents.oracle.DatabaseDaemonProxy.ProxyRunNID:output_type -> agents.oracle.ProxyRunNIDResponse
+	5,  // 11: agents.oracle.DatabaseDaemonProxy.ProxyRunInitOracle:output_type -> agents.oracle.ProxyRunInitOracleResponse
+	7,  // 12: agents.oracle.DatabaseDaemonProxy.ProxyFetchServiceImageMetaData:output_type -> agents.oracle.ProxyFetchServiceImageMetaDataResponse
+	13, // 13: agents.oracle.DatabaseDaemonProxy.SetDnfsState:output_type -> agents.oracle.SetDnfsStateResponse
+	7,  // [7:14] is the sub-list for method output_type
+	0,  // [0:7] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -710,30 +592,6 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 	file_oracle_pkg_agents_oracle_oracle_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetEnvRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SetEnvResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunNIDRequest); i {
 			case 0:
 				return &v.state
@@ -745,7 +603,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunNIDResponse); i {
 			case 0:
 				return &v.state
@@ -757,7 +615,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunDbcaRequest); i {
 			case 0:
 				return &v.state
@@ -769,7 +627,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunDbcaResponse); i {
 			case 0:
 				return &v.state
@@ -781,7 +639,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunInitOracleRequest); i {
 			case 0:
 				return &v.state
@@ -793,7 +651,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyRunInitOracleResponse); i {
 			case 0:
 				return &v.state
@@ -805,7 +663,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyFetchServiceImageMetaDataRequest); i {
 			case 0:
 				return &v.state
@@ -817,7 +675,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 				return nil
 			}
 		}
-		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ProxyFetchServiceImageMetaDataResponse); i {
 			case 0:
 				return &v.state
@@ -836,7 +694,7 @@ func file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_oracle_pkg_agents_oracle_dbdaemon_proxy_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -26,8 +26,6 @@ type DatabaseDaemonProxyClient interface {
 	ProxyRunDbca(ctx context.Context, in *ProxyRunDbcaRequest, opts ...grpc.CallOption) (*ProxyRunDbcaResponse, error)
 	// ProxyRunNID RPC call executes database rename operations
 	ProxyRunNID(ctx context.Context, in *ProxyRunNIDRequest, opts ...grpc.CallOption) (*ProxyRunNIDResponse, error)
-	// SetEnv RPC call moves/relinks oracle config files within oracledb container
-	SetEnv(ctx context.Context, in *SetEnvRequest, opts ...grpc.CallOption) (*SetEnvResponse, error)
 	// ProxyRunInitOracle RPC call exec init_oracle binary with specified params
 	ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
@@ -80,15 +78,6 @@ func (c *databaseDaemonProxyClient) ProxyRunNID(ctx context.Context, in *ProxyRu
 	return out, nil
 }
 
-func (c *databaseDaemonProxyClient) SetEnv(ctx context.Context, in *SetEnvRequest, opts ...grpc.CallOption) (*SetEnvResponse, error) {
-	out := new(SetEnvResponse)
-	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/SetEnv", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *databaseDaemonProxyClient) ProxyRunInitOracle(ctx context.Context, in *ProxyRunInitOracleRequest, opts ...grpc.CallOption) (*ProxyRunInitOracleResponse, error) {
 	out := new(ProxyRunInitOracleResponse)
 	err := c.cc.Invoke(ctx, "/agents.oracle.DatabaseDaemonProxy/ProxyRunInitOracle", in, out, opts...)
@@ -128,8 +117,6 @@ type DatabaseDaemonProxyServer interface {
 	ProxyRunDbca(context.Context, *ProxyRunDbcaRequest) (*ProxyRunDbcaResponse, error)
 	// ProxyRunNID RPC call executes database rename operations
 	ProxyRunNID(context.Context, *ProxyRunNIDRequest) (*ProxyRunNIDResponse, error)
-	// SetEnv RPC call moves/relinks oracle config files within oracledb container
-	SetEnv(context.Context, *SetEnvRequest) (*SetEnvResponse, error)
 	// ProxyRunInitOracle RPC call exec init_oracle binary with specified params
 	ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error)
 	// ProxyFetchServiceImageMetaData returns metadata from the oracledb container
@@ -154,9 +141,6 @@ func (UnimplementedDatabaseDaemonProxyServer) ProxyRunDbca(context.Context, *Pro
 }
 func (UnimplementedDatabaseDaemonProxyServer) ProxyRunNID(context.Context, *ProxyRunNIDRequest) (*ProxyRunNIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProxyRunNID not implemented")
-}
-func (UnimplementedDatabaseDaemonProxyServer) SetEnv(context.Context, *SetEnvRequest) (*SetEnvResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetEnv not implemented")
 }
 func (UnimplementedDatabaseDaemonProxyServer) ProxyRunInitOracle(context.Context, *ProxyRunInitOracleRequest) (*ProxyRunInitOracleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ProxyRunInitOracle not implemented")
@@ -252,24 +236,6 @@ func _DatabaseDaemonProxy_ProxyRunNID_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DatabaseDaemonProxy_SetEnv_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetEnvRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DatabaseDaemonProxyServer).SetEnv(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/agents.oracle.DatabaseDaemonProxy/SetEnv",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DatabaseDaemonProxyServer).SetEnv(ctx, req.(*SetEnvRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DatabaseDaemonProxy_ProxyRunInitOracle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProxyRunInitOracleRequest)
 	if err := dec(in); err != nil {
@@ -346,10 +312,6 @@ var DatabaseDaemonProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ProxyRunNID",
 			Handler:    _DatabaseDaemonProxy_ProxyRunNID_Handler,
-		},
-		{
-			MethodName: "SetEnv",
-			Handler:    _DatabaseDaemonProxy_SetEnv_Handler,
 		},
 		{
 			MethodName: "ProxyRunInitOracle",
