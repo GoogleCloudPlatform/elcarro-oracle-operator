@@ -106,4 +106,3 @@ kubectl get databases -n $NS
 kubectl get backups -n $NS
 kubectl get configs -n $NS
 kubectl get events --sort-by=.metadata.creationTimestamp -n operator-system
-

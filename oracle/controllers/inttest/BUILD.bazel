@@ -9,10 +9,12 @@ filegroup(
     name = "all-srcs",
     srcs = [
         ":package-srcs",
+        "//oracle/controllers/inttest/agentpatchingtest:all-srcs",
         "//oracle/controllers/inttest/datapumptest:all-srcs",
         "//oracle/controllers/inttest/instancetest:all-srcs",
         "//oracle/controllers/inttest/namespacetest:all-srcs",
         "//oracle/controllers/inttest/parameterupdatetest:all-srcs",
+        "//oracle/controllers/inttest/patchingtest:all-srcs",
         "//oracle/controllers/inttest/physbackuptest:all-srcs",
         "//oracle/controllers/inttest/pitrtest:all-srcs",
         "//oracle/controllers/inttest/releasetest:all-srcs",

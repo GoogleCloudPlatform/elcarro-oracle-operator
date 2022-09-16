@@ -41,7 +41,7 @@ import (
 // Invoked when Spec.Restore is present.
 // State transition:
 // CreateComplete/RestoreFailed -> RestorePreparationInProgress -> RestorePreparationComplete ->
-// -> RestoreInProgress -> PostRestoreBootstrapInProgress -> RestoreComplete
+// -> RestoreInProgress -> PostRestoreBootstrapInProgress -> PostRestoreBootstrapComplete-> (PostRestoreDatabasePatchingInProgress->) RestoreComplete
 // or ... -> RestoreFailed
 // Returns
 // * non-empty result if restore state machine needs another reconcile
@@ -259,8 +259,42 @@ func (r *InstanceReconciler) restoreStateMachine(req ctrl.Request, instanceReady
 			}
 		}
 
+		log.Info("restoreStateMachine: PostRestoreBootstrapInProgress->PostRestoreBootstrapComplete")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreBootstrapComplete, "")
+		// Reconcile again
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.PostRestoreBootstrapComplete:
+		if backup.Annotations[controllers.DatabaseImageAnnotation] == inst.Status.ActiveImages["service"] {
+			description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),
+				time.Now().Nanosecond(), inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType)
+			log.Info("restoreStateMachine: PostRestoreBootstrapComplete->RestoreComplete")
+			r.setRestoreSucceeded(ctx, inst, description, log)
+			return ctrl.Result{}, r.Status().Update(ctx, inst)
+		}
+		if err := r.startDatabasePatching(req, ctx, *inst, log); err != nil {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.RestoreFailed, "Failed to start database patching")
+			r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore database patching failed with %v", err), log)
+			return ctrl.Result{}, nil
+		}
+		log.Info("restoreStateMachine: PostRestoreBootstrapComplete->PostRestoreDatabasePatchingInProgress")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PostRestoreDatabasePatchingInProgress, "Calling ApplyDataPatch()")
+		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.PostRestoreDatabasePatchingInProgress:
+		// Monitor patching progress
+		done, err := r.isDatabasePatchingDone(ctx, req, *inst, log)
+		if err != nil {
+			log.Info("restoreStateMachine: PostRestoreDatabasePatchingInProgress->RestoreFailed")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.RestoreFailed, "Failed to check datapatch status")
+			r.setRestoreFailed(ctx, inst, fmt.Sprintf("Post restore database patching failed with %v", err), log)
+			return ctrl.Result{}, nil
+		}
+		if !done {
+			log.Info("datapatch still in progress, waiting")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
 		description := fmt.Sprintf("Restored on %s-%d from backup %s (type %s)", time.Now().Format(dateFormat),
 			time.Now().Nanosecond(), inst.Spec.Restore.BackupID, inst.Spec.Restore.BackupType)
+		log.Info("restoreStateMachine: PostRestoreDatabasePatchingInProgress->RestoreComplete")
 		if e := r.setRestoreSucceeded(ctx, inst, description, log); e != nil {
 			log.Error(e, "setRestoreSucceeded returned an error, retrying")
 			return ctrl.Result{}, e
@@ -493,9 +527,14 @@ func (r *InstanceReconciler) restoreSnapshot(ctx context.Context, inst v1alpha1.
 		log.Error(err, "failed to create a StatefulSet")
 		return err
 	}
-	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
-	if err = r.Patch(ctx, sts, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the restored StatefulSet")
+
+	baseSTS := &appsv1.StatefulSet{}
+	sts.DeepCopyInto(baseSTS)
+	if _, err := ctrl.CreateOrUpdate(ctx, r, baseSTS, func() error {
+		sts.Spec.DeepCopyInto(&baseSTS.Spec)
+		return nil
+	}); err != nil {
+		log.Error(err, "failed to create/update the restored StatefulSet", "sts.Status", sts.Status)
 		return err
 	}
 	log.Info("restoreSnapshot: updated StatefulSet created", "statefulSet", sts, "sts.Status", sts.Status)

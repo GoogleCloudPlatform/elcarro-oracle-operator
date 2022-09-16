@@ -106,16 +106,151 @@ var _ = Describe("Instance controller", func() {
 	Context("Existing instance restore from RMAN backup", testInstanceRestore)
 	Context("instance status observedGeneration and isChangeApplied fields", testInstanceParameterUpdate)
 	Context("Test pause mode", testInstancePauseUpdate)
+	Context("Datapatch", testInstanceDatapatch)
 })
 
-func testInstanceProvision() {
+func testInstanceDatapatch() {
+	//TODO: Nonstandard initialization, it should create a randomized namespace not just a randomized instance name.
 	const (
-		Namespace    = "default"
-		InstanceName = "test-instance-provision"
-
 		timeout  = time.Second * 25
 		interval = time.Millisecond * 15
 	)
+	ctx := context.Background()
+
+	var (
+		Namespace    string
+		InstanceName string
+		objKey       client.ObjectKey
+		instance     *v1alpha1.Instance
+	)
+
+	// Common initialization
+	BeforeEach(func() {
+		Namespace = "default"
+		InstanceName = testhelpers.RandName("test-instance-datapatch")
+		objKey = client.ObjectKey{Namespace: Namespace, Name: InstanceName}
+		instance = &v1alpha1.Instance{}
+
+		By("Failing horrifically to setup the instance")
+		instance := createSimpleInstance(ctx, InstanceName, Namespace, timeout, interval)
+
+		// Wait for Ready.Reason = CreateComplete
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.CreateComplete)
+		}, timeout, interval).Should(Equal(true))
+
+		By("Setting Reason = StatefulSetPatchingComplete")
+		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			instance.Status.Conditions[0].Reason = k8s.StatefulSetPatchingComplete
+			instance.Status.CurrentActiveStateMachine = "PatchingStateMachine"
+			return k8sClient.Status().Update(ctx, instance)
+		})).Should(Succeed())
+
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusRunning)
+
+		By("Applying patching spec")
+		Expect(retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			oneHourBefore := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+			twoHours := metav1.Duration{Duration: 2 * time.Hour}
+			instance.Spec.MaintenanceWindow = &commonv1alpha1.MaintenanceWindowSpec{TimeRanges: []commonv1alpha1.TimeRange{{Start: &oneHourBefore, Duration: &twoHours}}}
+			instance.Spec.Images["service"] = "patched-service-image"
+			instance.Spec.Services = map[commonv1alpha1.Service]bool{"Patching": true}
+			return k8sClient.Update(ctx, instance)
+		})).Should(Succeed())
+
+		// Wait for Ready.Reason = DatabasePatchingInProgress
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.DatabasePatchingInProgress)
+		}, timeout, interval).Should(Equal(true))
+
+		// Multiple calls might be issued
+		fakeDatabaseClient := fakeDatabaseClientFactory.Dbclient
+		Expect(fakeDatabaseClient.ApplyDataPatchAsyncCalledCnt()).Should(BeNumerically(">", 0))
+	})
+
+	AfterEach(func() {
+		// Delete instance
+		createdInstance := &v1alpha1.Instance{}
+		Expect(k8sClient.Get(ctx, client.ObjectKey{Namespace: Namespace, Name: InstanceName}, createdInstance)).Should(Succeed())
+		Expect(k8sClient.Delete(ctx, createdInstance)).Should(Succeed())
+		// Delete test-instance-agent-svc
+		agentSvc := &corev1.Service{}
+		err := k8sClient.Get(ctx, client.ObjectKey{Name: InstanceName + "-agent-svc", Namespace: Namespace}, agentSvc)
+		if err == nil {
+			Expect(k8sClient.Delete(ctx, agentSvc)).Should(Succeed())
+		}
+	})
+
+	// Test StatefulSetPatchingComplete->DatabasePatchingInProgress->DatabasePatchingComplete->CreateComplete
+	It("Should apply datapatch normally", func() {
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusDone)
+
+		// DatabasePatchingComplete->CreateComplete will happen immediately
+
+		// Wait for Ready.Reason = CreateComplete
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.CreateComplete)
+		}, timeout, interval).Should(Equal(true))
+
+		Expect(instance.Status.ActiveImages["service"]).Should(Equal("patched-service-image"))
+		Expect(fakeDatabaseClientFactory.Dbclient.GetOperationCalledCnt()).Should(BeNumerically(">", 0))
+	})
+
+	// Test StatefulSetPatchingComplete->DatabasePatchingInProgress->DatabasePatchingFailure
+	It("Should react to datapatch job failure", func() {
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
+
+		// Wait for Ready.Reason = DatabasePatchingFailure
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.DatabasePatchingFailure)
+		}, timeout, interval).Should(Equal(true))
+
+		Expect(instance.Status.ActiveImages["service"]).Should(Equal(""))
+		Expect(fakeDatabaseClientFactory.Dbclient.GetOperationCalledCnt()).Should(BeNumerically(">", 0))
+	})
+
+	// Test DatabasePatchingFailure->PatchingRecoveryInProgress
+	It("Should attempt to recover from patching failure", func() {
+		fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
+
+		/*
+			// Wait for Ready.Reason = DatabasePatchingFailure
+			Eventually(func() bool {
+				Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+				cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+				return k8s.ConditionReasonEquals(cond, k8s.DatabasePatchingFailure)
+			}, timeout, interval).Should(Equal(true))
+			fakeDatabaseClientFactory.Dbclient.SetNextGetOperationStatus(testhelpers.StatusDoneWithError)
+		*/
+
+		// Wait for Ready.Reason = PatchingRecoveryInProgress
+		Eventually(func() bool {
+			Expect(k8sClient.Get(ctx, objKey, instance)).Should(Succeed())
+			cond := k8s.FindCondition(instance.Status.Conditions, k8s.Ready)
+			return k8s.ConditionReasonEquals(cond, k8s.PatchingRecoveryInProgress)
+		}, timeout, interval).Should(Equal(true))
+	})
+}
+
+func testInstanceProvision() {
+	//TODO: Fragile test, the test should use a randomized namespace per run.
+	const (
+		timeout  = time.Second * 25
+		interval = time.Millisecond * 15
+	)
+	Namespace := "default"
+	InstanceName := testhelpers.RandName("test-instance-provision")
+
 	It("Should reconcile instance and database instance successfully", func() {
 		By("creating a new Instance")
 		ctx := context.Background()
@@ -160,8 +295,8 @@ func testInstanceProvision() {
 		Expect(k8sClient.List(ctx, &services, client.InNamespace(Namespace))).Should(Succeed())
 		expectedNames := []string{
 			"kubernetes",
-			"test-instance-provision-svc",
-			"test-instance-provision-dbdaemon-svc",
+			InstanceName + "-svc",
+			InstanceName + "-dbdaemon-svc",
 		}
 		sort.Strings(expectedNames)
 		serviceNames := []string{}
@@ -213,12 +348,14 @@ func testInstanceProvision() {
 }
 
 func testInstancePauseUpdate() {
+	//TODO: Fragile test, the test should use a randomized namespace per run.
 	const (
-		Namespace    = "default"
-		InstanceName = "test-instance-parameter"
-		timeout      = time.Second * 25
-		interval     = time.Millisecond * 15
+		timeout  = time.Second * 25
+		interval = time.Millisecond * 15
 	)
+
+	Namespace := "default"
+	InstanceName := testhelpers.RandName("test-instance-parameter")
 	It("should update observedGeneration", func() {
 		objKey := client.ObjectKey{Namespace: Namespace, Name: InstanceName}
 		By("creating a new Instance")

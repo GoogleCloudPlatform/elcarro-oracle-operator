@@ -80,10 +80,10 @@ var _ = BeforeSuite(func() {
 	Expect(projectId).ToNot(BeEmpty())
 	Expect(targetCluster).ToNot(BeEmpty())
 	Expect(targetZone).NotTo(BeEmpty())
-	enableGsmApi()
-	enableIamApi()
+	testhelpers.EnableGsmApi()
+	testhelpers.EnableIamApi()
 	prepareTestUsersAndGrantAccess()
-	enableWiWithNodePool()
+	testhelpers.EnableWiWithNodePool()
 })
 
 // In case of Ctrl-C clean up the last valid k8sEnv.
@@ -271,22 +271,6 @@ var _ = Describe("User operations", func() {
 	})
 })
 
-func enableGsmApi() {
-	// Enable GSM API.
-	cmd := exec.Command("gcloud", "services", "enable", "secretmanager.googleapis.com")
-	out, err := cmd.CombinedOutput()
-	log.Info("gcloud services enable secretmanager.googleapis.com", "output", string(out))
-	Expect(err).NotTo(HaveOccurred())
-}
-
-func enableIamApi() {
-	// Enable IAM API.
-	cmd := exec.Command("gcloud", "services", "enable", "iamcredentials.googleapis.com")
-	out, err := cmd.CombinedOutput()
-	log.Info("gcloud services enable iamcredentials.googleapis.com", "output", string(out))
-	Expect(err).NotTo(HaveOccurred())
-}
-
 func prepareTestUsersAndGrantAccess() {
 	// Prepare test users and grant GMS permission
 	for k, v := range userPwdBefore {
@@ -334,18 +318,6 @@ func prepareTestUsersAndGrantAccess() {
 			return err
 		})).To(Succeed())
 	}
-}
-func enableWiWithNodePool() {
-	// Enable workload identify on existing cluster.
-	cmd := exec.Command("gcloud", "container", "clusters", "update", targetCluster, "--workload-pool="+projectId+".svc.id.goog", "--zone="+targetZone)
-	out, err := cmd.CombinedOutput()
-	log.Info("gcloud container clusters update", "output", string(out))
-	Expect(err).NotTo(HaveOccurred())
-	// Migrate applications to Workload Identity with Node pool modification.
-	cmd = exec.Command("gcloud", "container", "node-pools", "update", "default-pool", "--cluster="+targetCluster, "--workload-metadata=GKE_METADATA", "--zone="+targetZone)
-	out, err = cmd.CombinedOutput()
-	log.Info("gcloud container node-pools update", "output", string(out))
-	Expect(err).NotTo(HaveOccurred())
 }
 
 func initEnvBeforeEachTest() {

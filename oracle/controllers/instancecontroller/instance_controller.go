@@ -82,6 +82,7 @@ const (
 	DatabaseInstanceReadyTimeoutSeeded   = 30 * time.Minute
 	DatabaseInstanceReadyTimeoutUnseeded = 60 * time.Minute // 60 minutes because it can take 50+ minutes to create an unseeded CDB
 	dateFormat                           = "20060102"
+	DefaultStsPatchingTimeout            = 25 * time.Minute
 )
 
 func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
@@ -208,6 +209,21 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		Config:         config,
 		Log:            log,
 		Services:       enabledServices,
+	}
+
+	if IsPatchingStateMachineEntryCondition(inst.Spec.Services, inst.Status.ActiveImages, sp.Images, inst.Status.LastFailedImages, instanceReadyCond, dbInstanceCond) ||
+		inst.Status.CurrentActiveStateMachine == "PatchingStateMachine" {
+		databasePatchingTimeout := DefaultStsPatchingTimeout
+		if inst.Spec.DatabasePatchingTimeout != nil {
+			databasePatchingTimeout = inst.Spec.DatabasePatchingTimeout.Duration
+		}
+		result, err, done := r.patchingStateMachine(req, instanceReadyCond, dbInstanceCond, &inst, ctx, &sp, config, databasePatchingTimeout, log)
+		if err != nil {
+			log.Error(err, "patchingStateMachine failed")
+		}
+		if done {
+			return result, err
+		}
 	}
 
 	// If there is a Restore section in the spec the reconciliation will be handled

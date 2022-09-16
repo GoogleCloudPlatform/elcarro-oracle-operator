@@ -162,7 +162,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 	// Slow tests, only run in Canary
 	if testhelpers.IsCanaryJob() {
 		Context("Oracle 19.3 EE unseeded", func() {
-			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
+			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "unseeded-32545013", false)
 		})
 
 		// Images from OCR
@@ -200,7 +200,7 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 				},
 				DatabaseResources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("7Gi"),
+						corev1.ResourceMemory: resource.MustParse("9Gi"),
 					},
 				},
 				Images: map[string]string{

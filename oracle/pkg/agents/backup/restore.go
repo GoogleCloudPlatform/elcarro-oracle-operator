@@ -248,5 +248,6 @@ func createDirsForRestore(ctx context.Context, dbdClient dbdpb.DatabaseDaemonCli
 	}); err != nil {
 		return fmt.Errorf("createDirsForRestore: failed to create dirs %v: %v", dirs, err)
 	}
+
 	return nil
 }

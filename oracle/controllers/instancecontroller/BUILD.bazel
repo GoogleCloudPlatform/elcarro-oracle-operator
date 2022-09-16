@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "instance_controller.go",
         "instance_controller_parameters.go",
+        "instance_controller_patching.go",
         "instance_controller_restore.go",
         "instance_controller_restore_pitr.go",
         "instance_controller_standby.go",
@@ -23,6 +24,7 @@ go_library(
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/k8s",
         "@com_github_go_logr_logr//:logr",
+        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@io_k8s_api//apps/v1:apps",
         "@io_k8s_api//core/v1:core",
@@ -32,6 +34,7 @@ go_library(
         "@io_k8s_apimachinery//pkg/types",
         "@io_k8s_apimachinery//pkg/util/intstr",
         "@io_k8s_client_go//tools/record",
+        "@io_k8s_klog_v2//:klog",
         "@io_k8s_sigs_controller_runtime//:controller-runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/handler",
@@ -46,6 +49,7 @@ go_test(
         "instance_controller_parameters_test.go",
         "instance_controller_restore_test.go",
         "instance_controller_test.go",
+        "utils_test.go",
     ],
     embed = [":instancecontroller"],
     deps = [
