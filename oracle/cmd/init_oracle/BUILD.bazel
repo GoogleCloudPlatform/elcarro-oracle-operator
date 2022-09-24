@@ -10,7 +10,7 @@ go_library(
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/database/provision",
-        "@com_google_cloud_go//compute/metadata",
+        "@com_google_cloud_go_compute//metadata",
         "@io_k8s_klog_v2//:klog",
         "@org_golang_google_grpc//:go_default_library",
     ],
