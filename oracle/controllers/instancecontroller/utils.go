@@ -464,6 +464,61 @@ func CloneMap(source map[string]string) map[string]string {
 	return clone
 }
 
+// Initiate a config_agent_helpers ApplyDataPatch() call
+// Create an LRO job "DatabasePatch_%s", instance.GetUID()
+// making the method idempotent (per instance)
+// Return err on failure, nil on success
+func (r *InstanceReconciler) startDatabasePatching(req ctrl.Request, ctx context.Context, inst v1alpha1.Instance, log logr.Logger) error {
+	log.Info("startDatabasePatching initiated")
+
+	// Call async ApplyDataPatch
+	log.Info("config_agent_helpers.ApplyDataPatch", "LRO", lroPatchingOperationID(inst))
+	resp, err := controllers.ApplyDataPatch(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, controllers.ApplyDataPatchRequest{
+		LroInput: &controllers.LROInput{OperationId: lroPatchingOperationID(inst)},
+	})
+	if err != nil {
+		return fmt.Errorf("failed on ApplyDataPatch gRPC call: %w", err)
+	}
+	log.Info("config_agent_helpers.ApplyDataPatch", "response", resp)
+	return nil
+}
+
+// Check for patching LRO job status
+// Return (true, nil) if job is done
+// Return (false, nil) if job still in progress
+// Return (false, err) if the job failed
+func (r *InstanceReconciler) isDatabasePatchingDone(ctx context.Context, req ctrl.Request,
+	inst v1alpha1.Instance, log logr.Logger) (bool, error) {
+
+	// Get operation id
+	id := lroPatchingOperationID(inst)
+	operation, err := controllers.GetLROOperation(ctx, r.DatabaseClientFactory, r, id, req.Namespace, inst.Name)
+	if err != nil {
+		log.Info("GetLROOperation returned error", "error", err)
+		return false, nil
+	}
+	log.Info("GetLROOperation", "response", operation)
+	if !operation.Done {
+		// Still waiting
+		return false, nil
+	}
+
+	log.Info("LRO is DONE", "id", id)
+	if err := controllers.DeleteLROOperation(ctx, r.DatabaseClientFactory, r, id, req.Namespace, inst.Name); err != nil {
+		return false, fmt.Errorf("DeleteLROOperation returned an error: %w", err)
+	}
+
+	// remote LRO completed unsuccessfully
+	if operation.GetError() != nil {
+		return false, fmt.Errorf("config_agent.ApplyDataPatch() failed: %v", operation.GetError())
+	}
+	return true, nil
+}
+
+func lroPatchingOperationID(instance v1alpha1.Instance) string {
+	return fmt.Sprintf("DatabasePatch_%s", instance.GetUID())
+}
+
 // AcquireInstanceMaintenanceLock gives caller an exclusive maintenance
 // access to the specified instance object.
 // 'inst' points to an existing instance object (will be updated after the call)
