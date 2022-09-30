@@ -3,7 +3,7 @@ package ownerref
 import (
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,10 +98,10 @@ func TestAdd(t *testing.T) {
 		},
 	}
 
-	g := NewWithT(t)
-
 	for _, test := range testCases {
 		Add(test.controlled, test.owner, true, true)
-		g.Expect(test.controlled).To(Equal(test.expected))
+		if diff := cmp.Diff(test.controlled, test.expected); diff != "" {
+			t.Errorf("Add got unexpected result: want-, got+: %s\n", diff)
+		}
 	}
 }
