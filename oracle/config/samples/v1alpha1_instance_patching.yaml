@@ -1,0 +1,35 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
+metadata:
+  name: mydb
+spec:
+  type: Oracle
+  version: "19.3"
+  edition: Enterprise
+  disks:
+  - name: DataDisk
+    size: 45Gi
+    storageClass: "standard-rwo"
+  - name: LogDisk
+    size: 55Gi
+    storageClass: "standard-rwo"
+  services:
+    Backup: true
+    Monitoring: true
+    Logging: true
+    Patching: true
+  sourceCidrRanges: [ 0.0.0.0/0 ]
+  images:
+    # Replace this with a newly patched image once your database is
+    # created to begin the patching workflow. You must have a maintenance
+    # window defined for patching to take effect.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-19.3-ee-seeded-${DB}"
+  maintenanceWindow:
+    timeRanges:
+      start: "2021-01-01T00:00:00Z"
+      duration: "87660h" # good till 2031
+  dbDomain: "gke"
+  cdbName: ${DB}
+  databaseResources:
+    requests:
+      memory: 4.0Gi
