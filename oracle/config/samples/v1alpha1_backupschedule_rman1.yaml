@@ -1,0 +1,13 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: BackupSchedule
+metadata:
+  name: backupschedule-rman1
+spec:
+  backupSpec:
+    instance: mydb
+    type: Physical
+    subType: Instance
+  # Run at 3:01am daily, server time
+  schedule: "01 03 * * *"
+  backupRetentionPolicy:
+    backupRetention: 3
