@@ -203,7 +203,6 @@ func GetLogLevelArgs(config *v1alpha1.Config) map[string][]string {
 // NewAgentDeployment returns the agent deployment.
 func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployment, error) {
 	var replicas int32 = 1
-	instlabels := map[string]string{"instance": agentDeployment.Inst.Name}
 	labels := map[string]string{"instance-agent": fmt.Sprintf("%s-agent", agentDeployment.Inst.Name), "deployment": agentDeployment.Name}
 
 	monitoringAgentArgs := []string{
@@ -260,7 +259,10 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 					{
 						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: instlabels,
+							MatchLabels: map[string]string{
+								"instance":  agentDeployment.Inst.Name,
+								"task-type": DatabaseTaskType,
+							},
 						},
 						Namespaces:  []string{agentDeployment.Inst.Namespace},
 						TopologyKey: "kubernetes.io/hostname",
@@ -384,7 +386,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 	labels := map[string]string{
 		"instance":    sp.Inst.Name,
 		"statefulset": sp.StsName,
-		"app":         DatabasePodAppLabel,
+		"task-type":   DatabaseTaskType,
 	}
 
 	// Set default safeguard memory if the database resource is not specified.
@@ -559,7 +561,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 					{
 						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"app": DatabasePodAppLabel},
+							MatchLabels: map[string]string{"task-type": DatabaseTaskType},
 						},
 						Namespaces:  antiAffinityNamespaces,
 						TopologyKey: "kubernetes.io/hostname",

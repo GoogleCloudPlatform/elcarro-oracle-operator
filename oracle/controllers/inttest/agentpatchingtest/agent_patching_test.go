@@ -34,6 +34,7 @@ import (
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 )
 
@@ -95,7 +96,7 @@ var _ = Describe("Agent Patching", func() {
 		testhelpers.VerifySimpleData(k8sEnv)
 
 		// Check other agent images in the instance STS
-		images := getPodImages("instance=" + instanceName)
+		images := getPodImages("instance=" + instanceName + ",task-type=" + controllers.DatabaseTaskType)
 		Expect(images["init:dbinit"]).To(Equal(v2Images["dbinit"]))
 		Expect(images["listener-log-sidecar"]).To(Equal(v2Images["logging_sidecar"]))
 	})
