@@ -21,7 +21,6 @@ import (
 	"reflect"
 	"time"
 
-	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -43,22 +42,22 @@ const (
 )
 
 var statefulSetImages = []string{"service", "dbinit", "logging_sidecar"}
-var deploymentImages = []string{"config", "monitoring"}
 
 // State transition:
 // Happy case
-// CreateComplete -> PatchingBackupStarted -> PatchingBackupCompleted ->
-// -> DeploymentSetPatchingInProgress -> DeploymentSetPatchingComplete ->
-// StatefulSetPatchingInProgress -> StatefulSetPatchingComplete -> DatabasePatchingInProgress
-// -> DatabasePatchingComplete -> CreateComplete
+// CreateComplete -> PatchingBackupStarted -> DeploymentSetPatchingInProgress -> DeploymentSetPatchingComplete
+// -> StatefulSetPatchingInProgress -> StatefulSetPatchingComplete
+// -> DatabasePatchingInProgress -> DatabasePatchingComplete -> CreateComplete
 //
 // Unhappy case (*/asterisk mean this state can be short-circuited due to failures in the parent state)
-// CreateComplete -> PatchingBackupStarted -> PatchingBackupCompleted ->
-// -> DeploymentSetPatchingInProgress* -> DeploymentSetPatchingComplete* ->
-// StatefulSetPatchingInProgress* -> StatefulSetPatchingComplete* -> DatabasePatchingInProgress*
-// -> DatabasePatchingComplete* -> StatefulSetPatchingFailure/DatabasePatchingFailure -> PatchingRecoveryCompleted
+// CreateComplete -> PatchingBackupStarted
+// -> DeploymentSetPatchingInProgress* -> DeploymentSetPatchingComplete*
+// -> StatefulSetPatchingInProgress* -> StatefulSetPatchingComplete*
+// -> DatabasePatchingInProgress* -> DatabasePatchingComplete*
+// -> StatefulSetPatchingFailure/DatabasePatchingFailure -> PatchingRecoveryCompleted
 //
 // Returns
+// TODO: The bool return value is not defined yet.
 // * non-empty result if restore state machine needs another reconcile
 // * non-empty error if any error occurred
 // * empty result and empty error to continue with main reconciliation loop
@@ -96,26 +95,9 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 			return ctrl.Result{}, err, true
 		} else if !completed {
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
-		} else {
-			log.Info("patchingStateMachine: PatchingBackupStarted->PatchingBackupCompleted")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingBackupCompleted, "Patching backup completed, continuing patching")
-			return ctrl.Result{Requeue: true}, nil, true
 		}
-
-	case k8s.PatchingBackupCompleted:
-		// If there are no new images specified with respect to the deployment set skip this state.
-		if !isDeploymentSetPatchingRequired(inst.Status.ActiveImages, inst.Spec.Images, inst.Spec.Services) {
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingComplete, "")
-			return ctrl.Result{Requeue: true}, nil, true
-		}
-		// Start control plane agent patching
-		if _, err, _ := r.recreateDeployment(ctx, *inst, config, stsParams.Images, log); err != nil {
-			log.Info("agentPatchingStateMachine: PatchingBackupCompleted->DeploymentSetPatchingFailure")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingFailure, "")
-			return ctrl.Result{}, err, true
-		}
-		log.Info("agentPatchingStateMachine: PatchingBackupCompleted->DeploymentSetPatchingInProgress")
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingInProgress, "")
+		log.Info("patchingStateMachine: PatchingBackupStarted->DeploymentSetPatchingInProgress")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingInProgress, "Patching backup completed, continuing patching")
 		return ctrl.Result{Requeue: true}, nil, true
 
 	case k8s.DeploymentSetPatchingInProgress:
@@ -124,17 +106,24 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 			msg := fmt.Sprintf("agentPatchingStateMachine: Agent patching timed out after %v", deploymentPatchingTimeout)
 			log.Info(msg)
 			r.Recorder.Eventf(inst, corev1.EventTypeWarning, "InstanceReady", msg)
-			log.Info("agentPatchingStateMachine: DeploymentSetPatchingInProgress->DeploymentSetPatchingFailure")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingFailure, msg)
+			log.Info("agentPatchingStateMachine: DeploymentSetPatchingInProgress->DeploymentSetPatchingRollbackInProgress")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingRollbackInProgress, msg)
 			return ctrl.Result{}, errors.New(msg), true
 		}
-		if !r.isDeploymentCreationComplete(ctx, req.NamespacedName.Namespace, inst.Name, log) {
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
-		} else {
-			log.Info("agentPatchingStateMachine: DeploymentSetPatchingInProgress->DeploymentSetPatchingComplete")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingComplete, "")
-			return ctrl.Result{Requeue: true}, nil, true
+		// TODO: Reconcile other agents if we add them
+		res, err := r.reconcileMonitoring(ctx, inst, r.Log, stsParams.Images)
+		if err != nil {
+			log.Info("agentPatchingStateMachine: DeploymentSetPatchingInProgress->DeploymentSetPatchingRollbackInProgress")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingRollbackInProgress, "")
+			return ctrl.Result{}, err, true
 		}
+		if res.RequeueAfter > 0 {
+			return res, nil, true
+		}
+
+		log.Info("agentPatchingStateMachine: DeploymentSetPatchingInProgress->DeploymentSetPatchingComplete")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingComplete, "")
+		return ctrl.Result{Requeue: true}, nil, true
 
 	case k8s.DeploymentSetPatchingComplete:
 		// We know Deployment patching is complete, check status of Oracle
@@ -161,17 +150,6 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StatefulSetPatchingInProgress, "")
 		return ctrl.Result{Requeue: true}, nil, true
 
-	case k8s.DeploymentSetPatchingFailure:
-		// Start deployment set patching rollback
-		if _, err, _ := r.recreateDeployment(ctx, *inst, config, inst.Status.ActiveImages, log); err != nil {
-			log.Info("agentPatchingStateMachine: DeploymentSetPatchingFailure->PatchingRecoveryFailure")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryFailure, "")
-			return ctrl.Result{}, err, true
-		}
-		log.Info("agentPatchingStateMachine: DeploymentSetPatchingFailure->DeploymentSetPatchingRollbackInProgress")
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingRollbackInProgress, "")
-		return ctrl.Result{Requeue: true}, nil, true
-
 	case k8s.DeploymentSetPatchingRollbackInProgress:
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(instanceReadyCond, time.Second)
 		if elapsed > deploymentPatchingTimeout {
@@ -180,12 +158,19 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryFailure, msg)
 			return ctrl.Result{}, errors.New(msg), true
 		}
-		if !r.isDeploymentCreationComplete(ctx, req.NamespacedName.Namespace, inst.Name, log) {
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil, true
-		} else {
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryCompleted, "")
-			return ctrl.Result{Requeue: true}, nil, true
+		// TODO: Reconcile other agents if we add them
+		res, err := r.reconcileMonitoring(ctx, inst, r.Log, inst.Status.ActiveImages)
+		if err != nil {
+			log.Info("agentPatchingStateMachine: DeploymentSetPatchingRollbackInProgress->PatchingRecoveryFailure")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryFailure, "")
+			return ctrl.Result{}, err, true
 		}
+		if res.RequeueAfter > 0 {
+			return res, nil, true
+		}
+
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryCompleted, "")
+		return ctrl.Result{Requeue: true}, nil, true
 
 	case k8s.StatefulSetPatchingInProgress:
 		// Track software patching runtime and terminate if its running beyond timeout interval
@@ -304,23 +289,6 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		log.Info("patchingStateMachine: no action needed, proceed with main reconciliation")
 		return ctrl.Result{}, nil, false
 	}
-}
-
-func isDeploymentSetPatchingRequired(currentImages map[string]string, newImages map[string]string, enabledServices map[commonv1alpha1.Service]bool) bool {
-
-	// TODO: Make it more generic. Currently monitoring is the only service part of deployment set.
-	// Currently there is no direct mapping from service names to image keys.
-	if enabled, specified := enabledServices[commonv1alpha1.Monitoring]; specified && enabled {
-		if currentImages["monitoring"] != newImages["monitoring"] {
-			return true
-		}
-	}
-
-	if currentImages["config"] != newImages["config"] {
-		return true
-	}
-
-	return false
 }
 
 func isStatefulSetPatchingRequired(currentImages map[string]string, newImages map[string]string) bool {
@@ -486,114 +454,4 @@ func (r *InstanceReconciler) isPatchingBackupCompleted(ctx context.Context, inst
 	}
 
 	return true, nil
-}
-
-func (r *InstanceReconciler) recreateDeployment(ctx context.Context, inst v1alpha1.Instance, config *v1alpha1.Config, images map[string]string, log logr.Logger) (ctrl.Result, error, bool) {
-
-	applyOpts := []client.PatchOption{client.ForceOwnership, client.FieldOwner("instance-controller")}
-
-	var enabledServices []commonv1alpha1.Service
-	for service, enabled := range inst.Spec.Services {
-		if enabled {
-			enabledServices = append(enabledServices, service)
-		}
-	}
-	agentParam := controllers.AgentDeploymentParams{
-		Inst:           &inst,
-		Config:         config,
-		Scheme:         r.SchemeVal,
-		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
-		Images:         images,
-		PrivEscalation: false,
-		Log:            log,
-		Args:           controllers.GetLogLevelArgs(config),
-		Services:       enabledServices,
-	}
-	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
-	if err != nil {
-		log.Info("createAgentDeployment: error in function NewAgentDeployment")
-		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
-		return ctrl.Result{}, err, false
-	}
-	if result, err := r.deleteOldDeployment(ctx, inst); err != nil {
-		return result, err, false
-	}
-	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
-		return ctrl.Result{}, err, false
-	}
-	log.Info("createAgentDeployment: function Patch succeeded")
-	return ctrl.Result{}, nil, true
-}
-
-func (r *InstanceReconciler) deleteOldDeployment(ctx context.Context, inst v1alpha1.Instance) (ctrl.Result, error) {
-	oldDeployment := &appsv1.Deployment{}
-	deplName := fmt.Sprintf(controllers.AgentDeploymentName, inst.Name)
-	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: inst.Namespace,
-		Name:      deplName,
-	}, oldDeployment); err != nil {
-		r.Log.Error(err, "Failed to retrieve deployment named ", "deplName", deplName, " in namespace ", inst.Namespace)
-		return ctrl.Result{}, err
-	}
-	if err := r.Delete(ctx, oldDeployment); err != nil {
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingFailure, "Error while deleting deployment")
-		return ctrl.Result{}, err
-	}
-	//TODO: Add a deterministic delete verification/retry wrapper around async delete
-	time.Sleep(10 * time.Second)
-	return ctrl.Result{}, nil
-}
-
-func (r *InstanceReconciler) isDeploymentCreationComplete(ctx context.Context, ns, instName string, log logr.Logger) bool {
-
-	var foundDeployment appsv1.Deployment
-	if err := r.Get(ctx, types.NamespacedName{Namespace: ns, Name: fmt.Sprintf("%s-agent-deployment", instName)}, &foundDeployment); err != nil {
-		log.Error(err, "isDeploymentCreationComplete: failed to deployment to check status")
-		return false
-	}
-	log.Info("isDeploymentCreationComplete: found deployment", "foundDeployment", foundDeployment)
-
-	var pods corev1.PodList
-	if err := r.List(ctx, &pods, client.InNamespace(ns), client.MatchingLabels{"instance-agent": fmt.Sprintf("%s-agent", instName)}); err != nil {
-		log.Error(err, "isDeploymentCreationComplete: failed to get a list of Pods to check status")
-		return false
-	}
-	log.Info("isDeploymentCreationComplete: found pods", "pods", pods)
-
-	if foundDeployment.Status.UnavailableReplicas > 0 {
-		log.Info("isDeploymentCreationComplete: Deployment is not available")
-		return false
-	}
-	log.Info("isDeploymentCreationComplete: found deployment status is", "status", foundDeployment.Status)
-
-	if len(pods.Items) != 1 {
-		log.Info("isDeploymentCreationComplete: the number of pods is not 1 ")
-		return false
-	}
-
-	var foundPod *corev1.Pod
-	for index := range pods.Items {
-		foundPod = &pods.Items[index]
-	}
-
-	log.Info("isDeploymentCreationComplete: pod details are ", "foundPod", foundPod)
-
-	if foundPod.Status.Phase != "Running" {
-		log.Info("isDeploymentCreationComplete: agent pod not in running state")
-		return false
-	}
-
-	for _, podCondition := range foundPod.Status.Conditions {
-		if podCondition.Type == "Ready" && podCondition.Status == "False" {
-			log.Info("isDeploymentCreationComplete: podCondition.Type ready is False")
-			return false
-		}
-		if podCondition.Type == "ContainersReady" && podCondition.Status == "False" {
-			log.Info("isDeploymentCreationComplete: podCondition.Type ContainersReady is False")
-			return false
-		}
-	}
-	log.Info("isDeploymentCreationComplete: agent pod in running state")
-	return true
 }

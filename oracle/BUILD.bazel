@@ -116,7 +116,6 @@ filegroup(
         "//oracle/pkg/agents/backup:all-srcs",
         "//oracle/pkg/agents/common:all-srcs",
         "//oracle/pkg/agents/consts:all-srcs",
-        "//oracle/pkg/agents/monitoring:all-srcs",
         "//oracle/pkg/agents/oracle:all-srcs",
         "//oracle/pkg/agents/pitr:all-srcs",
         "//oracle/pkg/agents/security:all-srcs",

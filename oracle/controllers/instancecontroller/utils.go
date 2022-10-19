@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/utils"
@@ -27,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 
 	"github.com/go-logr/logr"
@@ -37,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // loadConfig attempts to find a customer specific Operator config
@@ -65,14 +68,11 @@ func (r *InstanceReconciler) updateProgressCondition(ctx context.Context, inst v
 
 	log.Info("updateProgressCondition", "operation", op, "iReadyCond", iReadyCond)
 	progress, err := r.statusProgress(ctx, ns, fmt.Sprintf(controllers.StsName, inst.Name), log)
-	if err != nil && iReadyCond != nil {
-		if progress > 0 {
-			k8s.InstanceUpsertCondition(&inst.Status, iReadyCond.Type, iReadyCond.Status, iReadyCond.Reason, fmt.Sprintf("%s: %d%%", op, progress))
-		}
+	if iReadyCond != nil && progress > 0 {
+		k8s.InstanceUpsertCondition(&inst.Status, iReadyCond.Type, iReadyCond.Status, iReadyCond.Reason, fmt.Sprintf("%s: %d%%", op, progress))
 		log.Info("updateProgressCondition", "statusProgress", err)
-		return false
 	}
-	return true
+	return err == nil
 }
 
 // updateIsChangeApplied sets instance.Status.IsChangeApplied field to false if observedGeneration < generation, it sets it to true if changes are applied.
@@ -119,37 +119,98 @@ func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alph
 	return ctrl.Result{}, nil
 }
 
-func (r *InstanceReconciler) createAgentDeployment(ctx context.Context, inst v1alpha1.Instance, config *v1alpha1.Config, images map[string]string, enabledServices []commonv1alpha1.Service, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
-	agentParam := controllers.AgentDeploymentParams{
-		Inst:           &inst,
-		Config:         config,
-		Scheme:         r.Scheme(),
-		Name:           fmt.Sprintf(controllers.AgentDeploymentName, inst.Name),
-		Images:         images,
-		PrivEscalation: false,
-		Log:            log,
-		Args:           controllers.GetLogLevelArgs(config),
-		Services:       enabledServices,
+func (r *InstanceReconciler) reconcileMonitoring(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger, images map[string]string) (ctrl.Result, error) {
+	requeueDuration := 0 * time.Second
+
+	deploymentName := fmt.Sprintf("%s-monitor", inst.Name)
+	monitoringUserSecretName := fmt.Sprintf("%s-secret", deploymentName)
+	monitoringUser := "gcsql$monitor"
+	monitoringSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.Namespace,
+			Name:      monitoringUserSecretName,
+		},
 	}
-	agentDeployment, err := controllers.NewAgentDeployment(agentParam)
+
+	if result, err := ctrl.CreateOrUpdate(ctx, r.Client, monitoringSecret, func() error {
+		if err := ctrlutil.SetOwnerReference(monitoringSecret, inst, r.Scheme()); err != nil {
+			return err
+		}
+		if monitoringSecret.Data == nil {
+			monitoringSecret.Data = make(map[string][]byte)
+		}
+		if len(monitoringSecret.Data["username"]) == 0 {
+			monitoringSecret.Data["username"] = []byte(monitoringUser)
+		}
+		if len(monitoringSecret.Data["password"]) == 0 {
+			monitoringPass, _ := security.RandOraclePassword()
+			monitoringSecret.Data["password"] = []byte(monitoringPass)
+		}
+		return nil
+	}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("creating monitoring secret %s/%s: %w", monitoringSecret.Namespace, monitoringSecret.Name, err)
+	} else if result != ctrlutil.OperationResultNone {
+		// Wait until we are sure the secret is reconciled to create the user.
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+
+	dbdClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.Name)
 	if err != nil {
-		log.Info("createAgentDeployment: error in function NewAgentDeployment")
-		log.Error(err, "failed to create a Deployment", "agent deployment", agentDeployment)
-		return ctrl.Result{}, err
-	} else if agentDeployment == nil {
-		log.Info("createAgentDeployment: Agent Deployment not needed since it would contain no pods")
-		return ctrl.Result{}, nil
-	}
-	log.Info("createAgentDeployment: function NewAgentDeployment succeeded")
-	if err := r.Patch(ctx, agentDeployment, client.Apply, applyOpts...); err != nil {
-		log.Error(err, "failed to patch the Deployment", "agent deployment.Status", agentDeployment.Status)
 		return ctrl.Result{}, err
 	}
-	log.Info("createAgentDeployment: function Patch succeeded")
-	if err := r.Status().Update(ctx, &inst); err != nil {
-		log.Error(err, "failed to update an Instance status agent image returning error")
+	defer closeConn()
+
+	// Only if user doesnt exist.
+	// Create cdb user with access to all pdb.
+	resp, err := dbdClient.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{
+		Commands: []string{fmt.Sprintf("select username from dba_users where username='%s'", strings.ToUpper(monitoringUser))},
+	})
+
+	if err == nil && len(resp.GetMsg()) < 1 {
+		if _, err := dbdClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
+			Commands: []string{
+				fmt.Sprintf("create user %s identified by %s", monitoringUser, string(monitoringSecret.Data["password"])),
+				fmt.Sprintf("grant %s to %s container=all", "connect, select any dictionary", monitoringUser),
+				fmt.Sprintf("alter user %s set container_data=all container=current", monitoringUser),
+			},
+			Suppress: true,
+		}); err != nil {
+			log.Error(err, "Creating the monitoring user failed")
+			requeueDuration = 30 * time.Second
+		}
+	} else if err != nil {
+		// Wait for the database to be available
+		requeueDuration = 30 * time.Second
 	}
-	return ctrl.Result{}, nil
+
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.Namespace,
+			Name:      deploymentName,
+		},
+	}
+	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		if err := ctrlutil.SetOwnerReference(deployment, inst, r.Scheme()); err != nil {
+			return err
+		}
+		one := int32(1)
+		matchLabels := map[string]string{"instance": inst.Name, "task-type": controllers.MonitorTaskType}
+		deployment.Spec = appsv1.DeploymentSpec{
+			Replicas: &one,
+			// Must match the agent deployment.
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			},
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RollingUpdateDeploymentStrategyType},
+			Template: controllers.MonitoringPodTemplate(inst, monitoringSecret, images),
+		}
+		deployment.Spec.Template.Labels = matchLabels
+		return nil
+	}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{RequeueAfter: requeueDuration}, nil
 }
 
 // CreateDBLoadBalancer returns the service for the database.

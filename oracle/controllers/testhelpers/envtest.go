@@ -743,7 +743,7 @@ func getAgentLogs(ctx context.Context, config *rest.Config, namespace, instance,
 	// with the instance.
 	agentToQuery := map[string]string{
 		// NCSA Agents
-		"oracle-monitoring": "deployment=" + instance + "-agent-deployment",
+		"oracle-monitoring": "instance=" + instance + ",task-type=" + controllers.MonitorTaskType,
 		// CSA Agents
 		"oracledb":             "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,
 		"dbdaemon":             "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,

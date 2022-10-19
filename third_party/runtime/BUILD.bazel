@@ -1,7 +1,14 @@
-filegroup(
-    name = "monitoring_files",
-    srcs = ["default-metrics.yaml"],
-    visibility = ["//visibility:public"],
+load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "binaries_tar",
+    srcs = glob([
+        "*.so*",
+        "LICENSE.*",
+    ]),
+    mode = "0755",
+    package_dir = "/lib/x86_64-linux-gnu",
+    visibility = ["//oracle/build:__pkg__"],
 )
 
 filegroup(

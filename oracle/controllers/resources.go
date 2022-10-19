@@ -200,53 +200,44 @@ func GetLogLevelArgs(config *v1alpha1.Config) map[string][]string {
 	return agentArgs
 }
 
-// NewAgentDeployment returns the agent deployment.
-func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployment, error) {
-	var replicas int32 = 1
-	labels := map[string]string{"instance-agent": fmt.Sprintf("%s-agent", agentDeployment.Inst.Name), "deployment": agentDeployment.Name}
-
-	monitoringAgentArgs := []string{
-		fmt.Sprintf("--dbservice=%s", fmt.Sprintf(DbdaemonSvcName, agentDeployment.Inst.Name)),
-		fmt.Sprintf("--dbport=%d", consts.DefaultDBDaemonPort),
+func MonitoringPodTemplate(inst *v1alpha1.Instance, monitoringSecret *corev1.Secret, images map[string]string) corev1.PodTemplateSpec {
+	svcName := fmt.Sprintf(SvcName, inst.Name)
+	dbdName := GetDBDomain(inst)
+	names := []string{inst.Spec.CDBName}
+	if dbdName != "" {
+		names = append(names, dbdName)
 	}
+	falseVal := false
 
-	// Kind cluster can only use local images
-	imagePullPolicy := corev1.PullAlways
-	if agentDeployment.Config != nil && agentDeployment.Config.Spec.Platform == utils.PlatformKind {
-		imagePullPolicy = corev1.PullIfNotPresent
-	}
-
-	var containers []corev1.Container
-
-	agentDeployment.Log.V(2).Info("enabling services: ", "services", agentDeployment.Services)
-	for _, s := range agentDeployment.Services {
-		switch s {
-		case commonv1alpha1.Monitoring:
-			containers = append(containers, corev1.Container{
-				Name:    consts.MonitoringAgentName,
-				Image:   agentDeployment.Images["monitoring"],
-				Command: []string{"/monitoring_agent"},
-				Args:    monitoringAgentArgs,
-				Ports: []corev1.ContainerPort{
-					{
-						Name:          "oe-port",
-						Protocol:      "TCP",
-						ContainerPort: consts.DefaultMonitoringAgentPort,
-					},
-				},
-				SecurityContext: &corev1.SecurityContext{
-					AllowPrivilegeEscalation: &agentDeployment.PrivEscalation,
-				},
-				ImagePullPolicy: imagePullPolicy,
-			})
-		default:
-			agentDeployment.Log.V(2).Info("unsupported service: ", "service", s)
-		}
-	}
-
-	if len(containers) == 0 {
-		return nil, nil
-	}
+	containers := []corev1.Container{{
+		Name:  "monitor",
+		Image: images["monitoring"], // TODO: Use constant
+		Env: []corev1.EnvVar{
+			{
+				Name:  "DATA_SOURCE_URI",
+				Value: fmt.Sprintf("oracle://%s:%d/%s", svcName, consts.SecureListenerPort, strings.Join(names, ".")),
+			},
+			{
+				Name:  "DATA_SOURCE_USER_FILE",
+				Value: "/mon-creds/username",
+			},
+			{
+				Name:  "DATA_SOURCE_PASS_FILE",
+				Value: "/mon-creds/password",
+			},
+		},
+		// TODO: Standardize metrics port.
+		Ports: []corev1.ContainerPort{
+			{ContainerPort: 9187, Protocol: corev1.ProtocolTCP},
+		},
+		SecurityContext: &corev1.SecurityContext{
+			AllowPrivilegeEscalation: &falseVal,
+		},
+		ImagePullPolicy: corev1.PullAlways,
+		VolumeMounts: []corev1.VolumeMount{
+			{MountPath: "/mon-creds/", Name: "mon-creds"},
+		},
+	}}
 
 	podSpec := corev1.PodSpec{
 		SecurityContext: &corev1.PodSecurityContext{},
@@ -260,45 +251,38 @@ func NewAgentDeployment(agentDeployment AgentDeploymentParams) (*appsv1.Deployme
 					{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								"instance":  agentDeployment.Inst.Name,
+								"instance":  inst.Name,
 								"task-type": DatabaseTaskType,
 							},
 						},
-						Namespaces:  []string{agentDeployment.Inst.Namespace},
+						Namespaces:  []string{inst.Namespace},
 						TopologyKey: "kubernetes.io/hostname",
 					},
 				},
 			},
 		},
+		Volumes: []corev1.Volume{{
+			Name: "mon-creds",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: monitoringSecret.Name,
+				},
+			},
+		}},
 	}
 
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    labels,
-			Namespace: agentDeployment.Inst.Namespace,
+			Namespace: inst.Namespace,
+			// Inform prometheus/opentel that we report metrics.
+			Annotations: map[string]string{
+				"prometheus.io/scrape": "true",
+			},
 		},
 		Spec: podSpec,
 	}
 
-	deployment := &appsv1.Deployment{
-		// It looks like the version needs to be explicitly set to avoid the
-		// "incorrect version specified in apply patch" error.
-		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-		ObjectMeta: metav1.ObjectMeta{Name: agentDeployment.Name, Namespace: agentDeployment.Inst.Namespace},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
-			},
-			Template: template,
-		},
-	}
-
-	if err := ctrl.SetControllerReference(agentDeployment.Inst, deployment, agentDeployment.Scheme); err != nil {
-		return deployment, err
-	}
-
-	return deployment, nil
+	return template
 }
 
 // NewPVCs returns PVCs.
