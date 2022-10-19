@@ -70,8 +70,10 @@ var (
 	PvcMountName = "%s-pvc-%s" // inst.name-pvc-mount, e.g. mydb-pvc-u02
 	// CmName is a string template for config map names.
 	CmName = "%s-cm"
-	// DatabasePodAppLabel is the 'app' label assigned to db pod.
-	DatabasePodAppLabel = "db-op"
+	// DatabaseTaskType is the value of the 'task-type' label assigned to db pod.
+	DatabaseTaskType = "oracle-db"
+	// MonitorTaskType is the value of the 'task-type' label assigned to the monitoring deployment.
+	MonitorTaskType = "monitor"
 	// DefaultDiskSpecs is the default DiskSpec settings.
 	DefaultDiskSpecs = map[string]commonv1alpha1.DiskSpec{
 		"DataDisk": {

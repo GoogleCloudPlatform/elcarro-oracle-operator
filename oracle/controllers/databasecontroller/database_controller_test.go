@@ -136,7 +136,7 @@ var _ = Describe("Database controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      podName,
 					Namespace: Namespace,
-					Labels:    map[string]string{"instance": instanceName},
+					Labels:    map[string]string{"instance": instanceName, "task-type": controllers.DatabaseTaskType},
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

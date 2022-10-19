@@ -168,7 +168,10 @@ func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1a
 		TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
 		ObjectMeta: metav1.ObjectMeta{Name: svcNameFull, Namespace: inst.Namespace, Annotations: svcAnnotations},
 		Spec: corev1.ServiceSpec{
-			Selector: map[string]string{"instance": inst.Name},
+			Selector: map[string]string{
+				"instance":  inst.Name,
+				"task-type": controllers.DatabaseTaskType,
+			},
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "secure-listener",
@@ -410,7 +413,8 @@ func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string
 			log.Info(msg)
 			return 85, fmt.Errorf(msg)
 		}
-		log.Info("container %s is ready", c.Name)
+		msg := fmt.Sprintf("container %s is ready", c.Name)
+		log.Info(msg)
 	}
 
 	log.Info("Stateful set creation is complete")

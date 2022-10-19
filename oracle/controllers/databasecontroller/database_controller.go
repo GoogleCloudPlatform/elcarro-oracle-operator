@@ -65,7 +65,7 @@ type DatabaseReconciler struct {
 func (r *DatabaseReconciler) findPod(ctx context.Context, namespace, instName string) (*corev1.PodList, error) {
 	// List the Pods matching the PodTemplate Labels
 	var pods corev1.PodList
-	if err := r.List(ctx, &pods, client.InNamespace(namespace), client.MatchingLabels{"instance": instName}); err != nil {
+	if err := r.List(ctx, &pods, client.InNamespace(namespace), client.MatchingLabels{"instance": instName, "task-type": controllers.DatabaseTaskType}); err != nil {
 		return nil, err
 	}
 

@@ -745,10 +745,10 @@ func getAgentLogs(ctx context.Context, config *rest.Config, namespace, instance,
 		// NCSA Agents
 		"oracle-monitoring": "deployment=" + instance + "-agent-deployment",
 		// CSA Agents
-		"oracledb":             "instance=" + instance,
-		"dbdaemon":             "instance=" + instance,
-		"alert-log-sidecar":    "instance=" + instance,
-		"listener-log-sidecar": "instance=" + instance,
+		"oracledb":             "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,
+		"dbdaemon":             "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,
+		"alert-log-sidecar":    "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,
+		"listener-log-sidecar": "instance=" + instance + ",task-type=" + controllers.DatabaseTaskType,
 	}
 
 	clientSet, err := kubernetes.NewForConfig(config)
