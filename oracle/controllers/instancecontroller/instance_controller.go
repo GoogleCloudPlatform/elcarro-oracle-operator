@@ -264,14 +264,13 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
 		log.Info("instance has already been provisioned and ready")
+		if res, err := r.reconcileMonitoring(ctx, &inst, log, images); err != nil || res.RequeueAfter > 0 {
+			return res, err
+		}
 		return ctrl.Result{}, r.updateDatabaseIncarnationStatus(ctx, &inst, r.Log)
 	}
 
 	if result, err := r.createStatefulSet(ctx, &inst, sp, applyOpts, log); err != nil {
-		return result, err
-	}
-
-	if result, err := r.createAgentDeployment(ctx, inst, config, images, enabledServices, applyOpts, log); err != nil {
 		return result, err
 	}
 
@@ -381,7 +380,7 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 
 	log.Info("reconciling instance: DONE")
 
-	result, err := r.reconcileDatabaseInstance(ctx, &inst, r.Log)
+	result, err := r.reconcileDatabaseInstance(ctx, &inst, r.Log, images)
 	log.Info("reconciling database instance: DONE", "result", result, "err", err)
 
 	return result, nil
@@ -432,10 +431,10 @@ func (r *InstanceReconciler) reconcileInstanceDeletion(ctx context.Context, req 
 // Successful state transition for seeded instance:
 // nil->BootstrapPending->BootstrapInProgress->CreateFailed/CreateComplete
 // Successful state transition for unseeded instance:
-// nil->CreatePending->CreateInProgress->BootstrapPending->BootstrapInProgress->CreateFailed/CreateComplete
+// nil->CreatePending->CreateInProgress->BootstrapPending->BootstrapInProgress->ReconcileServices->CreateFailed/CreateComplete
 // Successful state transition for instance with restoreSpec:
 // nil->RestorePending->CreateComplete
-func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger, images map[string]string) (ctrl.Result, error) {
 	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
 	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 	log.Info("reconciling database instance: ", "instanceReadyCond", instanceReadyCond, "dbInstanceCond", dbInstanceCond)
@@ -550,7 +549,7 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 			// handle synchronous version of BootstrapDatabase
 			r.Log.Info("encountered synchronous version of BootstrapDatabase")
 			r.Log.Info("BootstrapDatabase DONE")
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.ReconcileServices, "Services starting")
 			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 		}
 		log.Info("BootstrapDatabase started")
@@ -570,9 +569,16 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
 		}
 		log.Info("BootstrapDatabase done successfully")
-		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionFalse, k8s.ReconcileServices, "Services starting")
 		// Reconcile again
 		return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+	case k8s.ReconcileServices:
+		res, err := r.reconcileMonitoring(ctx, inst, log, images)
+		if err == nil && res.RequeueAfter == 0 {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")
+			return ctrl.Result{Requeue: true}, r.Status().Update(ctx, inst)
+		}
+		return res, err
 	case k8s.RestorePending:
 		if k8s.ConditionReasonEquals(instanceReadyCond, k8s.RestoreComplete) {
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.DatabaseInstanceReady, v1.ConditionTrue, k8s.CreateComplete, "")

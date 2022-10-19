@@ -24,13 +24,14 @@ import (
 	"os/user"
 	"syscall"
 
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
-	"google.golang.org/grpc"
-	"k8s.io/klog/v2"
-
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/pkg/monitoring"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/dbdaemonproxy"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/provision"
+	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -181,6 +182,14 @@ func main() {
 		os.Exit(exitErrorCode)
 	}
 	dbdpb.RegisterDatabaseDaemonProxyServer(grpcSvr, s)
+
+	registry := prometheus.NewRegistry()
+	go monitoring.StartExportingContainerMetrics(klog.NewKlogr(),
+		registry,
+		[]monitoring.VolumeInfo{ // TODO: Use common definitions.
+			{Mount: "/u02", Name: "DataDisk"},
+			{Mount: "/u03", Name: "LogDisk"},
+		}, nil)
 
 	klog.InfoS("Starting a Database Daemon Proxy...", "host", hostname, "address", lis.Addr())
 	grpcSvr.Serve(lis)

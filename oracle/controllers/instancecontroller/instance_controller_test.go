@@ -48,6 +48,7 @@ var (
 		"dbinit":          "dbInitImage",
 		"service":         "serviceImage",
 		"logging_sidecar": "loggingSidecarImage",
+		"monitoring":      "monitoringImage",
 	}
 	reconciler *InstanceReconciler
 

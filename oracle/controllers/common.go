@@ -113,19 +113,6 @@ type StsParams struct {
 	Services       []commonv1alpha1.Service
 }
 
-// AgentDeploymentParams stores parameters for creating a agent deployment.
-type AgentDeploymentParams struct {
-	Config         *v1alpha1.Config
-	Inst           *v1alpha1.Instance
-	Scheme         *runtime.Scheme
-	Images         map[string]string
-	PrivEscalation bool
-	Name           string
-	Log            logr.Logger
-	Args           map[string][]string
-	Services       []commonv1alpha1.Service
-}
-
 type ConnCloseFunc func()
 
 type GRPCDatabaseClientFactory struct {

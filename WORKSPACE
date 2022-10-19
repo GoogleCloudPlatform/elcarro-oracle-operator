@@ -153,3 +153,46 @@ http_file(
     sha256 = "974b20a021fe1a9758b525eace834325ad50aa828f842dbbc620a516ae33fb9e",
     urls = ["https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-22538c65/clang-format-10_linux-amd64"],
 )
+
+http_archive(
+    name = "oracle_instantclient",
+    build_file_content = """
+load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
+
+pkg_dir =  "/lib/x86_64-linux-gnu"
+pkg_tar(
+    name = "binaries_tar",
+    srcs = [
+      "libclntsh.so",
+      "libclntshcore.so.19.1",
+      "libociicus.so",
+      "libnnz19.so",
+      "libipc1.so",
+      "libocci.so",
+      "libmql1.so",
+      "libocijdbc19.so",
+      "liboramysql19.so",
+      "BASIC_LITE_LICENSE",
+    ],
+    symlinks = {
+      pkg_dir + "/libclntsh.so.10.1": "libclntsh.so",
+      pkg_dir + "/libclntsh.so.11.1": "libclntsh.so",
+      pkg_dir + "/libclntsh.so.12.1": "libclntsh.so",
+      pkg_dir + "/libclntsh.so.18.1": "libclntsh.so",
+      pkg_dir + "/libclntsh.so.19.1": "libclntsh.so",
+      pkg_dir + "/libocci.so.10.1": "libocci.so",
+      pkg_dir + "/libocci.so.11.1": "libocci.so",
+      pkg_dir + "/libocci.so.12.1": "libocci.so",
+      pkg_dir + "/libocci.so.18.1": "libocci.so",
+      pkg_dir + "/libocci.so.19.1": "libocci.so",
+    },
+    mode = "0755",
+    package_dir = pkg_dir,
+    visibility = ["@//oracle/build:__pkg__"],
+)""",
+    sha256 = "be6538141de1575aa872efc567737cae63cad1eb95fab47185ba6cc3f3bf4000",
+    strip_prefix = "instantclient_19_14",
+    urls = [
+        "https://download.oracle.com/otn_software/linux/instantclient/1914000/instantclient-basiclite-linux.x64-19.14.0.0.0dbru.zip",
+    ],
+)

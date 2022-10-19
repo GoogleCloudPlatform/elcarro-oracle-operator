@@ -1,0 +1,21 @@
+# ods/database/connections
+- name: database
+  namespace: ods
+  query: |
+    select count(*) as connections from v$session
+  metrics:
+    - name: connections
+      desc: Number of connections to the database.
+      usage: gauge
+# ods/database/uptime
+- name: database
+  namespace: ods
+  query: |
+    select p.name as database, 86400*(sysdate-i.startup_time) as uptime from v$instance i cross join v$pdbs p
+  metrics:
+    - name: database
+      desc: Name of the database.
+      usage: label
+    - name: uptime
+      desc: Number of seconds since the database started.
+      usage: counter

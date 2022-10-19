@@ -47,6 +47,7 @@ const (
 	CreatePending                         = "CreatePending"
 	BootstrapPending                      = "BootstrapPending"
 	BootstrapInProgress                   = "BootstrapInProgress"
+	ReconcileServices                     = "ReconcileServices"
 	RestorePending                        = "RestorePending"
 	ImportComplete                        = "ImportComplete"
 	ImportFailed                          = "ImportFailed"

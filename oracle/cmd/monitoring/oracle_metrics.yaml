@@ -1,0 +1,155 @@
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: sessions
+  namespace: ora
+  query: |
+    SELECT status, type, COUNT(*) as value FROM v$session GROUP BY status, type
+  metrics:
+    - name: status
+      usage: label
+    - name: type
+      usage: label
+    - name: value
+      desc: Gauge metric with count of sessions by status and type.
+      usage: gauge
+- name: resource
+  namespace: ora
+  query: |
+    SELECT resource_name,current_utilization,CASE WHEN TRIM(limit_value) LIKE
+    'UNLIMITED' THEN '-1' ELSE TRIM(limit_value) END as limit_value FROM
+    v$resource_limit
+  metrics:
+    - name: resource_name
+      usage: label
+    - name: current_utilization
+      desc: Generic gauge metric from v$resource_limit view in Oracle (current value).
+      usage: gauge
+    - name: limit_value
+      desc: "Generic gauge metric from v$resource_limit view in Oracle (UNLIMITED: -1)."
+      usage: gauge
+- name: activity
+  namespace: ora
+  query: |
+    SELECT name, value FROM v$sysstat WHERE name IN ('parse count (total)',
+    'execute count', 'user commits', 'user rollbacks')
+  metrics:
+    - name: value
+      desc: Generic counter metrics from v$sysstat view in Oracle.
+      usage: counter
+    - name: name
+      usage: label
+- name: process
+  namespace: ora
+  query: SELECT COUNT(*) as count FROM v$process
+  metrics:
+    - name: count
+      desc: Gauge metric with count of processes.
+      usage: gauge
+- name: wait_time
+  namespace: ora
+  query: |
+    SELECT
+      n.wait_class as wait_class,
+      round(m.time_waited/m.INTSIZE_CSEC,3) as value
+    FROM
+      v$waitclassmetric  m, v$system_wait_class n
+    WHERE
+      m.wait_class_id=n.wait_class_id AND n.wait_class != 'Idle'
+  metrics:
+    - name: value
+      desc: Generic gauge metric from v$waitclassmetric view in Oracle.
+      usage: gauge
+    - name: wait_class
+      usage: label
+- name: tablespace
+  namespace: ora
+  query: |
+    SELECT
+      df.tablespace_name       as tablespace,
+      df.type                  as type,
+      nvl(sum(df.bytes),0)     as bytes,
+      nvl(sum(df.max_bytes),0) as max_bytes,
+      nvl(sum(f.free),0)       as free
+    FROM
+      (
+        SELECT
+          ddf.file_id,
+          dt.contents as type,
+          ddf.file_name,
+          ddf.tablespace_name,
+          TRUNC(ddf.bytes) as bytes,
+          TRUNC(GREATEST(ddf.bytes,ddf.maxbytes)) as max_bytes
+        FROM
+          dba_data_files ddf,
+          dba_tablespaces dt
+        WHERE ddf.tablespace_name = dt.tablespace_name
+      ) df,
+      (
+        SELECT
+          TRUNC(SUM(bytes)) AS free,
+          file_id
+        FROM dba_free_space
+        GROUP BY file_id
+      ) f
+    WHERE df.file_id = f.file_id (+)
+    GROUP BY df.tablespace_name, df.type
+    UNION ALL
+    SELECT
+      Y.name                   as tablespace_name,
+      Y.type                   as type,
+      SUM(Y.bytes)             as bytes,
+      SUM(Y.max_bytes)         as max_bytes,
+      MAX(nvl(Y.free_bytes,0)) as free
+    FROM
+      (
+        SELECT
+          dtf.tablespace_name as name,
+          dt.contents as type,
+          dtf.status as status,
+          dtf.bytes as bytes,
+          (
+            SELECT
+              ((f.total_blocks - s.tot_used_blocks)*vp.value)
+            FROM
+              (SELECT tablespace_name, sum(used_blocks) tot_used_blocks FROM gv$sort_segment WHERE  tablespace_name!='DUMMY' GROUP BY tablespace_name) s,
+              (SELECT tablespace_name, sum(blocks) total_blocks FROM dba_temp_files where tablespace_name !='DUMMY' GROUP BY tablespace_name) f,
+              (SELECT value FROM v$parameter WHERE name = 'db_block_size') vp
+            WHERE f.tablespace_name=s.tablespace_name AND f.tablespace_name = dtf.tablespace_name
+          ) as free_bytes,
+          CASE
+            WHEN dtf.maxbytes = 0 THEN dtf.bytes
+            ELSE dtf.maxbytes
+          END as max_bytes
+        FROM
+          sys.dba_temp_files dtf,
+          sys.dba_tablespaces dt
+        WHERE dtf.tablespace_name = dt.tablespace_name
+      ) Y
+    GROUP BY Y.name, Y.type
+    ORDER BY tablespace
+  metrics:
+    - name: tablespace
+      usage: label
+    - name: type
+      usage: label
+    - name: bytes
+      desc: Generic gauge metric of tablespaces bytes in Oracle.
+      usage: gauge
+    - name: max_bytes
+      desc: Generic gauge metric of tablespaces max bytes in Oracle.
+      usage: gauge
+    - name: free
+      desc: Generic gauge metric of tablespaces free bytes in Oracle.
+      usage: gauge

@@ -103,10 +103,14 @@ container_image(
     entrypoint = ["/monitoring"],
     files = [
         "//oracle/cmd/monitoring",
-        "//oracle/pkg/agents/monitoring:monitoring_files",
+        "//oracle/cmd/monitoring:monitoring_files",
     ],
     ports = ["9161"],
     symlinks = {"/monitoring_agent": "/monitoring"},
+    tars = [
+        "//third_party/runtime:binaries_tar",
+        "@oracle_instantclient//:binaries_tar",
+    ],
 )
 
 container_push(

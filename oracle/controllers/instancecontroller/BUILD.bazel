@@ -22,6 +22,7 @@ go_library(
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
+        "//oracle/pkg/agents/security",
         "//oracle/pkg/k8s",
         "@com_github_go_logr_logr//:logr",
         "@com_github_google_go_cmp//cmp",
