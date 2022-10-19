@@ -100,9 +100,9 @@ rman3-inst-opts   mydb            Physical      Instance         4              
 
 Once the backup phase changed to `Succeeded`, the physical backup creation is complete and ready to use.
 
-## Scheduling regular backups
+## Scheduling periodic backups
 
-El Carro can manage schedules and retention periods for RMAN backups.
+El Carro can manage schedules and retention periods for backups (RMAN and Snapshot).
 
 ### Prepare the backup schedule manifest
 
