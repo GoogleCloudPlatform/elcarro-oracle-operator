@@ -83,7 +83,6 @@ filegroup(
         ":package-srcs",
         "//oracle/controllers/backupcontroller:all-srcs",
         "//oracle/controllers/backupschedulecontroller:all-srcs",
-        "//oracle/controllers/configcontroller:all-srcs",
         "//oracle/controllers/cronanythingcontroller:all-srcs",
         "//oracle/controllers/databasecontroller:all-srcs",
         "//oracle/controllers/exportcontroller:all-srcs",

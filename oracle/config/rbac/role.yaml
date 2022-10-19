@@ -129,6 +129,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - create
@@ -208,14 +220,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - oracle.db.anthosapis.com
-  resources:
-  - configs/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - oracle.db.anthosapis.com
   resources:

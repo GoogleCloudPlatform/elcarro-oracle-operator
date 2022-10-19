@@ -36,7 +36,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/backupcontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/backupschedulecontroller"
-	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/configcontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/cronanythingcontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/databasecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/exportcontroller"
@@ -139,17 +138,6 @@ func main() {
 		DatabaseClientFactory: &controllers.GRPCDatabaseClientFactory{},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Backup")
-		os.Exit(1)
-	}
-	if err = (&configcontroller.ConfigReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Config"),
-		Scheme:        mgr.GetScheme(),
-		Images:        images,
-		Recorder:      mgr.GetEventRecorderFor("config-controller"),
-		InstanceLocks: &locker,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Config")
 		os.Exit(1)
 	}
 	if err = (&exportcontroller.ExportReconciler{
