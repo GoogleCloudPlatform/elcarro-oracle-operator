@@ -100,6 +100,83 @@ rman3-inst-opts   mydb            Physical      Instance         4              
 
 Once the backup phase changed to `Succeeded`, the physical backup creation is complete and ready to use.
 
+## Scheduling periodic backups
+
+El Carro can manage schedules and retention periods for backups (RMAN and Snapshot).
+
+### Prepare the backup schedule manifest
+
+To schedule a backup, create a manifest of type `BackupSchedule` with the following fields:
+
+* backupSpec: the parameters for the backup itself, as for a [one-off backup](#preparing-a-backup-cr-manifest)
+* schedule: the backup schedule, in [cron schedule syntax](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#cron-schedule-syntax)
+* backupRetentionPolicy: a list of backup retention policy parameters, most importantly:
+  * backupRetention: the number of backups to keep on disk;  additional backups are deleted automatically
+
+A sample backup schedule CR manifest may look like the following:
+```sh
+cat $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_backupschedule_rman1.yaml
+```
+
+```yaml
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: BackupSchedule
+metadata:
+  name: backupschedule-rman1
+spec:
+  backupSpec:
+    instance: mydb
+    type: Physical
+    subType: Instance
+  # Run at 3:01am daily, server time
+  schedule: "01 03 * * *"
+  backupRetentionPolicy:
+    backupRetention: 3
+```
+
+### Submit the backup schedule CR
+
+Submit the schedule using `kubectl apply`:
+
+```sh
+kubectl apply -f $PATH_TO_EL_CARRO_RELEASE/samples/v1alpha1_backupschedule_rman1.yaml -n $NAMESPACE
+```
+
+### Inspect the backup schedule
+
+```sh
+kubectl describe backupschedules.oracle.db.anthosapis.com  -n $NAMESPACE
+```
+
+```
+Name:         backupschedule-rman1
+Namespace:    db
+...
+Spec:
+  Backup Retention Policy:
+    Backup Retention:  2
+  Backup Spec:
+    Backupset:                true
+    Compressed:               true
+    Instance:                 mydb
+    Sub Type:                 Instance
+    Type:                     Physical
+  Schedule:                   01 03 * * *
+```
+
+Once the scheduled time passes, a status display will show the backup in progress:
+
+```
+Status:
+  Backup History:
+    Backup Name:    backupschedule-rman1-20221018-201200
+    Creation Time:  2022-10-18T20:12:00Z
+    Phase:          InProgress
+  Backup Total:     1
+```
+
+And the backup can be watched [as with one-off backups](#watch-backup-status)
+
 ## What's Next?
 
 Check out the [restore guide](restore-from-backups.md) to learn how to restore
