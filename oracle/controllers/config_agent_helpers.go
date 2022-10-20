@@ -539,6 +539,9 @@ func SetParameter(ctx context.Context, dbClientFactory DatabaseClientFactory, r 
 		command = fmt.Sprintf("%s scope=spfile", command)
 		isStatic = true
 	}
+	if paramType == "DEFERRED" {
+		command = fmt.Sprintf("%s deferred", command)
+	}
 
 	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
 		Commands: []string{command},
