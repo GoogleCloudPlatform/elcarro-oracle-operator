@@ -273,6 +273,7 @@ func CreateDatabase(ctx context.Context, r client.Reader, dbClientFactory Databa
 			sqls := append([]string{sql.QuerySetSessionContainer(p.pluggableDatabaseName)}, []string{sql.QueryAlterUser(pdbAdmin, pwd)}...)
 			if _, err := dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
 				Commands: sqls,
+				Suppress: true,
 			}); err != nil {
 				return "", fmt.Errorf("failed to alter user %s: %v", pdbAdmin, err)
 			}
@@ -715,7 +716,7 @@ func CreateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 			usersCmd = append(usersCmd, sql.QueryCreateUser(u.Name, pwd))
 		}
 	}
-	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: usersCmd, Suppress: false})
+	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: usersCmd, Suppress: true})
 	if err != nil {
 		return "", fmt.Errorf("config_agent_helpers/CreateUsers: failed to create users in a PDB %s: %v", p.pluggableDatabaseName, err)
 	}
