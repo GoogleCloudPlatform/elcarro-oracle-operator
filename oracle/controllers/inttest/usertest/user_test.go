@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,18 +172,18 @@ var _ = Describe("User operations", func() {
 					},
 				},
 			})
+			createdDatabase := &v1alpha1.Database{}
+			objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}
+			err := k8sEnv.K8sClient.Get(k8sEnv.Ctx, client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}, createdDatabase)
+			Expect(err).Should(Succeed())
 
 			// Note the we might not need a separate test for user creation
 			// as BeforeEach function has covered this scenario already.
 			By("Verify PDB user connectivity with initial passwords")
-			// Resolve password sync latency between Config Server and Oracle DB.
-			// Even after we checked PDB status is ready.
-			time.Sleep(5 * time.Second)
+			waitForUserPasswordSyncVersion(createdDatabase, "1")
 			testhelpers.K8sVerifyUserConnectivity(pod, k8sEnv.CPNamespace, databaseName, userPwdBefore)
 
 			By("DB is ready, updating user secret version")
-			createdDatabase := &v1alpha1.Database{}
-			objKey := client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}
 
 			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				objKey,
@@ -238,21 +239,7 @@ var _ = Describe("User operations", func() {
 				})
 
 			// Verify if both PDB ready and user ready status are expected.
-			Eventually(func() metav1.ConditionStatus {
-				Expect(k8sEnv.K8sClient.Get(k8sEnv.Ctx, client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}, createdDatabase)).Should(Succeed())
-				cond := k8s.FindCondition(createdDatabase.Status.Conditions, k8s.Ready)
-				syncUserCompleted := k8s.ConditionStatusEquals(&metav1.Condition{
-					Type:    k8s.UserReady,
-					Status:  metav1.ConditionTrue,
-					Reason:  k8s.SyncComplete,
-					Message: "",
-				}, metav1.ConditionTrue)
-				if cond != nil && syncUserCompleted {
-					log.Info("PDB", "state", cond.Reason, "SyncComplete", syncUserCompleted)
-					return cond.Status
-				}
-				return metav1.ConditionUnknown
-			}, 2*time.Minute, 5*time.Second).Should(Equal(metav1.ConditionTrue))
+			waitForUserPasswordSyncVersion(createdDatabase, "2")
 
 			// Resolve password sync latency between Config Server and Oracle DB.
 			// Even after we checked PDB status is ready and user sync complete.
@@ -270,6 +257,27 @@ var _ = Describe("User operations", func() {
 		testUpdateUser("18c", "XE")
 	})
 })
+
+func waitForUserPasswordSyncVersion(createdDatabase *v1alpha1.Database, version string) {
+	// Verify if both PDB ready and user ready status are expected.
+	Eventually(func() bool {
+		Expect(k8sEnv.K8sClient.Get(k8sEnv.Ctx, client.ObjectKey{Namespace: k8sEnv.CPNamespace, Name: databaseName}, createdDatabase)).Should(Succeed())
+		cond := k8s.FindCondition(createdDatabase.Status.Conditions, k8s.UserReady)
+		if !k8s.ConditionReasonEquals(cond, k8s.SyncComplete) || !k8s.ConditionStatusEquals(cond, metav1.ConditionTrue) {
+			log.Info("Waiting "+k8s.UserReady, "reason", cond.Reason, "status", cond.Status)
+			return false
+		}
+		for _, v := range createdDatabase.Status.UserResourceVersions {
+			parts := strings.Split(v, "/")
+			curVersion := parts[len(parts)-1]
+			if curVersion != version {
+				log.Info("Waiting "+k8s.UserReady, "version", curVersion, "expecting", version)
+				return false
+			}
+		}
+		return true
+	}, 2*time.Minute, 5*time.Second).Should(Equal(true))
+}
 
 func prepareTestUsersAndGrantAccess() {
 	// Prepare test users and grant GMS permission
