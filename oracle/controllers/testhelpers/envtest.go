@@ -1271,6 +1271,7 @@ EOF
 // Uses ginkgo asserts.
 
 const RetryTimeout = time.Second * 5
+const RetryLongTimeout = time.Minute * 5
 const RetryInterval = time.Second * 1
 
 // K8sCreateWithRetry calls k8s Create() with retry as k8s might require this in some cases (e.g. conflicts).
@@ -1287,6 +1288,14 @@ func K8sGetWithRetry(k8sClient client.Client, ctx context.Context, objKey client
 		func() error {
 			return k8sClient.Get(ctx, objKey, obj)
 		}, RetryTimeout, RetryInterval).Should(Succeed())
+}
+
+// K8sGetWithLongRetry calls k8s Get() with retry as k8s might require this in some cases (e.g. conflicts).
+func K8sGetWithLongRetry(k8sClient client.Client, ctx context.Context, objKey client.ObjectKey, obj client.Object) {
+	Eventually(
+		func() error {
+			return k8sClient.Get(ctx, objKey, obj)
+		}, RetryLongTimeout, RetryInterval).Should(Succeed())
 }
 
 // K8sDeleteWithRetryNoWait calls k8s Delete() with retry as k8s might require

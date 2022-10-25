@@ -16,9 +16,11 @@ package instancetest
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -133,7 +135,60 @@ var _ = Describe("Instance and Database provisioning", func() {
 			var svc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
 			Expect(len(svc.Items)).Should(Equal(4)) // 2 services (LB, DBDaemon) per instance
-
+			By("By checking that the datadisk and log disk get resized")
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			createdInstance1 := &v1alpha1.Instance{}
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				instKey1,
+				createdInstance1,
+				func(obj *client.Object) {
+					instanceToUpdate := (*obj).(*v1alpha1.Instance)
+					for i, disk := range instanceToUpdate.Spec.Disks {
+						if disk.Name == "DataDisk" {
+							instanceToUpdate.Spec.Disks[i].Size = resource.MustParse("45Gi")
+						}
+						if disk.Name == "LogDisk" {
+							instanceToUpdate.Spec.Disks[i].Size = resource.MustParse("55Gi")
+						}
+					}
+				})
+			//wait for status propagation
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionFalse, k8s.ResizingInProgress, 5*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			sts1 := &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf(controllers.StsName, createdInstance1.Name),
+					Namespace: namespace,
+				},
+			}
+			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(sts1), sts1)
+			By("By Checking if DataDisk and Log Disk PVC is changed")
+			dataDiskPVCName := getPVCName(createdInstance1.Name, sts1.Name, "DataDisk")
+			logDiskPVCName := getPVCName(createdInstance1.Name, sts1.Name, "LogDisk")
+			for i := 0; i < int(*sts1.Spec.Replicas); i++ {
+				dataPVC := &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      dataDiskPVCName,
+						Namespace: namespace,
+					},
+				}
+				logPVC := &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      logDiskPVCName,
+						Namespace: namespace,
+					},
+				}
+				Eventually(func() bool {
+					testhelpers.K8sGetWithRetry(k8sClient, ctx, client.ObjectKeyFromObject(dataPVC), dataPVC)
+					return *dataPVC.Spec.Resources.Requests.Storage() == resource.MustParse("45Gi")
+				}, time.Minute*25, time.Minute).Should(BeTrue())
+				Eventually(func() bool {
+					testhelpers.K8sGetWithRetry(k8sClient, ctx, client.ObjectKeyFromObject(logPVC), logPVC)
+					return *logPVC.Spec.Resources.Requests.Storage() == resource.MustParse("55Gi")
+				}, time.Minute*25, time.Minute).Should(BeTrue())
+			}
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			//call patch apply, get the pvcs, get the sts
 			By("Deleting a database")
 			deleteDatabase(ctx, firstDatabaseName, namespace)
 			Eventually(func() ([]string, error) {
@@ -148,7 +203,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			Eventually(func() (int, error) {
 				Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
 				return len(pvcList.Items), nil
-			}, 60*time.Second, 5*time.Second).Should(Equal(2)) // 2 PVCs kept for the first instance
+			}, 5*time.Minute, 5*time.Second).Should(Equal(2)) // 2 PVCs kept for the first instance
 			Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
 			pvcNames := make([]string, 2)
 			for i := 0; i < len(pvcList.Items); i++ {
@@ -206,12 +261,12 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 				Disks: []commonv1alpha1.DiskSpec{
 					{
 						Name:         "DataDisk",
-						Size:         resource.MustParse("45Gi"),
+						Size:         resource.MustParse("40Gi"),
 						StorageClass: "premium-rwo",
 					},
 					{
 						Name:         "LogDisk",
-						Size:         resource.MustParse("55Gi"),
+						Size:         resource.MustParse("50Gi"),
 						StorageClass: "premium-rwo",
 					},
 				},
@@ -279,4 +334,10 @@ func TestInstance(t *testing.T) {
 	RunSpecsWithDefaultAndCustomReporters(t,
 		t.Name(),
 		[]Reporter{printer.NewlineReporter{}})
+}
+
+func getPVCName(instName string, stsName string, diskName string) string {
+	pvcName, _ := controllers.GetPVCNameAndMount(instName, diskName)
+	pvcName = fmt.Sprintf("%s-%s-0", pvcName, stsName)
+	return pvcName
 }

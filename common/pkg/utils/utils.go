@@ -17,10 +17,13 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
+	"regexp"
 
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +48,12 @@ const (
 	defaultVolumeSnapshotClassNameBM       = "csi-trident-snapshot-class"
 	defaultStorageClassNameMinikube        = "csi-hostpath-sc"
 	defaultVolumeSnapshotClassNameMinikube = "csi-hostpath-snapclass"
+)
+
+var (
+	ErrPodUnschedulable      = errors.New("Pod is unschedulable")
+	ErrNoResources           = errors.New("Insufficient resources to create Pod")
+	NoResourcesMessageRegexp = "Insufficient memory|Insufficient cpu|enough free storage"
 )
 
 type platformConfig struct {
@@ -248,4 +257,53 @@ func LoadBalancerURL(svc *corev1.Service, port int) string {
 	}
 
 	return net.JoinHostPort(hostName, fmt.Sprintf("%d", port))
+}
+
+func ObjectKeyOf(sts *appsv1.StatefulSet, pvc *corev1.PersistentVolumeClaim, i int) client.ObjectKey {
+	// name template from https://github.com/kubernetes/kubernetes/blob/v1.23.5/pkg/controller/ssettatefulset/stateful_set_utils.go#L96
+	return client.ObjectKey{
+		Namespace: sts.Namespace,
+		Name:      fmt.Sprintf("%v-%v-%v", pvc.GetName(), sts.Name, i),
+	}
+}
+
+// Check if POD initialiazation is stuck because of insufficient resources
+// It will return error if Pod creation is stuck and needs manual intervention.
+func VerifyPodsStatus(ctx context.Context, cli client.Client, sts *appsv1.StatefulSet) error {
+	pods, err := FindPods(ctx, cli, sts)
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods {
+		if cond := GetPodCondition(pod, corev1.PodScheduled); cond != nil && cond.Reason == corev1.PodReasonUnschedulable {
+			r := regexp.MustCompile(NoResourcesMessageRegexp)
+			if match := r.MatchString(cond.Message); match {
+				return fmt.Errorf("%s: %w", cond.Message, ErrNoResources)
+			}
+			return fmt.Errorf("%s: %w", cond.Message, ErrPodUnschedulable)
+
+		}
+	}
+	return nil
+}
+
+func FindPods(ctx context.Context, cli client.Client, sts *appsv1.StatefulSet) ([]corev1.Pod, error) {
+	if sts == nil || sts.Spec.Selector == nil {
+		return nil, nil
+	}
+	var pods corev1.PodList
+	labels := sts.Spec.Selector.MatchLabels
+	if err := cli.List(ctx, &pods, client.MatchingLabels(labels), client.InNamespace(sts.Namespace)); err != nil {
+		return nil, err
+	}
+	return pods.Items, nil
+}
+
+func GetPodCondition(pod corev1.Pod, condType corev1.PodConditionType) *corev1.PodCondition {
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == condType {
+			return &cond
+		}
+	}
+	return nil
 }

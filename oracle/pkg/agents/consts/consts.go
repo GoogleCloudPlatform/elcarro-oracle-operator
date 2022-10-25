@@ -84,9 +84,6 @@ const (
 	// CharSet is the supported character set for Oracle databases.
 	CharSet = "AL32UTF8"
 
-	// OracleDBContainerName is the container name for the Oracle database.
-	OracleDBContainerName = "oracle_db"
-
 	// SecurityUser is the user for lockdown triggers.
 	SecurityUser = "gcsql$security"
 
