@@ -16,6 +16,8 @@ package instancecontroller
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -30,6 +32,9 @@ import (
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+	storagev1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -647,4 +652,341 @@ func ReleaseInstanceMaintenanceLock(ctx context.Context, k8sClient client.Client
 		return fmt.Errorf("requested owner: %s, failed to update the instance status: %v", owner, err)
 	}
 	return result
+}
+
+func (r *InstanceReconciler) handleResize(ctx context.Context, inst *v1alpha1.Instance, instanceReadyCond *v1.Condition, dbInstanceCond *v1.Condition, sp controllers.StsParams, applyOpts []client.PatchOption, log logr.Logger) (ctrl.Result, error) {
+
+	if !k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && !k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && !k8s.ConditionReasonEquals(instanceReadyCond, k8s.ResizingInProgress) {
+		return ctrl.Result{}, nil
+	}
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sp.StsName,
+			Namespace: inst.Namespace,
+		},
+	}
+
+	if err := r.Get(ctx, client.ObjectKeyFromObject(sts), sts); err != nil && !apierrors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("failed to get statefulset: %v", err)
+	} else if apierrors.IsNotFound(err) {
+		log.Info("Recreating Stateful set")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.ResizingInProgress, "Recreating statefulset")
+		if _, err := r.createStatefulSet(ctx, inst, sp, applyOpts, log); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	newSts, err := r.buildStatefulSet(ctx, inst, sp, nil, log)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	done, err := tryResizeDisksOf(ctx, r.Client, newSts, log)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if !done {
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.ResizingInProgress, "Resizing disk")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+	}
+
+	if k8s.ConditionReasonEquals(instanceReadyCond, k8s.ResizingInProgress) {
+		ready, msg := IsReadyWithObj(sts)
+		if ready {
+			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, msg)
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if err := utils.VerifyPodsStatus(ctx, r.Client, sts); errors.Is(err, utils.ErrPodUnschedulable) {
+			return ctrl.Result{}, fmt.Errorf("Unschedulable pod %v", err)
+		} else if errors.Is(err, utils.ErrNoResources) {
+			return ctrl.Result{}, fmt.Errorf("Insufficient Resources %v", err)
+		}
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func tryResizeDisksOf(ctx context.Context, c client.Client, newSts *appsv1.StatefulSet, log logr.Logger) (bool, error) {
+	oldSts := &appsv1.StatefulSet{}
+	key := client.ObjectKeyFromObject(newSts)
+
+	if err := c.Get(ctx, key, oldSts); err != nil {
+		if apierrors.IsNotFound(err) {
+			// no existing sts, we only delete sts after all PVCs has been resized,
+			// so this is either a new sts or PVC has been resized.
+			// Still return false here so that the request is requeued and sts is recreated in the following cycle.s
+			return false, nil
+		}
+		return false,
+			fmt.Errorf("error getting statefulset [%v]: %v", key, err)
+	}
+
+	if !oldSts.DeletionTimestamp.IsZero() {
+		// sts has been requested to delete, let's wait for it to be completely gone
+		return false, nil
+	}
+
+	changedDisks := FilterDiskWithSizeChanged(
+		oldSts.Spec.VolumeClaimTemplates,
+		newSts.Spec.VolumeClaimTemplates,
+		log,
+	)
+
+	if len(changedDisks) == 0 {
+		// no disk has size changed
+		return true, nil
+	}
+
+	// sanity check: all sc can expand
+	if err := PvcsCanBeExpanded(ctx, c, newSts, changedDisks); err != nil {
+		return false,
+			fmt.Errorf("pvcs may not be expanded")
+	}
+	// actually do the update
+	done, err := resizePvcs(ctx, c, newSts, changedDisks, log)
+	if err != nil {
+		return false, err
+	}
+
+	if !done {
+		return false, nil
+	}
+
+	// resize done, now let's delete the sts
+	if err := c.Delete(ctx, oldSts); err != nil {
+		return false,
+			fmt.Errorf("error while deleting sts [%v]: %v", key, err)
+	}
+	return false, nil
+
+}
+
+// resizePvcs resizes the provided PVC templates, and return true if resize has
+// completed; false if it's done but PVC still undergoing resizing; or error if
+// and error occured during the resizing process
+func resizePvcs(ctx context.Context, c client.Client, sts *appsv1.StatefulSet, disks []*corev1.PersistentVolumeClaim, log logr.Logger,
+) (bool, error) {
+	done := true
+	var requested []string
+	var completed []string
+
+	for i := 0; i < int(*sts.Spec.Replicas); i++ {
+		for _, pvc := range disks {
+
+			key := utils.ObjectKeyOf(sts, pvc, i)
+			newSize := *pvc.Spec.Resources.Requests.Storage()
+
+			pvc := &corev1.PersistentVolumeClaim{}
+			if err := c.Get(ctx, key, pvc); err != nil {
+				return false,
+					fmt.Errorf("error getting pvc [%v]: %v", key, err)
+			}
+
+			if newSize.Equal(*pvc.Spec.Resources.Requests.Storage()) {
+				// spec has been updated before, check status
+				if !newSize.Equal(*pvc.Status.Capacity.Storage()) {
+					// status is not equal, meaning the resizing is still in-progress
+					done = false
+				} else {
+					completed = append(completed, key.String())
+				}
+			} else {
+				// spec is not updated yet, update it
+				done = false
+				oldCliObj := pvc.DeepCopyObject().(client.Object)
+				pvc.Spec.Resources.Requests[corev1.ResourceStorage] = newSize
+				if err := Patch(ctx, c, pvc, oldCliObj); err != nil {
+					return false,
+						fmt.Errorf("error resizing pvc [%v]: %v", key, err)
+				} else {
+					requested = append(requested, key.String())
+				}
+			}
+		}
+	}
+
+	if len(requested) != 0 || len(completed) != 0 {
+		log.Info(
+			fmt.Sprintf(
+				"PVC resizing, requested [%v], completed [%v]",
+				strings.Join(requested, ", "),
+				strings.Join(completed, ", ")))
+	}
+
+	return done, nil
+}
+
+// IsReadyWithObj returns true if the statefulset has a non-zero number of
+// desired replicas and has the same number of actual pods running and ready.
+func IsReadyWithObj(sts *appsv1.StatefulSet) (ready bool, msg string) {
+	var want int32
+	if sts.Spec.Replicas != nil {
+		want = *sts.Spec.Replicas
+	}
+	have := sts.Status.ReadyReplicas
+	if want == have {
+		if want == 0 {
+			return false, fmt.Sprintf("Statefulset %s/%s has zero replicas", sts.Namespace, sts.Name)
+		}
+		return true, fmt.Sprintf("Statefulset %s/%s is running", sts.Namespace, sts.Name)
+	}
+	return false, fmt.Sprintf("StatefulSet is not ready (current replicas: %d expected replicas: %d)", have, want)
+}
+
+func (r *InstanceReconciler) buildStatefulSet(ctx context.Context, inst *v1alpha1.Instance, sp controllers.StsParams, applyOpts []client.PatchOption, log logr.Logger) (*appsv1.StatefulSet, error) {
+
+	newPVCs, err := controllers.NewPVCs(sp)
+	if err != nil {
+		log.Error(err, "NewPVCs failed")
+		return nil, err
+	}
+	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
+	if err != nil {
+		log.Error(err, "failed to create a StatefulSet", "sts", sts)
+		return nil, err
+	}
+	log.Info("StatefulSet constructed", "sts", sts, "sts.Status", sts.Status, "inst.Status", inst.Status)
+	return sts, nil
+}
+
+func findContainer(containers []corev1.Container, name string) *corev1.Container {
+	for i, c := range containers {
+		if c.Name == name {
+			return &containers[i]
+		}
+	}
+	return nil
+}
+
+// FilterDiskWithSizeChanged compare an old STS to a new STS and identify volumes that changed from old to new.
+func FilterDiskWithSizeChanged(old, new []corev1.PersistentVolumeClaim, log logr.Logger) []*corev1.PersistentVolumeClaim {
+	oldDisks := make(map[string]*resource.Quantity)
+	changedDisks := make([]*corev1.PersistentVolumeClaim, 0, len(new))
+
+	for _, c := range old {
+		oldDisks[c.GetName()] = c.Spec.Resources.Requests.Storage()
+	}
+
+	sb := strings.Builder{}
+	sb.WriteString("Detected disks with new size: ")
+
+	for i, c := range new {
+		newSize := c.Spec.Resources.Requests.Storage()
+		if oldSize, ok := oldDisks[c.GetName()]; ok && !oldSize.Equal(*newSize) {
+			sb.WriteString(fmt.Sprintf("[%v:%v->%v]", c.GetName(), oldSize.String(), newSize.String()))
+			changedDisks = append(changedDisks, &new[i])
+		}
+	}
+
+	if len(changedDisks) != 0 {
+		log.Info(sb.String())
+	}
+
+	return changedDisks
+}
+
+// pvcsCanBeExpanded checks all the pvcs has a storage class that can be expanded, and return an error if any one PVC
+// cannot be expanded.
+func PvcsCanBeExpanded(ctx context.Context, r client.Reader, sts *appsv1.StatefulSet,
+	pvcs []*corev1.PersistentVolumeClaim,
+) error {
+	for i := 0; i < int(*sts.Spec.Replicas); i++ {
+		for _, pvc := range pvcs {
+
+			// Need to get the actual PVC from kubernetes since empty storage class while creating could mean either manually
+			// provisioned or default storage class.
+			key := utils.ObjectKeyOf(sts, pvc, i)
+
+			if err := CheckSinglePvc(ctx, r, key); err != nil {
+				return err
+			}
+
+		}
+	}
+
+	return nil
+}
+
+// check pvc spec
+func CheckSinglePvc(ctx context.Context, r client.Reader, key client.ObjectKey) error {
+	tpvc := &corev1.PersistentVolumeClaim{}
+	if err := r.Get(ctx, key, tpvc); err != nil {
+		return fmt.Errorf("error getting pvc [%v]: %v", key, err)
+	}
+
+	if tpvc.Spec.StorageClassName == nil || *tpvc.Spec.StorageClassName == "" {
+		return fmt.Errorf("cannot resize manually provisioned pvc [%v]", key)
+	}
+
+	scName := *tpvc.Spec.StorageClassName
+	sc := &storagev1.StorageClass{}
+	if err := r.Get(ctx, client.ObjectKey{Name: scName}, sc); err != nil {
+		return fmt.Errorf("error getting storageclass [%v]: %v", scName, err)
+	}
+
+	if sc.AllowVolumeExpansion == nil || !*sc.AllowVolumeExpansion {
+		return fmt.Errorf("storageclass [%v] does not allow expansion for volume [%v]", scName, tpvc.GetName())
+	}
+	return nil
+}
+
+// Patch attempts to patch the given object.
+func Patch(ctx context.Context, cli client.Client, newCliObj client.Object, oldCliObj client.Object) error {
+	// Make sure we're comparing objects with the same resourceVersion so that
+	// the patch data (i.e., the diff) doesn't include a resourceVersion.
+	// Otherwise, we could get a "the object has been modified; please apply
+	// your changes to the latest version and try again" error if the
+	// resourceVersion we're using is out of date.
+	oldCliObj.SetResourceVersion(newCliObj.GetResourceVersion())
+
+	patch := client.MergeFrom(oldCliObj)
+
+	// The client.Patch function will make a patch request even if the patch
+	// data is empty. So we'll check to see if a request is needed first to
+	// avoid making empty requests.
+	specOrMetaChanged, statusChanged, err := isObjectChanged(ctx, patch, newCliObj)
+	if err != nil {
+		return err
+	}
+
+	if specOrMetaChanged {
+		newCloned := newCliObj
+		if statusChanged {
+			// Patch() will change the object passed in. We'll pass in a cloned
+			// object so we still have the original for the status update below.
+			newCloned = newCliObj.DeepCopyObject().(client.Object)
+		}
+		if err := cli.Patch(ctx, newCloned, patch); err != nil {
+			return err
+		}
+	}
+	if statusChanged {
+		if err := cli.Status().Patch(ctx, newCliObj, patch); err != nil {
+			return err
+		}
+	}
+
+	// Replace h.old with the updated object, otherwise subsequent calls to
+	// Patch() will be comparing the changes with an outdated version of the
+	// object
+	oldCliObj = newCliObj.DeepCopyObject().(client.Object)
+
+	return nil
+}
+
+func isObjectChanged(ctx context.Context, patch client.Patch, obj client.Object) (specOrMetaChanged, statusChanged bool, err error) {
+	data, err := patch.Data(obj)
+	if err != nil {
+		return false, false, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return false, false, err
+	}
+
+	_, statusChanged = result["status"]
+	specOrMetaChanged = len(result) > 0 && !(len(result) == 1 && statusChanged)
+	return specOrMetaChanged, statusChanged, nil
 }

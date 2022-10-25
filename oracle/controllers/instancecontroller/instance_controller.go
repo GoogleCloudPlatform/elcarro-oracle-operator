@@ -78,6 +78,7 @@ func (r *InstanceReconciler) Scheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=list;watch;get;patch;create
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
@@ -260,6 +261,14 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		// No error and no result - state machine is done, proceed with main reconciler
 	}
 
+	//if we return something we have to requeue
+	res, err := r.handleResize(ctx, &inst, instanceReadyCond, dbInstanceCond, sp, applyOpts, log)
+	if err != nil {
+		return ctrl.Result{}, err
+	} else if !res.IsZero() {
+		return res, nil
+	}
+
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) {
 		log.Info("instance has already been provisioned and ready")
 		if res, err := r.reconcileMonitoring(ctx, &inst, log, images); err != nil || res.RequeueAfter > 0 {
@@ -361,16 +370,6 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		log.V(1).Info("failed to list databases for instance", "inst.Name", inst.Name)
 	} else {
 		log.Info("list of queried databases", "dbs", dbs)
-	}
-
-	for _, newDB := range dbs.Items {
-		// check DB name against existing ones to decide whether this is a new DB
-		if !controllers.Contains(inst.Status.DatabaseNames, newDB.Spec.Name) {
-			log.Info("found a new DB", "dbName", newDB.Spec.Name)
-			inst.Status.DatabaseNames = append(inst.Status.DatabaseNames, newDB.Spec.Name)
-		} else {
-			log.V(1).Info("not a new DB, skipping the update", "dbName", newDB.Spec.Name)
-		}
 	}
 
 	log.Info("instance status", "instanceReadyCond", instanceReadyCond, "endpoint", inst.Status.Endpoint,
