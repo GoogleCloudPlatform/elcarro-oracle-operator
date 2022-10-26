@@ -27,9 +27,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -112,6 +114,19 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 			}
 		}
 	}()
+
+	if !inst.DeletionTimestamp.IsZero() {
+		return r.reconcileInstanceDeletion(ctx, req, log)
+	}
+
+	// Add finalizer to clean up underlying objects in case of deletion.
+	if !controllerutil.ContainsFinalizer(&inst, controllers.FinalizerName) {
+		log.Info("adding a finalizer to the Instance object.")
+		controllerutil.AddFinalizer(&inst, controllers.FinalizerName)
+		if err := r.Update(ctx, &inst); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	diskSpace, err := commonutils.DiskSpaceTotal(&inst)
 	if err != nil {
@@ -375,6 +390,37 @@ func lroCreateCDBOperationID(instance v1alpha1.Instance) string {
 // Create a name for the bootstrapCDB LRO operation based on instance GUID.
 func lroBootstrapCDBOperationID(instance v1alpha1.Instance) string {
 	return fmt.Sprintf("BootstrapCDB_%s", instance.GetUID())
+}
+
+func (r *InstanceReconciler) reconcileInstanceDeletion(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {
+	log.Info("Deleting Instance...", "InstanceName", req.NamespacedName.Name)
+
+	var inst v1alpha1.Instance
+	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if len(inst.Status.DatabaseNames) == 0 {
+		controllerutil.RemoveFinalizer(&inst, controllers.FinalizerName)
+		if err := r.Update(ctx, &inst); err != nil {
+			log.Error(err, "failed to remove a finalizer from an Instance", "InstanceName", inst.Name, "FinalizerName", controllers.FinalizerName)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	for _, dbName := range inst.Status.DatabaseNames {
+		var db v1alpha1.Database
+		if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: dbName}, &db); err != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+		log.Info("instance deletion in progress. deleting an attached Database(PDB) first", "InstanceName", inst.Name, "DatabaseName", db.Name)
+		if err := r.Delete(ctx, &db); err != nil {
+			log.Error(err, "failed to delete database(PDB) attached to Instance", "InstanceName", inst.Name, "DatabaseName", db.Name)
+			return ctrl.Result{}, err
+		}
+	}
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
 // reconcileDatabaseInstance reconciling the underlying database instance.
