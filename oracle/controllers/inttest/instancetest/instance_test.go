@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,8 +50,9 @@ var _ = AfterSuite(func() {
 var _ = Describe("Instance and Database provisioning", func() {
 	var namespace string
 	var firstInstanceName string
-	var firstDatabaseName string
 	var secondInstanceName string
+	var firstDatabaseName string
+	var secondDatabaseName string
 	var cdbName string
 
 	//Call Init with 'namespace' as both the namespace to install the operator, and the namespace for the operator to monitor.
@@ -60,6 +62,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 		firstInstanceName = "mydb-1"
 		secondInstanceName = "mydb-2"
 		firstDatabaseName = "pdb1"
+		secondDatabaseName = "pdb2"
 		cdbName = "MYDB"
 		k8sEnv.Init(namespace, namespace)
 	})
@@ -102,9 +105,16 @@ var _ = Describe("Instance and Database provisioning", func() {
 			By("By creating a database (PDB) in the first instance")
 			createDatabase(firstInstanceName, firstDatabaseName, namespace)
 
-			By("By checking that Database (PDB) is Ready")
-			databaseKey := client.ObjectKey{Namespace: namespace, Name: firstDatabaseName}
-			testhelpers.WaitForDatabaseConditionState(k8sEnv, databaseKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 5*time.Minute)
+			By("By creating a database (PDB) in the second instance")
+			createDatabase(secondInstanceName, secondDatabaseName, namespace)
+
+			By("By checking that the Database (PDB) in the first Instance is Ready")
+			db1Key := client.ObjectKey{Namespace: namespace, Name: firstDatabaseName}
+			testhelpers.WaitForDatabaseConditionState(k8sEnv, db1Key, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 5*time.Minute)
+
+			By("By checking that the Database (PDB) in the second Instance is Ready")
+			db2Key := client.ObjectKey{Namespace: namespace, Name: secondDatabaseName}
+			testhelpers.WaitForDatabaseConditionState(k8sEnv, db2Key, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 5*time.Minute)
 
 			By("By checking that PVCs are created")
 			var pvcList corev1.PersistentVolumeClaimList
@@ -134,7 +144,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 			By("Checking that only PVCs for the first instance are retained")
 			deleteInstance(ctx, firstInstanceName, namespace)
-			deleteInstance(ctx, secondInstanceName, namespace)
+			deleteInstance(ctx, secondInstanceName, namespace) // Deleting the second Instance should lead to automatic deletion of the Databases attached to it
 			Eventually(func() (int, error) {
 				Expect(k8sClient.List(ctx, &pvcList, client.InNamespace(namespace))).Should(Succeed())
 				return len(pvcList.Items), nil
@@ -146,6 +156,13 @@ var _ = Describe("Instance and Database provisioning", func() {
 			}
 			Expect(pvcNames).Should(ContainElements(firstInstanceName+"-pvc-u02-"+firstInstanceName+"-sts-0",
 				firstInstanceName+"-pvc-u03-"+firstInstanceName+"-sts-0"))
+
+			By("Checking that Databases attached to the second instance are deleted along with the Instance")
+			Eventually(func() bool {
+				database := &v1alpha1.Database{}
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: secondDatabaseName, Namespace: namespace}, database)
+				return apierrors.IsNotFound(err)
+			}, 60*time.Second, 5*time.Second).Should(BeTrue())
 		})
 	}
 

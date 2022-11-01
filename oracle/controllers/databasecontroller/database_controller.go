@@ -138,15 +138,13 @@ func (r *DatabaseReconciler) ReconcileDatabaseDeletion(ctx context.Context, req 
 	if err := r.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: db.Spec.Instance}, &inst); err != nil {
 		return ctrl.Result{}, err
 	}
-	log.Info("using the following instance to delete a database(PDB)", "db.Spec.Instance", db.Spec.Instance, "inst", inst)
+	log.Info("deleting a database(PDB) from its parent Instance", "DatabaseName", db.Name, "InstanceName", inst.Name)
 
 	if controllerutil.ContainsFinalizer(&db, controllers.FinalizerName) {
-		//delete database
 		deleteReq := controllers.DeleteDatabaseRequest{
 			Name:     db.Spec.Name,
 			DbDomain: controllers.GetDBDomain(&inst),
 		}
-
 		err := controllers.DeleteDatabase(ctx, r, r.DatabaseClientFactory, req.Namespace, inst.Name, deleteReq)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -154,11 +152,10 @@ func (r *DatabaseReconciler) ReconcileDatabaseDeletion(ctx context.Context, req 
 
 		// Remove PDB from list of DatabaseNames
 		if controllers.Contains(inst.Status.DatabaseNames, db.Spec.Name) {
-			log.Info("instance status  Database Names are: ", "inst.Status.DatabaseNames", inst.Status.DatabaseNames)
 			inst.Status.DatabaseNames = controllers.Filter(inst.Status.DatabaseNames, db.Spec.Name)
 		}
 		if err := r.Status().Update(ctx, &inst); err != nil {
-			log.Error(err, "failed to update an Instance status")
+			log.Error(err, "failed to update the Instance status after deleting a Database(PDB)", "DatabaseName", db.Name, "InstanceName", inst.Name)
 			return ctrl.Result{}, err
 		}
 
