@@ -73,6 +73,8 @@ var _ = Describe("Datapump", func() {
 			testhelpers.CreateSimplePDB(k8sEnv, instanceName)
 			testhelpers.InsertSimpleData(k8sEnv)
 
+			time.Sleep(10 * time.Second) // Dynamic registration is slow and we start immediately after the PDB is mounted. So expdp may fail with ORA-12514
+
 			By("Creating a new Schema export")
 			schemaExport := &v1alpha1.Export{
 				ObjectMeta: metav1.ObjectMeta{
