@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,9 +30,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
@@ -40,6 +44,7 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
+	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 )
 
@@ -618,6 +623,45 @@ func (r *InstanceReconciler) setDnfs(ctx context.Context, inst v1alpha1.Instance
 func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Log.V(1).Info("SetupWithManager", "images", r.Images)
 
+	// configPredicate is used to determine if watched events should cause
+	// all instances in the namespace to be reconciled. Right now only
+	// Images in the config affect running instances and can cause Patching
+	// so we only trigger instance reconciliation on Create/Delete and
+	// Update when Images changes.
+	configPredicate := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldConfig, ok := e.ObjectOld.(*v1alpha1.Config)
+			if !ok {
+				return false
+			}
+			newConfig, ok := e.ObjectNew.(*v1alpha1.Config)
+			if !ok {
+				return false
+			}
+			return !cmp.Equal(oldConfig.Spec.Images, newConfig.Spec.Images)
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return true },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
+
+	instancesForConfig := func(obj client.Object) []ctrl.Request {
+		var requests []ctrl.Request
+		var insts v1alpha1.InstanceList
+		if err := r.List(context.Background(), &insts, client.InNamespace(obj.GetNamespace())); err != nil {
+			return nil
+		}
+		for _, inst := range insts.Items {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      inst.Name,
+					Namespace: inst.Namespace,
+				}})
+		}
+		r.Log.Info("Config event triggered instance reconcile ", "requests", requests)
+		return requests
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Instance{}).
 		Owns(&corev1.Service{}).
@@ -625,8 +669,10 @@ func (r *InstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.PersistentVolumeClaim{}).
 		Owns(&corev1.ConfigMap{}).
 		Watches(
-			&source.Kind{Type: &v1alpha1.Database{}},
-			&handler.EnqueueRequestForObject{}).
+			&source.Kind{Type: &v1alpha1.Config{}},
+			handler.EnqueueRequestsFromMapFunc(instancesForConfig),
+			builder.WithPredicates(configPredicate),
+		).
 		Complete(r)
 }
 

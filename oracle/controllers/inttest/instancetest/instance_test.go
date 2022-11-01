@@ -249,7 +249,7 @@ func deleteDatabase(ctx context.Context, databaseName, namespace string) {
 			Name:      databaseName,
 		},
 	}
-	testhelpers.K8sDeleteWithRetry(k8sEnv.K8sClient, ctx, client.ObjectKey{Name: databaseName, Namespace: namespace}, database)
+	testhelpers.K8sDeleteWithRetryNoWait(k8sEnv.K8sClient, ctx, client.ObjectKey{Name: databaseName, Namespace: namespace}, database)
 }
 
 func createDatabase(instanceName, databaseName, namespace string) {
