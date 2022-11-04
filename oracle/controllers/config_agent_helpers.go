@@ -312,7 +312,10 @@ func CreateDatabase(ctx context.Context, r client.Reader, dbClientFactory Databa
 	}
 	klog.InfoS("config_agent_helpers/CreateDatabase create a PDB Done", "pdb", p.pluggableDatabaseName)
 
-	pdbOpen := []string{fmt.Sprintf("alter pluggable database %s open read write", sql.MustBeObjectName(p.pluggableDatabaseName))}
+	pdbOpen := []string{
+		fmt.Sprintf("alter pluggable database %s open read write", sql.MustBeObjectName(p.pluggableDatabaseName)),
+		fmt.Sprintf("alter pluggable database %s save state", sql.MustBeObjectName(p.pluggableDatabaseName)),
+	}
 	_, err = dbClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{Commands: pdbOpen, Suppress: false})
 	if err != nil {
 		return "", fmt.Errorf("config_agent_helpers/CreatePDBDatabase: PDB %s open failed: %v", p.pluggableDatabaseName, err)
