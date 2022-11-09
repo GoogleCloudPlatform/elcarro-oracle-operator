@@ -1,21 +1,185 @@
-# ods/database/connections
-- name: database
-  namespace: ods
+# elcarro/instance/uptime
+- name: instance
+  namespace: elcarro
+  query: |
+    select instance_name as db_instance,
+      86400*(sysdate-startup_time) as uptime
+    from v$instance
+  metrics:
+    - name: db_instance
+      desc: Name of the instance.
+      usage: label
+    - name: uptime
+      desc: Number of seconds since the instance started.
+      usage: counter
+# elcarro/instance/connections
+- name: instance
+  namespace: elcarro
   query: |
     select count(*) as connections from v$session
   metrics:
     - name: connections
-      desc: Number of connections to the database.
+      desc: Number of connections to the instance.
       usage: gauge
-# ods/database/uptime
-- name: database
-  namespace: ods
+# elcarro/instance/recovery_area/{used,available}
+- name: recovery_area
+  namespace: elcarro_instance
   query: |
-    select p.name as database, 86400*(sysdate-i.startup_time) as uptime from v$instance i cross join v$pdbs p
+    select sum(space_used-space_reclaimable) as used, sum(space_limit) as limit from v$recovery_file_dest
+  metrics:
+    - name: used
+      desc: Number of bytes of FRA space used and unreclaimable
+      usage: gauge
+    - name: limit
+      desc: Maximum number of bytes the FRA can use, set with the DB_RECOVERY_FILE_DEST_SIZE parameter.
+      usage: gauge
+# elcarro/instance/rman/last_{status,duration}
+- name: rman_last
+  namespace: elcarro_instance
+  query: |
+    select case when status like 'COMPLETED' then 0 else 1 end as status,
+      elapsed_seconds as duration
+    from v$rman_backup_job_details
+    order by start_time desc
+    fetch first 1 rows only
+  metrics:
+    - name: status
+      desc: Status of the last rman based backup job. 0 for completed and 1 for failure.
+      usage: gauge
+    - name: duration
+      desc: Number of seconds it took for the last backup to complete.
+      usage: gauge
+# elcarro/instance/cpu/seconds
+- name: cpu
+  namespace: elcarro_instance
+  query: |
+    select
+      lower(substr(stat_name, 1, instr(stat_name, '_TIME')-1)) as state,
+      value/100 as seconds
+    from v$osstat
+    where con_id = 0 and stat_name like '%_TIME'
+  metrics:
+    - name: state
+      desc: CPU state (idle,busy,user,sys,iowait,nice)
+      usage: label
+    - name: seconds
+      desc: Total seconds spent in this state across all CPUs
+      usage: counter
+# elcarro/instance/wait/seconds
+- name: wait
+  namespace: elcarro_instance
+  query: |
+    select wait_class as class, time_waited/100 as seconds from v$system_wait_class
+  metrics:
+    - name: class
+      desc: The type of activity that caused the wait (e.g. System I/O, Network, Application, Commit, Other, Idle)
+      usage: label
+    - name: seconds
+      desc: The total number of seconds spent waiting for this class of activities.
+      usage: counter
+# elcarro/instance/memory/bytes
+- name: memory
+  namespace: elcarro_instance
+  query: |
+    select
+      lower(substr(pool_name, 1, instr(pool_name, ' ')-1)) as pool,
+      sum(current_size) as bytes
+    from v$memory_dynamic_components d
+    join (select column_value as pool_name from
+      table(sys.awrrpt_vch_ary('SGA Target', 'PGA Target', 'buffer cache', 'shared pool', 'large pool', 'java pool', 'streams pool'))) v
+      on component like '%' || pool_name
+    where con_id = 0
+    group by pool_name
+  metrics:
+    - name: pool
+      desc: Name of the memory pool (sga,pga,buffer,shared,large,java,streams)
+      usage: label
+    - name: bytes
+      desc: Current size of the memory pool in bytes.
+      usage: gauge
+# elcarro/instance/resource/{current,limit}
+- name: resource
+  namespace: elcarro_instance
+  query: |
+    SELECT resource_name as name,
+      current_utilization as used,
+      CASE WHEN TRIM(limit_value) LIKE 'UNLIMITED' THEN -1 ELSE TO_NUMBER(TRIM(limit_value)) END as limit
+    FROM v$resource_limit
+  metrics:
+    - name: resource
+      desc: Name of the resource, refer to v$resource_limit documentation.
+      usage: label
+    - name: used
+      desc: Current utilization of the resource.
+      usage: gauge
+    - name: limit
+      desc: Current limit for this resource or -1 if unlimited.
+      usage: gauge
+# elcarro/database/uptime
+- name: database
+  namespace: elcarro
+  query: |
+    select name as database,
+      86400*(sysdate-cast(open_time as date)) as uptime
+    from v$pdbs
+    where con_id > 2
+  metrics:
+    - name: database
+      desc: Name of the instance.
+      usage: label
+    - name: uptime
+      desc: Number of seconds since the instance started.
+      usage: counter
+# elcarro/database/tablespace/{used,available}
+- name: tablespace
+  namespace: elcarro_database
+  query: |
+    select CON_ID_TO_CON_NAME(m.con_id) as database,
+      m.tablespace_name as tablespace,
+      m.used_space*t.block_size as used,
+      m.tablespace_size*t.block_size as limit,
+      t.contents as type
+    from cdb_tablespace_usage_metrics m
+    join cdb_tablespaces t on t.con_id = m.con_id and t.tablespace_name = m.tablespace_name
+    where m.con_id > 2
   metrics:
     - name: database
       desc: Name of the database.
       usage: label
-    - name: uptime
-      desc: Number of seconds since the database started.
-      usage: counter
+    - name: tablespace
+      desc: Name of the tablespace.
+      usage: label
+    - name: type
+      desc: The type of the tablespace (UNDO,TEMPORARY,PERMANENT).
+      usage: label
+    - name: used
+      desc: Number of used bytes within the tablespace.
+      usage: gauge
+    - name: limit
+      desc: Maximum number of bytes this tablespace can support. Can be increased by adding datafiles.
+      usage: gauge
+# elcarro/database/restorepoint/{scn,created,bytes}
+- name: restorepoint
+  namespace: elcarro_database
+  query: |
+    select CON_ID_TO_CON_NAME(con_id) as database,
+      name,
+      (cast(time at time zone 'UTC' as date) -  date '1970-01-01')*86400 as created,
+      storage_size as bytes
+    from v$restore_point where con_id > 2 and storage_size > 0
+  metrics:
+    - name: database
+      desc: Name of the database.
+      usage: label
+    - name: name
+      desc: Name of the guaranteed restore point.
+      usage: label
+    - name: scn
+      desc: SCN when the restore point was created.
+      usage: gauge
+    - name: created
+      desc: Unix timestamp when this restore point was created.
+      usage: gauge
+    - name: bytes
+      desc: The number of bytes currently required to preserve this restore point.
+      usage: gauge
