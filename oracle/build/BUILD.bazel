@@ -99,7 +99,7 @@ container_push(
 
 container_image(
     name = "monitoring",
-    base = "//oracle:base_image_with_busybox",
+    base = "//oracle:base_image",
     entrypoint = ["/monitoring"],
     files = [
         "//oracle/cmd/monitoring",
