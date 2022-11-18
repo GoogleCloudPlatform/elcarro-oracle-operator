@@ -21,11 +21,8 @@ func (r *RealCronAnythingControl) Get(key client.ObjectKey) (commonv1alpha1.Cron
 	return ca, err
 }
 
-func (r *RealCronAnythingControl) Update(ca commonv1alpha1.CronAnything) error {
-	if err := r.Client.Status().Update(context.TODO(), ca.(*v1alpha1.CronAnything)); err != nil {
-		return err
-	}
-	return r.Client.Update(context.TODO(), ca.(*v1alpha1.CronAnything))
+func (r *RealCronAnythingControl) UpdateStatus(ca commonv1alpha1.CronAnything) error {
+	return r.Client.Status().Update(context.TODO(), ca.(*v1alpha1.CronAnything))
 }
 
 func (r *RealCronAnythingControl) Create(ns string, name string, cas commonv1alpha1.CronAnythingSpec, owner commonv1alpha1.BackupSchedule) error {

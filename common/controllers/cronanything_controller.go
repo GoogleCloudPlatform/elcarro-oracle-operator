@@ -56,7 +56,7 @@ type resourceResolver interface {
 // cronAnythingControl provides methods for getting and updating CronAnything resources.
 type cronAnythingControl interface {
 	Get(key client.ObjectKey) (cronanything.CronAnything, error)
-	Update(ca cronanything.CronAnything) error
+	UpdateStatus(ca cronanything.CronAnything) error
 	Create(ns string, name string, cas cronanything.CronAnythingSpec, owner cronanything.BackupSchedule) error
 }
 
@@ -377,7 +377,7 @@ func (r *ReconcileCronAnything) updateCronAnythingStatus(name, namespace string,
 		}
 
 		updateFunc(instance.CronAnythingStatus())
-		return r.cronanythingControl.Update(instance)
+		return r.cronanythingControl.UpdateStatus(instance)
 	})
 }
 

@@ -596,7 +596,7 @@ func (f *mockCronAnythingControl) Create(ns string, name string, cas v1alpha1.Cr
 func (f *mockCronAnythingControl) Get(key client.ObjectKey) (v1alpha1.CronAnything, error) {
 	return f.get(key)
 }
-func (f *mockCronAnythingControl) Update(cron v1alpha1.CronAnything) error {
+func (f *mockCronAnythingControl) UpdateStatus(cron v1alpha1.CronAnything) error {
 	return f.update(cron)
 }
 
