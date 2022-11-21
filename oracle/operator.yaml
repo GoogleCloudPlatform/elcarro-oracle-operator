@@ -1628,6 +1628,13 @@ spec:
                 description: Instance is the resource name within same namespace to
                   import into.
                 type: string
+              options:
+                additionalProperties:
+                  type: string
+                description: Options is a map of options and their values for usage
+                  with the specified Import Type. Right now this is only supported
+                  for passing additional impdp specific options.
+                type: object
               type:
                 description: Type of the Import. If not specified, the default of
                   DataPump is assumed, which is the only supported option currently.
