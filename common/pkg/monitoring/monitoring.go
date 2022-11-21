@@ -342,9 +342,7 @@ func (m *Monitor) Collect(ch chan<- prometheus.Metric) {
 	start := time.Now()
 	errCount := uint64(0)
 	metricCount := uint64(0)
-
-	// we need to avoid blocking if all workers fail to connect.
-	msQueue := make(chan MetricSet, WORKER_COUNT)
+	msQueue := make(chan MetricSet)
 
 	started := 0
 	var wg sync.WaitGroup
@@ -355,7 +353,7 @@ func (m *Monitor) Collect(ch chan<- prometheus.Metric) {
 			atomic.AddUint64(&errCount, 1)
 			continue
 		}
-		defer db.Close() // closes at end of func, after workers are waited for.
+
 		if err := db.Ping(); err != nil {
 			atomic.AddUint64(&errCount, 1)
 			m.log.Error(err, "failed to connect to database", "collector", i)

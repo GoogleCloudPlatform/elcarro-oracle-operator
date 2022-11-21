@@ -15,12 +15,20 @@ type godrorFactory struct {
 	dsn string
 }
 
+var dbSingleton *sql.DB
+
 func (g godrorFactory) Open() (*sql.DB, error) {
-	db, err := sql.Open("godror", g.dsn)
-	if err != nil {
-		err = fmt.Errorf("DB open failed: %w", err)
+	if dbSingleton == nil || dbSingleton.Ping() != nil {
+		if dbSingleton != nil {
+			dbSingleton.Close()
+		}
+		db, err := sql.Open("godror", g.dsn)
+		if err != nil {
+			return nil, fmt.Errorf("DB open failed: %w", err)
+		}
+		dbSingleton = db
 	}
-	return db, err
+	return dbSingleton, nil
 }
 
 func main() {
