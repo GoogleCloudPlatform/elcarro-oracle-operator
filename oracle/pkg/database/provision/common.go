@@ -386,6 +386,8 @@ func RemoveConfigFileLinks(OracleHome, CDBName string) error {
 			if err := os.Remove(link); err != nil {
 				return fmt.Errorf("RemoveConfigFileLinks: unable to delete existing link %s: %v", link, err)
 			}
+		} else {
+			klog.Infof("RemoveConfigFileLinks: No prior file to cleanup: %v", err)
 		}
 	}
 	return nil

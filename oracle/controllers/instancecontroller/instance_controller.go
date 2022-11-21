@@ -439,9 +439,9 @@ func (r *InstanceReconciler) reconcileDatabaseInstance(ctx context.Context, inst
 	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 	log.Info("reconciling database instance: ", "instanceReadyCond", instanceReadyCond, "dbInstanceCond", dbInstanceCond)
 
-	// reconcile database only when instance is ready
+	// reconcile database only when instance is ready, but requeue.
 	if !k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) {
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	isImageSeeded, err := r.isImageSeeded(ctx, inst, log)
