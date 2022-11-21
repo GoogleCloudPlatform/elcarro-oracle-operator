@@ -45,6 +45,12 @@ type ImportSpec struct {
 	// Oracle Operator.
 	// +optional
 	GcsLogPath string `json:"gcsLogPath,omitempty"`
+
+	// Options is a map of options and their values for usage with the
+	// specified Import Type. Right now this is only supported for passing
+	// additional impdp specific options.
+	// +optional
+	Options map[string]string `json:"options,omitempty"`
 }
 
 // ImportStatus defines the observed state of Import.

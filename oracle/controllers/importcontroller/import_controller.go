@@ -175,6 +175,7 @@ func (r *ImportReconciler) handleNotStartedImport(ctx context.Context, log logr.
 			DbDomain:   inst.Spec.DBDomain,
 			GcsPath:    imp.Spec.GcsPath,
 			GcsLogPath: imp.Spec.GcsLogPath,
+			Options:    imp.Spec.Options,
 			LroInput:   &controllers.LROInput{OperationId: lroOperationID(imp)},
 		}
 		resp, err := controllers.DataPumpImport(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, *dataPumpReq)

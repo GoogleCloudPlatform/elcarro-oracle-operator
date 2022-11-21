@@ -1154,7 +1154,19 @@ type DataPumpImportRequest struct {
 	GcsPath string
 	// GCS path to output log file
 	GcsLogPath string
-	LroInput   *LROInput
+	// Additional command options from the user.
+	Options  map[string]string
+	LroInput *LROInput
+}
+
+var AllowedImpdpParams = map[string]bool{
+	"TABLE_EXISTS_ACTION": true,
+	"REMAP_TABLE":         true,
+	"REMAP_SCHEMA":        true,
+	"REMAP_TABLESPACE":    true,
+	"REMAP_DATAFILE":      true,
+	"PARALLEL":            true,
+	"NETWORK_LINK":        true,
 }
 
 // DataPumpImport imports data dump file provided in GCS path.
@@ -1167,17 +1179,26 @@ func DataPumpImport(ctx context.Context, r client.Reader, dbClientFactory Databa
 	}
 	defer func() { _ = closeConn() }()
 
+	commandParams := []string{
+		"FULL=YES",
+		"METRICS=YES",
+		"LOGTIME=ALL",
+	}
+	for k, v := range req.Options {
+		k = strings.ToUpper(k)
+		if _, found := AllowedImpdpParams[k]; found {
+			param := k + "=" + v
+			commandParams = append(commandParams, param)
+		}
+	}
+
 	return dbClient.DataPumpImportAsync(ctx, &dbdpb.DataPumpImportAsyncRequest{
 		SyncRequest: &dbdpb.DataPumpImportRequest{
-			PdbName:    req.PdbName,
-			DbDomain:   req.DbDomain,
-			GcsPath:    req.GcsPath,
-			GcsLogPath: req.GcsLogPath,
-			CommandParams: []string{
-				"FULL=YES",
-				"METRICS=YES",
-				"LOGTIME=ALL",
-			},
+			PdbName:       req.PdbName,
+			DbDomain:      req.DbDomain,
+			GcsPath:       req.GcsPath,
+			GcsLogPath:    req.GcsLogPath,
+			CommandParams: commandParams,
 		},
 		LroInput: &dbdpb.LROInput{
 			OperationId: req.LroInput.OperationId,

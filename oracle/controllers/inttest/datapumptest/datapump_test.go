@@ -160,7 +160,8 @@ drop user scott cascade;`
 			sql = `alter session set container=pdb1;
 grant unlimited tablespace to scott;
 alter session set current_schema=scott;
-drop table test_table;`
+drop table test_table;
+create bigfile tablespace scotty;`
 			testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.CPNamespace, sql)
 
 			By("Importing Tables")
@@ -173,6 +174,10 @@ drop table test_table;`
 					Instance:     instanceName,
 					DatabaseName: "pdb1",
 					GcsPath:      tableExport.Spec.GcsPath,
+					Options: map[string]string{
+						"REMAP_TABLE":      "test_table:retest_table",
+						"REMAP_TABLESPACE": "USER:SCOTTY",
+					},
 				},
 			}
 			testhelpers.K8sCreateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx, tableImport)
@@ -184,7 +189,7 @@ drop table test_table;`
 					objKey, createdImport, k8s.Ready, metav1.ConditionTrue, k8s.ImportComplete, 5*time.Minute, k8s.FindConditionOrFailed)
 			}
 
-			testhelpers.VerifySimpleData(k8sEnv)
+			testhelpers.VerifySimpleDataRemapped(k8sEnv)
 		})
 	}
 

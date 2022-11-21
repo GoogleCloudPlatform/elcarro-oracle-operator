@@ -1033,6 +1033,15 @@ commit;`
 	Expect(out).To(Equal(""))
 }
 
+// VerifySimpleDataRemapped checks that the test row in 'retest_table' exists.
+func VerifySimpleDataRemapped(k8sEnv K8sOperatorEnvironment) {
+	pod := "mydb-sts-0"
+	sql := `alter session set container=pdb1;
+alter session set current_schema=scott;
+select name from retest_table;`
+	Expect(K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, sql)).To(Equal("Hello World"))
+}
+
 // VerifySimpleData checks that the test row in 'pdb1' exists.
 func VerifySimpleData(k8sEnv K8sOperatorEnvironment) {
 	pod := "mydb-sts-0"
