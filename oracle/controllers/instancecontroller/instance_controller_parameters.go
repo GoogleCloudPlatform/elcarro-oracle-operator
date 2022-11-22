@@ -170,10 +170,14 @@ func (r *InstanceReconciler) setParameters(ctx context.Context, inst v1alpha1.In
 	return requireDatabaseRestart, nil
 }
 
-// setInstanceParameterStateMachine guides the transition of parameter update
+// parameterUpdateStateMachine guides the transition of the parameter update
 // workflow to the next possible state based on the current state and the outcome
 // of the task associated with the current state.
-func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Context, req ctrl.Request, inst v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+func (r *InstanceReconciler) parameterUpdateStateMachine(ctx context.Context, req ctrl.Request, inst v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+
+	if !isParameterUpdateStateMachineEntryCondition(&inst) {
+		return ctrl.Result{}, nil
+	}
 
 	// If the current parameter state is equal to the requested state skip the update
 	if eq := reflect.DeepEqual(inst.Spec.Parameters, inst.Status.CurrentParameters); eq {
@@ -189,58 +193,75 @@ func (r *InstanceReconciler) setInstanceParameterStateMachine(ctx context.Contex
 		return result, err
 	}
 
-	_, dynamicParamsRollbackState, err := fetchCurrentParameterState(ctx, r, r.DatabaseClientFactory, inst)
-	if err != nil {
-		msg := "setInstanceParameterStateMachine: Sanity check failed for instance parameters"
-		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollback, fmt.Sprintf("%s: %v", msg, err), log)
-		return ctrl.Result{}, err
-	}
+	log.Info("parameterUpdateStateMachine: Entered state machine")
+	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+	switch instanceReadyCond.Reason {
+	case k8s.CreateComplete:
+		inst.Status.CurrentActiveStateMachine = controllers.ParameterUpdateStateMachine
 
-	log.Info("setInstanceParameterStateMachine: entering state machine")
-	for true {
-		instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
-		switch instanceReadyCond.Reason {
-		case k8s.CreateComplete:
-			msg := "setInstanceParameterStateMachine: parameter update in progress"
-			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateInProgress, msg, log)
-			log.Info("setInstanceParameterStateMachine: SM CreateComplete -> ParameterUpdateInProgress")
-		case k8s.ParameterUpdateInProgress:
-			restartRequired, err := r.setParameters(ctx, inst, log)
-			if err != nil {
-				msg := "setInstanceParameterStateMachine: Error while setting instance parameters"
-				r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollback, fmt.Sprintf("%s: %v", msg, err), log)
-				log.Info("setInstanceParameterStateMachine: SM ParameterUpdateInProgress -> ParameterUpdateRollback")
-				break
-			}
-			if restartRequired {
-				log.Info("setInstanceParameterStateMachine: static parameter specified in config, scheduling restart to activate them")
-				if err := controllers.BounceDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, controllers.BounceDatabaseRequest{
-					Sid: inst.Spec.CDBName,
-				}); err != nil {
-					msg := "setInstanceParameterStateMachine: error while restarting database after setting static parameters"
-					r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollback, fmt.Sprintf("%s: %v", msg, err), log)
-					log.Info("setInstanceParameterStateMachine: SM ParameterUpdateInProgress -> ParameterUpdateRollback")
-					break
-				}
-			}
-			msg := "setInstanceParameterStateMachine: Parameter update successful"
-			inst.Status.CurrentParameters = inst.Spec.Parameters
-			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.CreateComplete, msg, log)
-			log.Info("setInstanceParameterStateMachine: SM ParameterUpdateInProgress -> CreateComplete")
-			return ctrl.Result{}, nil
-		case k8s.ParameterUpdateRollback:
-			if err := r.initiateRecovery(ctx, inst, dynamicParamsRollbackState, log); err != nil {
-				log.Info("setInstanceParameterStateMachine: recovery failed, instance currently in irrecoverable state", "err", err)
-				return ctrl.Result{}, err
-			}
-			inst.Status.LastFailedParameterUpdate = inst.Spec.Parameters
-			msg := "setInstanceParameterStateMachine: instance recovered after bad parameter update"
-			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.CreateComplete, msg, log)
-			log.Info("setInstanceParameterStateMachine: SM ParameterUpdateRollback -> CreateComplete")
-			return ctrl.Result{}, nil
+		_, dynamicParamsRollbackState, err := fetchCurrentParameterState(ctx, r, r.DatabaseClientFactory, inst)
+		if err != nil {
+			msg := "parameterUpdateStateMachine: Sanity check failed for instance parameters"
+			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollbackInProgress, fmt.Sprintf("%s: %v", msg, err), log)
+			return ctrl.Result{Requeue: true}, err
 		}
+		inst.Status.CurrentParameters = dynamicParamsRollbackState
+
+		msg := "parameterUpdateStateMachine: parameter update in progress"
+		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateInProgress, msg, log)
+		log.Info("parameterUpdateStateMachine: SM CreateComplete -> ParameterUpdateInProgress")
+
+	case k8s.ParameterUpdateInProgress:
+		restartRequired, err := r.setParameters(ctx, inst, log)
+		if err != nil {
+			msg := "parameterUpdateStateMachine: Error while setting instance parameters"
+			r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollbackInProgress, fmt.Sprintf("%s: %v", msg, err), log)
+			log.Info("parameterUpdateStateMachine: SM ParameterUpdateInProgress -> ParameterUpdateRollbackInProgress")
+			return ctrl.Result{Requeue: true}, nil
+		}
+		if restartRequired {
+			log.Info("parameterUpdateStateMachine: static parameter specified in config, scheduling restart to activate them")
+			if err := controllers.BounceDatabase(ctx, r, r.DatabaseClientFactory, inst.Namespace, inst.Name, controllers.BounceDatabaseRequest{
+				Sid: inst.Spec.CDBName,
+			}); err != nil {
+				msg := "parameterUpdateStateMachine: error while restarting database after setting static parameters"
+				r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateRollbackInProgress, fmt.Sprintf("%s: %v", msg, err), log)
+				log.Info("parameterUpdateStateMachine: SM ParameterUpdateInProgress -> ParameterUpdateRollbackInProgress")
+				return ctrl.Result{Requeue: true}, nil
+			}
+		}
+		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.ParameterUpdateComplete, "", log)
+		log.Info("parameterUpdateStateMachine: SM ParameterUpdateInProgress -> ParameterUpdateComplete")
+		return ctrl.Result{Requeue: true}, nil
+
+	case k8s.ParameterUpdateComplete:
+		inst.Status.CurrentParameters = inst.Spec.Parameters
+		msg := "parameterUpdateStateMachine: Parameter update successful"
+		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.CreateComplete, msg, log)
+		inst.Status.CurrentActiveStateMachine = ""
+		log.Info("parameterUpdateStateMachine: SM ParameterUpdateComplete -> CreateComplete")
+		return ctrl.Result{}, nil
+
+	case k8s.ParameterUpdateRollbackInProgress:
+		if err := r.initiateRecovery(ctx, inst, inst.Status.CurrentParameters, log); err != nil {
+			log.Info("parameterUpdateStateMachine: recovery failed, instance currently in irrecoverable state", "err", err)
+			return ctrl.Result{}, err
+		}
+		inst.Status.LastFailedParameterUpdate = inst.Spec.Parameters
+		msg := "parameterUpdateStateMachine: instance recovered after bad parameter update"
+		r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.CreateComplete, msg, log)
+		inst.Status.CurrentActiveStateMachine = ""
+		log.Info("parameterUpdateStateMachine: SM ParameterUpdateRollbackInProgress -> CreateComplete")
+		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, nil
+}
+
+func isParameterUpdateStateMachineEntryCondition(inst *v1alpha1.Instance) bool {
+	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
+	return controllers.ParameterUpdateStateMachine == inst.Status.CurrentActiveStateMachine ||
+		(k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) && k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && inst.Spec.Parameters != nil)
 }
 
 // initiateRecovery will recover the config file (which contains the static
@@ -295,8 +316,8 @@ func (r *InstanceReconciler) sanityCheckTimeRange(inst v1alpha1.Instance, log lo
 
 	// Otherwise: requeue for processing when the maintenance window opens up.
 	restartWaitTime := nextStart.Sub(now)
-	log.Info("setInstanceParameterStateMachine: Wait time before restart ", "restartWaitTime", restartWaitTime.Seconds())
-	return ctrl.Result{RequeueAfter: restartWaitTime}, errors.New("current time is not within the maintenance time range")
+	log.Info("parameterUpdateStateMachine: Wait time before restart ", "restartWaitTime", restartWaitTime.Seconds())
+	return ctrl.Result{RequeueAfter: restartWaitTime}, errors.New("current time is not within the maintenance window")
 }
 
 func mapsToStringArray(parameterMap map[string]string) []string {

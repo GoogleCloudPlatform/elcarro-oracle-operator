@@ -44,12 +44,13 @@ const (
 	RestoreInProgress = "Restore" + StatusInProgress
 	CreateInProgress  = "Create" + StatusInProgress
 
-	PITRLabel               = "pitr"
-	IncarnationLabel        = "incarnation"
-	ParentIncarnationLabel  = "parent-incarnation"
-	SCNAnnotation           = "scn"
-	TimestampAnnotation     = "timestamp"
-	DatabaseImageAnnotation = "database-image"
+	PITRLabel                   = "pitr"
+	IncarnationLabel            = "incarnation"
+	ParentIncarnationLabel      = "parent-incarnation"
+	SCNAnnotation               = "scn"
+	TimestampAnnotation         = "timestamp"
+	DatabaseImageAnnotation     = "database-image"
+	ParameterUpdateStateMachine = "ParameterUpdateStateMachine"
 )
 
 var (

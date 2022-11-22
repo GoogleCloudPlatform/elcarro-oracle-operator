@@ -165,15 +165,10 @@ func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ c
 		return r.standbyStateMachine(ctx, &inst, log)
 	}
 
-	// If the instance and database is ready, we can set the instance parameters
-	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) &&
-		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && inst.Spec.Parameters != nil {
-		log.Info("instance and db is ready, setting instance parameters")
-
-		if result, err := r.setInstanceParameterStateMachine(ctx, req, inst, log); err != nil {
-			return result, err
-		}
+	if result, err := r.parameterUpdateStateMachine(ctx, req, inst, log); err != nil {
+		return result, err
 	}
+
 	// If the instance and database is ready, we can set the instance parameters
 	if k8s.ConditionStatusEquals(instanceReadyCond, v1.ConditionTrue) &&
 		k8s.ConditionStatusEquals(dbInstanceCond, v1.ConditionTrue) && (inst.Spec.EnableDnfs != inst.Status.DnfsEnabled) {

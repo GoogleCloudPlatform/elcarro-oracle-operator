@@ -74,8 +74,9 @@ const (
 	ExportInProgress = "ExportInProgress"
 	ExportPending    = "ExportPending"
 
-	ParameterUpdateInProgress = "ParameterUpdateInProgress"
-	ParameterUpdateRollback   = "ParameterUpdateRollback"
+	ParameterUpdateInProgress         = "ParameterUpdateInProgress"
+	ParameterUpdateComplete           = "ParameterUpdateComplete"
+	ParameterUpdateRollbackInProgress = "ParameterUpdateRollbackInProgress"
 
 	StandbyDRInProgress                     = "StandbyDRInProgress"
 	StandbyDRVerifyCompleted                = "StandbyDRVerifyCompleted"
