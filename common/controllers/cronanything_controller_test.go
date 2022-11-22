@@ -1372,7 +1372,7 @@ func (r *fakeCronAnythingControl) Get(key client.ObjectKey) (cronanything.CronAn
 	return r.getCronAnything, r.getError
 }
 
-func (r *fakeCronAnythingControl) Update(ca cronanything.CronAnything) error {
+func (r *fakeCronAnythingControl) UpdateStatus(ca cronanything.CronAnything) error {
 	r.updateCronAnything = ca
 	return r.updateError
 }

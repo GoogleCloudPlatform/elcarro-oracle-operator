@@ -204,7 +204,8 @@ func (r *BackupScheduleReconciler) updateCron(backupSchedule v1alpha1.BackupSche
 		freshCron.CronAnythingSpec().Schedule = backupSchedule.BackupScheduleSpec().Schedule
 		freshCron.CronAnythingSpec().Template.Raw = backupBytes
 		freshCron.CronAnythingSpec().TriggerDeadlineSeconds = backupSchedule.BackupScheduleSpec().StartingDeadlineSeconds
-		return r.cronAnythingCtrl.Update(freshCron)
+
+		return r.Client.Update(context.TODO(), freshCron)
 	})
 }
 
