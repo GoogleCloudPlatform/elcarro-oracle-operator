@@ -92,10 +92,12 @@ const (
 	DatabaseInstanceReadyTimeoutUnseeded = 60 * time.Minute // 60 minutes because it can take 50+ minutes to create an unseeded CDB
 	dateFormat                           = "20060102"
 	DefaultStsPatchingTimeout            = 25 * time.Minute
+	reconcileTimeout                     = 3 * time.Minute
 )
 
-func (r *InstanceReconciler) Reconcile(_ context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
-	ctx := context.Background()
+func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	defer cancel()
 	log := r.Log.WithValues("Instance", req.NamespacedName)
 
 	log.Info("reconciling instance")

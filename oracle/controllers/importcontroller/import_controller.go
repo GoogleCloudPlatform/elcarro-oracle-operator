@@ -96,10 +96,10 @@ var (
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is a generic reconcile function for Import resources.
-func (r *ImportReconciler) Reconcile(_ context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
+func (r *ImportReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
 	log := r.Log.WithValues("Import", req.NamespacedName)
 	log.Info("reconciling import")
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
 	imp := &v1alpha1.Import{}

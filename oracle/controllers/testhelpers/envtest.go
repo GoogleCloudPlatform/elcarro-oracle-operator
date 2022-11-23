@@ -1415,7 +1415,9 @@ func K8sWaitForUpdate(k8sClient client.Client,
 // k8s service account <projectId>.svc.id.goog[<NAMESPACE>/default]
 // and google service account.
 func SetupServiceAccountBindingBetweenGcpAndK8s(k8sEnv K8sOperatorEnvironment) {
-	Expect(retry.OnError(retry.DefaultBackoff, func(error) bool { return true }, func() error {
+	longerBackoff := retry.DefaultBackoff
+	longerBackoff.Steps = 6 // Try a couple more times as there is lots of contention
+	Expect(retry.OnError(longerBackoff, func(error) bool { return true }, func() error {
 		cmd := exec.Command("gcloud", "iam",
 			"service-accounts", "add-iam-policy-binding",
 			"--role=roles/iam.workloadIdentityUser",
