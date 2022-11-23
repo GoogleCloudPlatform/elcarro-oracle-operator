@@ -149,7 +149,7 @@ var _ = Describe("ParameterUpdate", func() {
 				})
 
 			// Verify the instance transitions to ParameterUpdateRollback state due to database unable to restart.
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateRollback, 5*time.Minute)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateRollbackInProgress, 5*time.Minute)
 
 			// Wait until the instance settles into "Ready" again
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
