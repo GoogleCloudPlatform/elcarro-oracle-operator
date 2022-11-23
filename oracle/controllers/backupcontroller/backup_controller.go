@@ -46,6 +46,7 @@ var (
 	statusCheckInterval  = time.Minute
 	msgSep               = "; "
 	timeNow              = time.Now
+	reconcileTimeout     = 3 * time.Minute
 )
 
 // BackupReconciler reconciles a Backup object.
@@ -122,8 +123,9 @@ func (r *BackupReconciler) updateBackupStatus(ctx context.Context, backup *v1alp
 	return r.BackupCtrl.UpdateStatus(backup)
 }
 
-func (r *BackupReconciler) Reconcile(_ context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
-	ctx := context.Background()
+func (r *BackupReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	defer cancel()
 	log := r.Log.WithValues("Backup", req.String())
 
 	log.Info("reconciling backup requests")

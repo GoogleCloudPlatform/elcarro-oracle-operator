@@ -140,7 +140,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 				updatedInstance := &v1alpha1.Instance{}
 				Expect(k8sClient.Get(ctx, client.ObjectKey{Name: firstInstanceName, Namespace: namespace}, updatedInstance)).Should(Succeed())
 				return updatedInstance.Status.DatabaseNames, nil
-			}, 60*time.Second, 5*time.Second).Should(BeEmpty())
+			}, 2*time.Minute, 5*time.Second).Should(BeEmpty())
 
 			By("Checking that only PVCs for the first instance are retained")
 			deleteInstance(ctx, firstInstanceName, namespace)

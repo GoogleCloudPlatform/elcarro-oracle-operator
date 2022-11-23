@@ -97,10 +97,10 @@ var (
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is a generic reconcile function for Export resources.
-func (r *ExportReconciler) Reconcile(_ context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
+func (r *ExportReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, recErr error) {
 	log := r.Log.WithValues("Export", req.NamespacedName)
 	log.Info("reconciling export")
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
 	exp := &v1alpha1.Export{}

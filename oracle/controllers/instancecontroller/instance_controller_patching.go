@@ -301,7 +301,7 @@ func isStatefulSetPatchingRequired(currentImages map[string]string, newImages ma
 }
 
 func (r *InstanceReconciler) startPatchingBackup(req ctrl.Request, ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
-	backupID, err := r.prePatchBackup(*inst)
+	backupID, err := r.prePatchBackup(ctx, *inst)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -392,7 +392,7 @@ func cloneMap(source map[string]string) map[string]string {
 	return clone
 }
 
-func (r *InstanceReconciler) prePatchBackup(inst v1alpha1.Instance) (string, error) {
+func (r *InstanceReconciler) prePatchBackup(ctx context.Context, inst v1alpha1.Instance) (string, error) {
 	// do the same for db instance
 	// TODO: these snapshots should get cleaned up at some point
 
@@ -402,7 +402,6 @@ func (r *InstanceReconciler) prePatchBackup(inst v1alpha1.Instance) (string, err
 
 	// FIXME: this should not be hard coded
 	vsc := "csi-gce-pd-snapshot-class"
-	ctx := context.Background()
 	log := r.Log.WithValues("Instance", inst.Name)
 
 	for _, diskSpec := range inst.Spec.Disks {
