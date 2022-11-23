@@ -29,6 +29,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -499,6 +500,7 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	defer s.syncJobs.pdbLoadMutex.Unlock()
 
 	importFilename := "import.dmp"
+	importMetaFile := importFilename + ".meta"
 	logFilename := "import.log"
 
 	pdbPath := fmt.Sprintf(consts.PDBPathPrefix, consts.DataMount, s.databaseSid.val, strings.ToUpper(req.PdbName))
@@ -526,6 +528,34 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	if err != nil {
 		return nil, fmt.Errorf("dbdaemon/dataPumpImport: failed to alter user %s", consts.PDBLoaderUser)
 	}
+
+	// Tested with:
+	// impdp \"/ as sysdba\" sqlfile=test_meta_tables.sql dumpfile=prod_export_cmms02072022.dmp directory=REFRESH_DUMP_DIR NOLOGFILE=YES FULL=Y INCLUDE=TABLESPACE INCLUDE=TABLESPACE_QUOTA INCLUDE=USER PARALLEL=4
+	// We dont dump tables because this can be slow O(minutes), but it would be more precise if needed it can be added.
+	tsCheckParams := []string{impdpTarget}
+	tsCheckParams = append(tsCheckParams, req.CommandParams...)
+	tsCheckParams = append(tsCheckParams, fmt.Sprintf("directory=%s", consts.DpdumpDir.Oracle))
+	tsCheckParams = append(tsCheckParams, "dumpfile="+importFilename)
+	tsCheckParams = append(tsCheckParams, "sqlfile="+importMetaFile)
+	tsCheckParams = append(tsCheckParams, "nologfile=YES")
+	tsCheckParams = append(tsCheckParams, "include=TABLESPACE")
+	tsCheckParams = append(tsCheckParams, "include=USER")
+	tsCheckParams = append(tsCheckParams, "include=TABLESPACE_QUOTA")
+
+	if err := s.runCommand(impdp(s.databaseHome), tsCheckParams); err != nil {
+		// On error code 5 (EX_SUCC_ERR), process completed reached the
+		// end but data in the DMP might have been skipped (foreign
+		// schemas, already imported tables, even failed schema imports
+		// because the DMP didn't include CREATE USER statements.)
+		if !s.osUtil.isReturnCodeEqual(err, 5) {
+			return nil, fmt.Errorf("data pump import metadata gathering failed, err = %v", err)
+		}
+
+		klog.Warning("dbdaemon/dataPumpImport: metadata gathering completed with EX_SUCC_ERR")
+	}
+
+	metaFullPath := filepath.Join(dumpDir, importMetaFile)
+	s.createTablespacesFromSqlfile(ctx, metaFullPath)
 
 	params := []string{impdpTarget}
 	params = append(params, req.CommandParams...)
@@ -556,6 +586,92 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	}
 
 	return &dbdpb.DataPumpImportResponse{}, nil
+}
+
+var tsRegexp = regexp.MustCompile("(DEFAULT|CREATE|UNDO|TEMPORARY) TABLESPACE \"(.*?)\"|QUOTA UNLIMITED ON \"(.*?)\"")
+
+// createTablespacesFromSqlfile scans the sqlfile looking for tablespace
+// references. It gathers these references and then ensures the tablespaces are
+// created as BIGFILE for regular tablespaces or as AUTOEXTEND single datafile
+// for temporary tablespaces.
+func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath string) {
+	f, err := os.Open(metaFullPath)
+	if err != nil {
+		klog.Warningf("Not creating tablespaces for import. Failed to open %q: %v", metaFullPath, err)
+		return
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			klog.Warningf("failed to close import metafile %v: %v", f, err)
+		}
+	}()
+
+	// Gather a list of tablespaces required by this sqlfile.
+	ts := map[string]bool{}
+	tsTemp := map[string]bool{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		matches := tsRegexp.FindStringSubmatch(line)
+		if len(matches) > 0 {
+			kind := matches[1]
+			name1 := matches[2]
+			name2 := matches[3]
+			if kind == "DEFAULT" || kind == "CREATE" {
+				ts[name1] = true
+			}
+			if kind == "" { // from the grant match.
+				ts[name2] = true
+			}
+			if kind == "TEMPORARY" {
+				tsTemp[name1] = true
+			}
+		}
+	}
+
+	sqlResp, err := s.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{
+		Commands: []string{"select contents, tablespace_name from dba_tablespaces"},
+	})
+	if err != nil {
+		klog.Warningf("createTablespacesFromSqlfile: query tablespaces failed: %v", err)
+		return
+	}
+
+	// Check what tablespaces already exist and remove them from our list.
+	tsJSONs := sqlResp.GetMsg()
+	for _, js := range tsJSONs {
+		row := make(map[string]string)
+		if err := json.Unmarshal([]byte(js), &row); err != nil {
+			klog.Warningf("createTablespacesFromSqlfile: failed to parse pdb tablespaces response: %v", err)
+			return
+		}
+		name := row["TABLESPACE_NAME"]
+		kind := row["CONTENTS"]
+		if _, ok := ts[name]; ok && kind == "PERMANENT" {
+			delete(ts, name)
+		}
+		if _, ok := tsTemp[name]; ok && kind == "TEMPORARY" {
+			delete(tsTemp, name)
+		}
+	}
+
+	// Create any remaining tablespaces
+	for t := range ts {
+		_, err := s.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
+			Commands: []string{"create bigfile tablespace \"%s\""},
+		})
+		if err != nil {
+			klog.Warningf("createTablespacesFromSqlfile: failed to create tablespace %s: %v", t, err)
+		}
+	}
+	for t := range tsTemp {
+		_, err := s.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
+			Commands: []string{"create temporary tablespace \"%s\" size 128M autoextend on"},
+		})
+		if err != nil {
+			klog.Warningf("createTablespacesFromSqlfile: failed to create tablespace %s: %v", t, err)
+		}
+	}
 }
 
 // DataPumpImportAsync turns dataPumpImport into an async call.

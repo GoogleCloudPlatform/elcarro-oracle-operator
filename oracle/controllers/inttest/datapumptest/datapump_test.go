@@ -160,8 +160,7 @@ drop user scott cascade;`
 			sql = `alter session set container=pdb1;
 grant unlimited tablespace to scott;
 alter session set current_schema=scott;
-drop table test_table;
-create bigfile tablespace scotty;`
+drop table test_table;`
 			testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.CPNamespace, sql)
 
 			By("Importing Tables")
