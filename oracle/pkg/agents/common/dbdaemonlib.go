@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	// CallTimeout can be set via a flag by the program importing the library.
-	CallTimeout = 15 * time.Minute
+	// failsafe for callers who have not specified a real ctx.
+	callTimeout        = 15 * time.Minute
+	callTimeoutNetwork = 1 * time.Minute
 )
 
 // withTimeout returns a context with a default timeout if the input context has no timeout.
@@ -38,7 +39,7 @@ func withTimeout(ctx context.Context, timeOut time.Duration) (context.Context, c
 
 // DatabaseDaemonDialLocalhost connects to a local Database Daemon via gRPC.
 func DatabaseDaemonDialLocalhost(ctx context.Context, port int, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	ctxDial, cancel := withTimeout(ctx, CallTimeout)
+	ctxDial, cancel := withTimeout(ctx, callTimeout)
 	defer cancel()
 	finalOpts := append([]grpc.DialOption{grpc.WithTransportCredentials(local.NewCredentials())}, opts...)
 	return grpc.DialContext(ctxDial, fmt.Sprintf("localhost:%d", port), finalOpts...)
@@ -46,7 +47,7 @@ func DatabaseDaemonDialLocalhost(ctx context.Context, port int, opts ...grpc.Dia
 
 // DatabaseDaemonDialSocket connects to Database Daemon via gRPC.
 func DatabaseDaemonDialSocket(ctx context.Context, socket string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	ctxDial, cancel := withTimeout(ctx, CallTimeout)
+	ctxDial, cancel := withTimeout(ctx, callTimeout)
 	defer cancel()
 	endpoint := fmt.Sprintf("passthrough://unix/%s", socket)
 	finalOpts := append([]grpc.DialOption{grpc.WithTransportCredentials(local.NewCredentials()), grpc.WithContextDialer(GrpcUnixDialer)}, opts...)
@@ -55,7 +56,7 @@ func DatabaseDaemonDialSocket(ctx context.Context, socket string, opts ...grpc.D
 
 // DatabaseDaemonDialService connects to Database Service via gRPC.
 func DatabaseDaemonDialService(ctx context.Context, serviceAndPort string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	ctxDial, cancel := withTimeout(ctx, CallTimeout)
+	ctxDial, cancel := withTimeout(ctx, callTimeoutNetwork)
 	defer cancel()
 	finalOpts := append([]grpc.DialOption{grpc.WithInsecure()}, opts...)
 	return grpc.DialContext(ctxDial, serviceAndPort, finalOpts...)
