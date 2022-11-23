@@ -1136,7 +1136,11 @@ func K8sCopyFromPodOrFail(pod, ns, container, src, dest string) {
 
 // UploadFileOrFail uploads an object to GCS, it raises a ginkgo assert on failure.
 func UploadFileOrFail(localFile, bucket, object string) {
-	Expect(uploadFile(localFile, bucket, object)).NotTo(HaveOccurred())
+	Expect(retry.OnError(retry.DefaultBackoff,
+		func(error) bool { return true },
+		func() error { return uploadFile(localFile, bucket, object) }),
+	).To(Succeed())
+
 }
 
 // uploadFile uploads an object to GCS.
