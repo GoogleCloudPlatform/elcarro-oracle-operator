@@ -392,12 +392,6 @@ func newUser(databaseName string, specUser *User) *user {
 			privs = append(privs, upperP)
 		}
 	}
-	var lastVersion string
-	if specUser.PasswordGsmSecretRef != nil {
-		lastVersion = specUser.PasswordGsmSecretRef.Version
-	} else {
-		lastVersion = ""
-	}
 	user := &user{
 		databaseName: strings.ToUpper(databaseName),
 		userName:     strings.ToUpper(specUser.Name),
@@ -407,10 +401,9 @@ func newUser(databaseName string, specUser *User) *user {
 		// Only used for plaintext status diff.
 		curPassword: specUser.LastPassword,
 		specPrivs:   privs,
-		// Empty version is returned if PasswordGsmSecretRef is nil.
-		gsmSecCurVer: lastVersion,
 	}
 	if specUser.PasswordGsmSecretRef != nil {
+		user.gsmSecCurVer = specUser.PasswordGsmSecretRef.LastVersion
 		user.gsmSecNewVer = fmt.Sprintf(gsmSecretStr, specUser.PasswordGsmSecretRef.ProjectId, specUser.PasswordGsmSecretRef.SecretId, specUser.PasswordGsmSecretRef.Version)
 	}
 	return user

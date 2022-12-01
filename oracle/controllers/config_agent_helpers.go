@@ -494,7 +494,7 @@ func UpdateUsers(ctx context.Context, r client.Reader, dbClientFactory DatabaseC
 	}
 
 	for _, u := range toUpdatePwd {
-		klog.InfoS("config_agent_helpers/UpdateUsers", "updating user", u.userName)
+		klog.InfoS("config_agent_helpers/UpdateUsers", "updating user pwd", u.userName)
 		if err := u.updatePassword(ctx, dbClient); err != nil {
 			klog.ErrorS(err, "failed to update user password")
 			foundErr = true
