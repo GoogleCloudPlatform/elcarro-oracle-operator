@@ -97,7 +97,7 @@ var _ = Describe("Patching", func() {
 				})
 
 			// Give controller some time to process
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 45*time.Second)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 2*time.Minute)
 
 			// Wait until the instance is "Ready" again
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
@@ -138,7 +138,7 @@ var _ = Describe("Patching", func() {
 				})
 
 			// Give controller some time to process
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 45*time.Second)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 2*time.Minute)
 
 			// Wait until the instance is "Ready" again
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.PatchingRecoveryCompleted, 25*time.Minute)
