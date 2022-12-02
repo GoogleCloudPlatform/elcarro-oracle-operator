@@ -14,6 +14,7 @@ go_library(
         "//oracle/controllers",
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/k8s",
+        "//oracle/pkg/util",
         "@com_github_go_logr_logr//:logr",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",

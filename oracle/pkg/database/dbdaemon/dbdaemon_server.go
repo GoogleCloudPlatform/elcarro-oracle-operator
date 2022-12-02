@@ -48,6 +48,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common"
+	sqlq "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/consts"
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/pitr"
@@ -493,6 +494,30 @@ func (s *Server) PhysicalRestoreAsync(ctx context.Context, req *dbdpb.PhysicalRe
 	return &lropb.Operation{Name: job.ID(), Done: false}, nil
 }
 
+func filterParamsForMetadata(in []string) []string {
+	// These parameters are incompatible with sqlfile, so we must remove
+	// them for our metadata dump.
+	restricted := []string{
+		"TABLE_EXISTS_ACTION",
+	}
+
+	var filtered []string
+	for _, i := range in {
+		safe := true
+		for _, r := range restricted {
+			if strings.Split(i, "=")[0] == r {
+				safe = false
+				break
+			}
+		}
+		if safe {
+			filtered = append(filtered, i)
+		}
+	}
+
+	return filtered
+}
+
 // dataPumpImport runs impdp Oracle tool against existing PDB which
 // imports data from a data pump .dmp file.
 func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRequest) (*dbdpb.DataPumpImportResponse, error) {
@@ -533,7 +558,7 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	// impdp \"/ as sysdba\" sqlfile=test_meta_tables.sql dumpfile=prod_export_cmms02072022.dmp directory=REFRESH_DUMP_DIR NOLOGFILE=YES FULL=Y INCLUDE=TABLESPACE INCLUDE=TABLESPACE_QUOTA INCLUDE=USER PARALLEL=4
 	// We dont dump tables because this can be slow O(minutes), but it would be more precise if needed it can be added.
 	tsCheckParams := []string{impdpTarget}
-	tsCheckParams = append(tsCheckParams, req.CommandParams...)
+	tsCheckParams = append(tsCheckParams, filterParamsForMetadata(req.CommandParams)...)
 	tsCheckParams = append(tsCheckParams, fmt.Sprintf("directory=%s", consts.DpdumpDir.Oracle))
 	tsCheckParams = append(tsCheckParams, "dumpfile="+importFilename)
 	tsCheckParams = append(tsCheckParams, "sqlfile="+importMetaFile)
@@ -555,7 +580,7 @@ func (s *Server) dataPumpImport(ctx context.Context, req *dbdpb.DataPumpImportRe
 	}
 
 	metaFullPath := filepath.Join(dumpDir, importMetaFile)
-	s.createTablespacesFromSqlfile(ctx, metaFullPath)
+	s.createTablespacesFromSqlfile(ctx, metaFullPath, req.PdbName)
 
 	params := []string{impdpTarget}
 	params = append(params, req.CommandParams...)
@@ -594,7 +619,7 @@ var tsRegexp = regexp.MustCompile("(DEFAULT|CREATE|UNDO|TEMPORARY) TABLESPACE \"
 // references. It gathers these references and then ensures the tablespaces are
 // created as BIGFILE for regular tablespaces or as AUTOEXTEND single datafile
 // for temporary tablespaces.
-func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath string) {
+func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath, PDBName string) {
 	f, err := os.Open(metaFullPath)
 	if err != nil {
 		klog.Warningf("Not creating tablespaces for import. Failed to open %q: %v", metaFullPath, err)
@@ -630,7 +655,10 @@ func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath 
 	}
 
 	sqlResp, err := s.RunSQLPlusFormatted(ctx, &dbdpb.RunSQLPlusCMDRequest{
-		Commands: []string{"select contents, tablespace_name from dba_tablespaces"},
+		Commands: []string{
+			sqlq.QuerySetSessionContainer(PDBName),
+			"select contents, tablespace_name from dba_tablespaces",
+		},
 	})
 	if err != nil {
 		klog.Warningf("createTablespacesFromSqlfile: query tablespaces failed: %v", err)
@@ -658,7 +686,10 @@ func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath 
 	// Create any remaining tablespaces
 	for t := range ts {
 		_, err := s.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
-			Commands: []string{"create bigfile tablespace \"%s\""},
+			Commands: []string{
+				sqlq.QuerySetSessionContainer(PDBName),
+				fmt.Sprintf("create bigfile tablespace \"%s\"", t),
+			},
 		})
 		if err != nil {
 			klog.Warningf("createTablespacesFromSqlfile: failed to create tablespace %s: %v", t, err)
@@ -666,7 +697,10 @@ func (s *Server) createTablespacesFromSqlfile(ctx context.Context, metaFullPath 
 	}
 	for t := range tsTemp {
 		_, err := s.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
-			Commands: []string{"create temporary tablespace \"%s\" size 128M autoextend on"},
+			Commands: []string{
+				sqlq.QuerySetSessionContainer(PDBName),
+				fmt.Sprintf("create temporary tablespace \"%s\" size 128M autoextend on", t),
+			},
 		})
 		if err != nil {
 			klog.Warningf("createTablespacesFromSqlfile: failed to create tablespace %s: %v", t, err)
