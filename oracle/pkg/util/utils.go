@@ -169,3 +169,25 @@ func (g *GCSUtilImpl) Delete(ctx context.Context, gcsPath string) error {
 	}
 	return nil
 }
+
+// Contains check whether given "elem" presents in "array"
+func Contains(array []string, elem string) bool {
+	for _, v := range array {
+		if v == elem {
+			return true
+		}
+	}
+	return false
+}
+
+// Filter Returns a slice that doesn't contain element
+func Filter(slice []string, element string) []string {
+	//This implementation isn't the fastest, but it protects against slices containing a single element.
+	result := make([]string, 0, len(slice))
+	for _, s := range slice {
+		if s != element {
+			result = append(result, s)
+		}
+	}
+	return result
+}

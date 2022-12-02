@@ -40,6 +40,7 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
 )
 
 const (
@@ -151,8 +152,8 @@ func (r *DatabaseReconciler) ReconcileDatabaseDeletion(ctx context.Context, req 
 		}
 
 		// Remove PDB from list of DatabaseNames
-		if controllers.Contains(inst.Status.DatabaseNames, db.Spec.Name) {
-			inst.Status.DatabaseNames = controllers.Filter(inst.Status.DatabaseNames, db.Spec.Name)
+		if util.Contains(inst.Status.DatabaseNames, db.Spec.Name) {
+			inst.Status.DatabaseNames = util.Filter(inst.Status.DatabaseNames, db.Spec.Name)
 		}
 		if err := r.Status().Update(ctx, &inst); err != nil {
 			log.Error(err, "failed to update the Instance status after deleting a Database(PDB)", "DatabaseName", db.Name, "InstanceName", inst.Name)
@@ -267,7 +268,7 @@ func (r *DatabaseReconciler) ReconcileDatabaseCreation(ctx context.Context, req 
 	}
 
 	// check DB name against existing ones to decide whether this is a new DB
-	if !controllers.Contains(inst.Status.DatabaseNames, db.Spec.Name) {
+	if !util.Contains(inst.Status.DatabaseNames, db.Spec.Name) {
 		log.Info("found a new DB", "dbName", db.Spec.Name)
 		inst.Status.DatabaseNames = append(inst.Status.DatabaseNames, db.Spec.Name)
 	} else {
