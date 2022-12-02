@@ -87,7 +87,7 @@ var _ = Describe("Agent Patching", func() {
 		instKey := client.ObjectKey{Namespace: k8sEnv.DPNamespace, Name: instanceName}
 
 		// Wait for PatchingBackupStarted
-		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 45*time.Second)
+		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 2*time.Minute)
 
 		// Wait until the instance is "Ready" again
 		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 15*time.Minute)
@@ -116,7 +116,7 @@ var _ = Describe("Agent Patching", func() {
 		instKey := client.ObjectKey{Namespace: k8sEnv.DPNamespace, Name: instanceName}
 
 		// Wait for PatchingBackupStarted
-		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 45*time.Second)
+		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.PatchingBackupStarted, 2*time.Minute)
 
 		// Wait for StatefulSetPatchingInProgress
 		testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.StatefulSetPatchingInProgress, 15*time.Minute)

@@ -101,7 +101,7 @@ var _ = Describe("ParameterUpdate", func() {
 				})
 
 			// Verify the controller is getting into ParameterUpdateInProgress state
-			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateInProgress, 60*time.Second)
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionFalse, k8s.ParameterUpdateInProgress, 2*time.Minute)
 
 			// Wait until the instance settles into "Ready" again
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 20*time.Minute)
