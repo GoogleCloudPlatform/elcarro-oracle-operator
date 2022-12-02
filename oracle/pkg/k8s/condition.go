@@ -49,6 +49,7 @@ const (
 	BootstrapInProgress                   = "BootstrapInProgress"
 	ReconcileServices                     = "ReconcileServices"
 	RestorePending                        = "RestorePending"
+	ResizingInProgress                    = "ResizingInProgress"
 	ImportComplete                        = "ImportComplete"
 	ImportFailed                          = "ImportFailed"
 	ImportInProgress                      = "ImportInProgress"
