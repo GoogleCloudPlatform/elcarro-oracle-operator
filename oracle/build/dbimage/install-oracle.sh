@@ -39,7 +39,7 @@ setup_patching() {
     if [[ "${DB_VERSION}" == "${ORACLE_12}" ]]; then
       PATCH_VERSION="31741641"
     elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
-      PATCH_VERSION="32545013"
+      PATCH_VERSION="34419443"
     fi
   fi
   local patch_suffix
@@ -112,6 +112,7 @@ _fallback_opatch_file() {
   # p6880880_180000_Linux-x86-64.zip, p6880880_122010_Linux-x86-64.zip
   # for 04302020 OPATCH, their sha256sum are identical "B08320195434559D9662729C5E02ABC8436A5C602B4355CC33A673F24D9D174"
   local candidates=(
+    "p6880880_210000_Linux-x86-64.zip"
     "p6880880_200000_Linux-x86-64.zip"
     "p6880880_190000_Linux-x86-64.zip"
     "p6880880_180000_Linux-x86-64.zip"
