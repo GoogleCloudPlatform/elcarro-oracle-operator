@@ -410,7 +410,7 @@ func (task *BootstrapTask) prepDatabase(ctx context.Context) error {
 
 	// /u02/app/oracle/oradata/<CDB name>/temp01.dbf is already part of database in unseeded use case, so it is skipped.
 	if task.isSeeded {
-		tempfile := []string{fmt.Sprintf("ALTER TABLESPACE TEMP ADD TEMPFILE '%s/temp01.dbf' SIZE 1G REUSE AUTOEXTEND ON", task.db.GetDataFilesDir())}
+		tempfile := []string{fmt.Sprintf("ALTER TABLESPACE TEMP ADD TEMPFILE '%s/temp01.dbf' SIZE 512M REUSE AUTOEXTEND ON", task.db.GetDataFilesDir())}
 		sqlResp, err = task.dbdClient.RunSQLPlus(ctx, &dbdpb.RunSQLPlusCMDRequest{
 			Commands: tempfile,
 			Suppress: false,
@@ -538,7 +538,7 @@ func (task *BootstrapTask) createPDBSeedTemp(ctx context.Context) error {
 			"alter session set \"_oracle_script\"=TRUE",
 			"alter pluggable database PDB$SEED close",
 			"alter pluggable database PDB$SEED open read write",
-			fmt.Sprintf("alter tablespace TEMP add tempfile '%s/temp01.dbf' size 500m reuse", filepath.Join(task.db.GetDataFilesDir(), "pdbseed")),
+			fmt.Sprintf("alter tablespace TEMP add tempfile '%s/temp01.dbf' size 512M reuse autoextend on", filepath.Join(task.db.GetDataFilesDir(), "pdbseed")),
 			"alter pluggable database PDB$SEED close",
 			"alter pluggable database PDB$SEED open read only",
 		},
