@@ -276,6 +276,14 @@ create_cdb() {
   set -x
 }
 
+prep_seedpdb() {
+  # Consider switching the temp/undo to bigfile and enabling size management of
+  # these at the KRM level.
+
+  # Ensure tempfile can grow to one full datafile 32GB by default.
+  run_sql "alter session set container=pdb\$seed; alter database tempfile '/u01/app/oracle/oradata/${CDB_NAME}/pdbseed/temp01.dbf' autoextend on maxsize unlimited;"
+}
+
 set_environment() {
   source "/home/oracle/${CDB_NAME}.env"
 }
@@ -355,6 +363,7 @@ main() {
   patch_oracle
   if [[ "${CREATE_CDB}" == true ]]; then
     create_cdb
+    prep_seedpdb
     shutdown_oracle
   fi
   chown "${USER}:${GROUP}" /etc/oratab
