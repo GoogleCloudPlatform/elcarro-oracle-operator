@@ -70,13 +70,16 @@ type osUtilImpl struct {
 
 func (o *osUtilImpl) runCommand(bin string, params []string) error {
 	ohome := os.Getenv("ORACLE_HOME")
-	klog.InfoS("executing command with args", "cmd", bin, "params", params, "ORACLE_SID", os.Getenv("ORACLE_SID"), "ORACLE_HOME", ohome, "TNS_ADMIN", os.Getenv("TNS_ADMIN"))
+	sanitizedParams := params
 	switch bin {
-	case lsnrctl(ohome), rman(ohome), orapwd(ohome), impdp(ohome), expdp(ohome), datapatch(ohome):
+	case rman(ohome), impdp(ohome), expdp(ohome):
+		sanitizedParams = append([]string{"***"}, params[1:]...)
+	case lsnrctl(ohome), orapwd(ohome), datapatch(ohome):
 	default:
 		klog.InfoS("command not supported", "bin", bin)
 		return fmt.Errorf("command %q is not supported", bin)
 	}
+	klog.InfoS("executing command with args", "cmd", bin, "params", sanitizedParams, "ORACLE_SID", os.Getenv("ORACLE_SID"), "ORACLE_HOME", ohome, "TNS_ADMIN", os.Getenv("TNS_ADMIN"))
 	cmd := exec.Command(bin)
 	cmd.Args = append(cmd.Args, params...)
 	cmd.Stdout = os.Stdout
