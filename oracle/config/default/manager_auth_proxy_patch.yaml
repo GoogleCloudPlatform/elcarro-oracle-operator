@@ -11,6 +11,9 @@ spec:
       containers:
       - name: kube-rbac-proxy
         image: gcr.io/kubebuilder/kube-rbac-proxy:v0.4.1
+        securityContext:
+          capabilities:
+            drop: [ "NET_RAW" ]
         args:
         - "--secure-listen-address=0.0.0.0:8443"
         - "--upstream=http://127.0.0.1:8080/"
