@@ -232,6 +232,7 @@ func MonitoringPodTemplate(inst *v1alpha1.Instance, monitoringSecret *corev1.Sec
 		},
 		SecurityContext: &corev1.SecurityContext{
 			AllowPrivilegeEscalation: &falseVal,
+			Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 		},
 		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{
@@ -420,6 +421,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 				buildPVCMounts(sp)...),
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &sp.PrivEscalation,
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 			},
 			EnvFrom: []corev1.EnvFromSource{
 				{
@@ -438,6 +440,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			},
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &sp.PrivEscalation,
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 			},
 			VolumeMounts: append([]corev1.VolumeMount{
 				{Name: "var-tmp", MountPath: "/var/tmp"},
@@ -453,6 +456,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			Args:    []string{"--logType=ALERT"},
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &sp.PrivEscalation,
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
@@ -466,6 +470,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			Args:    []string{"--logType=LISTENER"},
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &sp.PrivEscalation,
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
@@ -480,6 +485,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			Command: []string{"sh", "-c", "cp -r agent_repo/. /agents/ && chmod -R 750 /agents/*"},
 			SecurityContext: &corev1.SecurityContext{
 				AllowPrivilegeEscalation: &sp.PrivEscalation,
+				Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "agent-repo", MountPath: "/agents"},
@@ -642,6 +648,7 @@ func addHostpathInitContainer(sp StsParams, containers []corev1.Container, uid, 
 			RunAsGroup:               func(i int64) *int64 { return &i }(0),
 			RunAsNonRoot:             func(b bool) *bool { return &b }(false),
 			AllowPrivilegeEscalation: &sp.PrivEscalation,
+			Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"NET_RAW"}},
 		},
 		VolumeMounts: volumeMounts,
 	})
