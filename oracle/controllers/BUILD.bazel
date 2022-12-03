@@ -29,7 +29,7 @@ go_library(
         "@com_github_go_logr_logr//:logr",
         "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
         "@com_google_cloud_go_secretmanager//apiv1",
-        "@go_googleapis//google/cloud/secretmanager/v1:secretmanager_go_proto",
+        "@com_google_cloud_go_secretmanager//apiv1/secretmanagerpb",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@io_k8s_api//apps/v1:apps",
         "@io_k8s_api//core/v1:core",
