@@ -28,6 +28,9 @@ spec:
         args:
         - --enable-leader-election
         image: controller:latest
+        securityContext:
+          capabilities:
+            drop: [ "NET_RAW" ]
         imagePullPolicy: Always
         name: manager
         resources:

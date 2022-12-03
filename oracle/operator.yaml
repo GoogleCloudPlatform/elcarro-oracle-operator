@@ -3320,6 +3320,10 @@ spec:
         ports:
         - containerPort: 8443
           name: https
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
       - args:
         - --metrics-addr=127.0.0.1:8080
         - --enable-leader-election
@@ -3335,4 +3339,8 @@ spec:
           requests:
             cpu: 1
             memory: 200Mi
+        securityContext:
+          capabilities:
+            drop:
+            - NET_RAW
       terminationGracePeriodSeconds: 10
