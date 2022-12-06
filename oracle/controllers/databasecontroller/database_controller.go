@@ -43,10 +43,6 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
 )
 
-const (
-	DatabaseContainerName = "oracledb"
-)
-
 // These variables allow to plug in mock objects for functional tests
 var (
 	skipLBCheckForTest      = false
@@ -202,7 +198,7 @@ func (r *DatabaseReconciler) ReconcileDatabaseCreation(ctx context.Context, req 
 	}
 
 	// Find a database container within that pod.
-	if _, err := findContainer(pods.Items[0], DatabaseContainerName); err != nil {
+	if _, err := findContainer(pods.Items[0], controllers.DatabaseContainerName); err != nil {
 		log.Error(err, "reconciling database - failed to find a database container")
 		return ctrl.Result{}, err
 	}
