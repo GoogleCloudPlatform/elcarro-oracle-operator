@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	snapv1 "github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -347,6 +348,17 @@ func (r *BackupReconciler) reconcileBackupDeletion(ctx context.Context, backup *
 		backup.Status.Phase = k8s.BackupDeleting
 		// return to make the update taking effect immediately.
 		return ctrl.Result{}, r.Status().Update(ctx, backup)
+	}
+
+	// Remove the backup finalizer if an associated Instance doesn't exist.
+	_, err := r.BackupCtrl.GetInstance(backup.Spec.Instance, backup.Namespace)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return ctrl.Result{}, err
+		}
+		log.Info("Parent Instance not found. Removing backup finalizer.")
+		controllerutil.RemoveFinalizer(backup, controllers.FinalizerName)
+		return ctrl.Result{}, r.Update(ctx, backup)
 	}
 
 	var b oracleBackup
