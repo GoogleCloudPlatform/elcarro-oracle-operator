@@ -188,6 +188,31 @@ var _ = Describe("Instance and Database provisioning", func() {
 				}, time.Minute*25, time.Minute).Should(BeTrue())
 			}
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			By("By checking that the cpu/mem get resized")
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				instKey1,
+				createdInstance1,
+				func(obj *client.Object) {
+					instanceToUpdate := (*obj).(*v1alpha1.Instance)
+					instanceToUpdate.Spec.DatabaseResources.Requests["memory"] = resource.MustParse("9Gi")
+					instanceToUpdate.Spec.DatabaseResources.Requests["cpu"] = resource.MustParse("3m")
+				})
+			stsPod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sts1.Name + "-0",
+					Namespace: namespace,
+				},
+			}
+			Eventually(func() bool {
+				testhelpers.K8sGetWithRetry(k8sEnv.K8sClient, ctx, client.ObjectKeyFromObject(stsPod), stsPod)
+				for _, container := range stsPod.Spec.Containers {
+					if container.Name == controllers.DatabaseContainerName {
+						return container.Resources.Requests["memory"] == resource.MustParse("9Gi") && container.Resources.Requests["cpu"] == resource.MustParse("3m")
+					}
+				}
+				return false
+			}, 5*time.Minute, 5*time.Second).Should(Equal(true))
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
 			//call patch apply, get the pvcs, get the sts
 			By("Deleting a database")
 			deleteDatabase(ctx, firstDatabaseName, namespace)
@@ -272,7 +297,8 @@ func createInstance(instanceName, cdbName, namespace, version, edition, extra st
 				},
 				DatabaseResources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceMemory: resource.MustParse("9Gi"),
+						corev1.ResourceMemory: resource.MustParse("8Gi"),
+						corev1.ResourceCPU:    resource.MustParse("2m"),
 					},
 				},
 				Images: map[string]string{

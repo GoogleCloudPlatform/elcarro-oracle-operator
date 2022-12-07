@@ -51,6 +51,7 @@ const (
 	TimestampAnnotation         = "timestamp"
 	DatabaseImageAnnotation     = "database-image"
 	ParameterUpdateStateMachine = "ParameterUpdateStateMachine"
+	DatabaseContainerName       = "oracledb"
 )
 
 var (

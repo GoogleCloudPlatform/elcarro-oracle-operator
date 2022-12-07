@@ -32,6 +32,7 @@ import (
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+	"github.com/google/go-cmp/cmp"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -677,6 +678,30 @@ func (r *InstanceReconciler) handleResize(ctx context.Context, inst *v1alpha1.In
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
+	dbContainer := findContainer(sts.Spec.Template.Spec.Containers, controllers.DatabaseContainerName)
+	if dbContainer == nil {
+		return ctrl.Result{}, fmt.Errorf("could not find database container in pod template")
+	}
+
+	// CPU/Memory resize
+	if !cmp.Equal(inst.Spec.DatabaseResources, dbContainer.Resources) {
+		log.Info("Instance CPU/MEM resize required")
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.ResizingInProgress, "Resizing cpu/memory")
+
+		_, err := ctrl.CreateOrUpdate(ctx, r.Client, sts, func() error {
+			dbContainer := findContainer(sts.Spec.Template.Spec.Containers, controllers.DatabaseContainerName)
+			if dbContainer == nil {
+				return fmt.Errorf("could not find database container in pod temmplate")
+			}
+			dbContainer.Resources = inst.Spec.DatabaseResources
+			return nil
+		})
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to update statefulset resources: %v", err)
+		}
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
 	newSts, err := r.buildStatefulSet(ctx, inst, sp, nil, log)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -691,7 +716,7 @@ func (r *InstanceReconciler) handleResize(ctx context.Context, inst *v1alpha1.In
 
 	if k8s.ConditionReasonEquals(instanceReadyCond, k8s.ResizingInProgress) {
 		ready, msg := IsReadyWithObj(sts)
-		if ready {
+		if ready && cmp.Equal(inst.Spec.DatabaseResources, dbContainer.Resources) {
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, msg)
 			return ctrl.Result{Requeue: true}, nil
 		}
