@@ -472,7 +472,8 @@ func (r *InstanceReconciler) statusProgress(ctx context.Context, ns, name string
 			log.Info(msg)
 			return 85, fmt.Errorf(msg)
 		}
-		log.Info("container %s is ready", c.Name)
+		msg := fmt.Sprintf("container %s is ready", c.Name)
+		log.Info(msg)
 	}
 	for _, c := range foundPod.Status.InitContainerStatuses {
 		if !c.Ready {
