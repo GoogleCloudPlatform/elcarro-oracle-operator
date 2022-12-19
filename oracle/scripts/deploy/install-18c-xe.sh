@@ -148,7 +148,7 @@ function create_cluster() {
     --machine-type=n1-standard-2 --num-nodes 2 --zone ${ZONE} \
     --scopes gke-default,compute-rw,cloud-platform,https://www.googleapis.com/auth/dataaccessauditlogging \
     --service-account "${GKE_SA_EMAIL}" \
-    --image-type cos \
+    --image-type cos_containerd \
     --addons GcePersistentDiskCsiDriver
   else
     echo "cluster (name=${CLUSTER_NAME} zone=${ZONE}) already exists"
