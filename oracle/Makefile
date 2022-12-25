@@ -127,7 +127,7 @@ test:
 		--test_env=PROW_INT_TEST_SA=${PROW_INT_TEST_SA} \
 		--test_env=PROW_CLUSTER_ZONE=${PROW_CLUSTER_ZONE} \
 		--test_env=ARTIFACTS=${ARTIFACTS} || touch failed
-	if [[ -n "$$ARTIFACTS" ]]; then find ../bazel-testlogs/ -name '*.xml' -o -name '*.log' | xargs cp --parents -t "$$ARTIFACTS/" ; fi
+	if [[ -n "$$ARTIFACTS" ]]; then find ..//bazel-out/k8-fastbuild/testlogs/ -name '*.xml' -o -name '*.log' | xargs cp --parents -t "$$ARTIFACTS/" ; fi
 	if [[ -f "failed" ]]; then rm failed; exit 100; fi
 
 # Run go fmt against code
