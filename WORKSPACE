@@ -155,6 +155,28 @@ http_file(
 )
 
 http_archive(
+    name = "aio_runtime",
+    build_file_content = """
+load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")
+
+pkg_tar(
+    name = "binaries_tar",
+    srcs = glob([
+        "*.so*",
+        "LICENSE.*",
+    ]),
+    mode = "0755",
+    package_dir = "/lib/x86_64-linux-gnu",
+    visibility = ["@//oracle/build:__pkg__"],
+)
+""",
+    sha256 = "89aa0a7b53a70b2b1b4509b548b661e7da000a57ecf4f91210d722b1de59c435",
+    urls = [
+        "https://storage.googleapis.com/elcarro/prebuilt/runtime.tar.gz",
+    ],
+)
+
+http_archive(
     name = "oracle_instantclient",
     build_file_content = """
 load("@rules_pkg//pkg:pkg.bzl", "pkg_tar")

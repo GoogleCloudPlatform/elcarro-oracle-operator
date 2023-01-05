@@ -40,7 +40,6 @@ filegroup(
         "//common/pkg/utils:all-srcs",
         "//hack:all-srcs",
         "//oracle:all-srcs",
-        "//third_party/runtime:all-srcs",
     ],
     tags = ["automanaged"],
     visibility = ["//visibility:public"],
