@@ -108,7 +108,7 @@ container_image(
     ports = ["9161"],
     symlinks = {"/monitoring_agent": "/monitoring"},
     tars = [
-        "//third_party/runtime:binaries_tar",
+        "@aio_runtime//:binaries_tar",
         "@oracle_instantclient//:binaries_tar",
     ],
 )
