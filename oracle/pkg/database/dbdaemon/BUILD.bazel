@@ -9,6 +9,7 @@ go_library(
     importpath = "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/database/dbdaemon",
     visibility = ["//visibility:public"],
     deps = [
+        "//oracle/controllers",
         "//oracle/pkg/agents/common",
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/agents/consts",
