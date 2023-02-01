@@ -320,10 +320,10 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		if inst.Status.URL != "" {
 			if !k8s.ConditionReasonEquals(instanceReadyCond, k8s.CreateComplete) {
 				r.Recorder.Eventf(&inst, corev1.EventTypeNormal, "InstanceReady", "Instance has been created successfully. Elapsed Time: %v", elapsed)
+				k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
+				inst.Status.ActiveImages = CloneMap(sp.Images)
+				return ctrl.Result{Requeue: true}, nil
 			}
-			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
-			inst.Status.ActiveImages = CloneMap(sp.Images)
-			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
