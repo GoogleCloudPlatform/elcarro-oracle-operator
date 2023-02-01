@@ -323,7 +323,7 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 			}
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionTrue, k8s.CreateComplete, "")
 			inst.Status.ActiveImages = CloneMap(sp.Images)
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
