@@ -59,6 +59,10 @@ var (
 	}
 )
 
+var paramRequiresRestart = map[string]bool{
+	"sga_target": true,
+}
+
 // GetLROOperation returns LRO operation for the specified namespace instance and operation id.
 func GetLROOperation(ctx context.Context, dbClientFactory DatabaseClientFactory, r client.Reader, id, namespace, instName string) (*lropb.Operation, error) {
 	dbClient, closeConn, err := dbClientFactory.New(ctx, r, namespace, instName)
@@ -538,7 +542,7 @@ func SetParameter(ctx context.Context, dbClientFactory DatabaseClientFactory, r 
 	}
 
 	isStatic := false
-	if paramType == "FALSE" {
+	if paramType == "FALSE" || paramRequiresRestart[key] {
 		klog.InfoS("config_agent_helpers/SetParameter", "parameter_type", "STATIC")
 		command = fmt.Sprintf("%s scope=spfile", command)
 		isStatic = true
