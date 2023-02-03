@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
 	"github.com/godror/godror" // Register database/sql driver
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -2164,21 +2165,20 @@ func (s *Server) downloadFile(ctx context.Context, c *storage.Client, bucket, gc
 
 // bootstrapDatabase invokes init_oracle on dbdaemon_proxy to perform bootstrap tasks for seeded image
 func (s *Server) bootstrapDatabase(ctx context.Context, req *dbdpb.BootstrapDatabaseRequest) (*dbdpb.BootstrapDatabaseResponse, error) {
-	cmd := "free -m | awk '/Mem/ {print $2}'"
-	out, err := exec.Command("bash", "-c", cmd).Output()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to execute command %s: %s", cmd, err)
-	}
-
-	freeMem, err := strconv.Atoi(string(out[:len(out)-1]))
-	if err != nil {
-		return nil, fmt.Errorf("Failed to convert output %s to integer: %s", string(out), err)
+	var pga, sga int
+	if requestedMem, err := controllers.RequestedMemoryInMi(); err == nil {
+		klog.Info("Database requested memory in Mi", "memory", requestedMem)
+		pga = requestedMem / 8
+		sga = requestedMem / 2
+	} else {
+		pga = consts.DefaultPGAMB
+		sga = consts.DefaultSGAMB
 	}
 
 	if _, err := s.dbdClient.ProxyRunInitOracle(ctx, &dbdpb.ProxyRunInitOracleRequest{
 		Params: []string{
-			fmt.Sprintf("--pga=%d", freeMem/8),
-			fmt.Sprintf("--sga=%d", freeMem/2),
+			fmt.Sprintf("--pga=%d", pga),
+			fmt.Sprintf("--sga=%d", sga),
 			fmt.Sprintf("--cdb_name=%s", req.GetCdbName()),
 			fmt.Sprintf("--db_domain=%s", req.GetDbDomain()),
 			"--logtostderr=true",

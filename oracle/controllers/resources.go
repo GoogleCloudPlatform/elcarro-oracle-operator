@@ -17,6 +17,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,9 +51,13 @@ const (
 	// DefaultGID is the default Database pod user gid.
 	DefaultGID                  = int64(54322)
 	safeMinMemoryForDBContainer = "4.0Gi"
+	podInfoMemRequestSubPath    = "request_memory"
+	dbContainerName             = "oracledb"
+	podInfoVolume               = "podinfo"
 )
 
 var (
+	podInfoDir      = "/etc/podinfo"
 	defaultDiskSize = resource.MustParse("100Gi")
 	dialTimeout     = 3 * time.Minute
 	configList      = []string{configAgentName, OperatorName}
@@ -395,7 +402,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 
 	containers := []corev1.Container{
 		{
-			Name:      "oracledb",
+			Name:      dbContainerName,
 			Resources: dbResource,
 			Image:     sp.Images["service"],
 			Command:   []string{fmt.Sprintf("%s/init_container.sh", scriptDir)},
@@ -417,6 +424,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			VolumeMounts: append([]corev1.VolumeMount{
 				{Name: "var-tmp", MountPath: "/var/tmp"},
 				{Name: "agent-repo", MountPath: "/agents"},
+				{Name: podInfoVolume, MountPath: podInfoDir, ReadOnly: true},
 			},
 				buildPVCMounts(sp)...),
 			SecurityContext: &corev1.SecurityContext{
@@ -445,6 +453,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			VolumeMounts: append([]corev1.VolumeMount{
 				{Name: "var-tmp", MountPath: "/var/tmp"},
 				{Name: "agent-repo", MountPath: "/agents"},
+				{Name: podInfoVolume, MountPath: podInfoDir},
 			},
 				buildPVCMounts(sp)...),
 			ImagePullPolicy: imagePullPolicy,
@@ -460,6 +469,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
+				{Name: podInfoVolume, MountPath: podInfoDir, ReadOnly: true},
 			},
 			ImagePullPolicy: imagePullPolicy,
 		},
@@ -474,6 +484,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: dataDiskPVC, MountPath: fmt.Sprintf("/%s", dataDiskMountName)},
+				{Name: podInfoVolume, MountPath: podInfoDir, ReadOnly: true},
 			},
 			ImagePullPolicy: imagePullPolicy,
 		},
@@ -502,6 +513,20 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		{
 			Name:         "agent-repo",
 			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		},
+		{
+			Name: podInfoVolume,
+			VolumeSource: corev1.VolumeSource{DownwardAPI: &corev1.DownwardAPIVolumeSource{
+				Items: []corev1.DownwardAPIVolumeFile{{
+					Path: podInfoMemRequestSubPath,
+					ResourceFieldRef: &corev1.ResourceFieldSelector{
+						ContainerName: dbContainerName,
+						Resource:      "requests.memory",
+						Divisor:       resource.MustParse("1Mi"),
+					},
+				},
+				},
+			}},
 		},
 	}
 
@@ -662,4 +687,19 @@ func DiskSpecs(inst *v1alpha1.Instance, config *v1alpha1.Config) []commonv1alpha
 		return config.Spec.Disks
 	}
 	return defaultDisks
+}
+
+func RequestedMemoryInMi() (int, error) {
+	p := filepath.Join(podInfoDir, podInfoMemRequestSubPath)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to open file [%v], error: %v", p, err)
+	} else {
+		s := string(b)
+		if i, err := strconv.Atoi(s); err != nil {
+			return 0, fmt.Errorf("Failed to convert [%v] to int, error: %w", s, err)
+		} else {
+			return i, nil
+		}
+	}
 }

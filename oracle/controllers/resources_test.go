@@ -15,6 +15,10 @@
 package controllers
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -102,6 +106,74 @@ func TestBuildPVCMounts(t *testing.T) {
 				if gotMount.MountPath != wantMount.MountPath {
 					t.Errorf("got mountPath=%s, want %s", gotMount.MountPath, wantMount.MountPath)
 				}
+			}
+		})
+	}
+}
+
+func writeString(t *testing.T, path, filename string, lines ...string) func() {
+	t.Helper()
+	content := strings.Join(lines, "\n")
+	p := filepath.Join(path, filename)
+	return func() {
+		if err := ioutil.WriteFile(
+			p,
+			[]byte(content),
+			0600,
+		); err != nil {
+			t.Fatalf("error while creating a test file at [%v] content [%v]: %v", p, content, err)
+		}
+		t.Logf("Written content [%v] to file [%v]\n", content, p)
+	}
+}
+
+func TestRequestMemoryInMi(t *testing.T) {
+	testDir, err := ioutil.TempDir("", "TestMemory")
+	if err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+	podInfoDirBackup := podInfoDir
+	defer func() {
+		podInfoDir = podInfoDirBackup
+	}()
+	podInfoDir = filepath.Join(testDir)
+	defer os.RemoveAll(testDir)
+
+	tests := []struct {
+		name    string
+		setup   func()
+		want    int
+		wantErr bool
+	}{
+		{
+			name:    "no file return error",
+			setup:   func() {},
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:    "file content not int return error",
+			setup:   writeString(t, testDir, podInfoMemRequestSubPath, "1.35"),
+			want:    0,
+			wantErr: true,
+		},
+		{
+			name:    "happy case return string",
+			setup:   writeString(t, testDir, podInfoMemRequestSubPath, "42"),
+			want:    42,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setup()
+			got, err := RequestedMemoryInMi()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RequestMemoryInMi() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("RequestMemoryInMi() = %v, want %v", got, tt.want)
 			}
 		})
 	}
