@@ -380,6 +380,9 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 
 	result, err := r.reconcileDatabaseInstance(ctx, &inst, r.Log, images)
 	log.Info("reconciling database instance: DONE", "result", result, "err", err)
+	if err != nil {
+		return result, err
+	}
 
 	return result, nil
 }
