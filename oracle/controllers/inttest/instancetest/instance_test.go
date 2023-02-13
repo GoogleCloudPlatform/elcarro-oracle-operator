@@ -25,9 +25,11 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
@@ -135,9 +137,41 @@ var _ = Describe("Instance and Database provisioning", func() {
 			var svc corev1.ServiceList
 			Expect(k8sClient.List(ctx, &svc, client.InNamespace(namespace))).Should(Succeed())
 			Expect(len(svc.Items)).Should(Equal(4)) // 2 services (LB, DBDaemon) per instance
-			By("By checking that the datadisk and log disk get resized")
+			By("By checking that the Instance can be stopped")
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
 			createdInstance1 := &v1alpha1.Instance{}
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				instKey1,
+				createdInstance1,
+				func(obj *client.Object) {
+					instanceToUpdate := (*obj).(*v1alpha1.Instance)
+					instanceToUpdate.Spec.IsStopped = pointer.Bool(true)
+				})
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionFalse, k8s.InstanceStopped, 5*time.Minute)
+			By("Checking that the sts replicas were scaled down to 0")
+			sts1 := &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf(controllers.StsName, createdInstance1.Name),
+					Namespace: namespace,
+				},
+			}
+			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(sts1), sts1)
+			Expect(sts1.Spec.Replicas).Should(Equal(controllers.StoppedReplicaCnt))
+			By("Checking that the instance can be started")
+			createdInstance1 = &v1alpha1.Instance{}
+			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
+				instKey1,
+				createdInstance1,
+				func(obj *client.Object) {
+					instanceToUpdate := (*obj).(*v1alpha1.Instance)
+					instanceToUpdate.Spec.IsStopped = pointer.Bool(false)
+				})
+			By("Checking that the sts replicas were scaled up to 1")
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			Expect(sts1.Spec.Replicas).Should(Equal(controllers.DefaultReplicaCnt))
+			By("By checking that the datadisk and log disk get resized")
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			createdInstance1 = &v1alpha1.Instance{}
 			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
 				instKey1,
 				createdInstance1,
@@ -155,12 +189,6 @@ var _ = Describe("Instance and Database provisioning", func() {
 			//wait for status propagation
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionFalse, k8s.ResizingInProgress, 5*time.Minute)
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
-			sts1 := &appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf(controllers.StsName, createdInstance1.Name),
-					Namespace: namespace,
-				},
-			}
 			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(sts1), sts1)
 			By("By Checking if DataDisk and Log Disk PVC is changed")
 			dataDiskPVCName := getPVCName(createdInstance1.Name, sts1.Name, "DataDisk")

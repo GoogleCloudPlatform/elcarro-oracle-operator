@@ -36,6 +36,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/pointer"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -219,6 +220,59 @@ func (r *InstanceReconciler) reconcileMonitoring(ctx context.Context, inst *v1al
 	return ctrl.Result{RequeueAfter: requeueDuration}, nil
 }
 
+func (r *InstanceReconciler) stopDBStatefulset(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {
+	var inst v1alpha1.Instance
+	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      getSTSName(inst),
+			Namespace: inst.Namespace,
+		},
+	}
+	if err := r.Get(ctx, client.ObjectKeyFromObject(sts), sts); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get statefulset: %v", err)
+	}
+
+	sts.Spec.Replicas = pointer.Int32(controllers.StoppedReplicaCnt)
+	baseSTS := &appsv1.StatefulSet{}
+	sts.DeepCopyInto(baseSTS)
+	if _, err := ctrl.CreateOrUpdate(ctx, r, baseSTS, func() error {
+		sts.Spec.DeepCopyInto(&baseSTS.Spec)
+		return nil
+	}); err != nil {
+		log.Error(err, "failed to update the StatefulSet", "sts.Status", sts.Status)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+
+}
+
+func (r *InstanceReconciler) deleteAgentSVC(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+	if err := r.Delete(ctx, AgentSVC(*inst)); err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "failed to delete agent svc", "InstanceName", inst.Name)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *InstanceReconciler) deleteDBDSVC(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+	if err := r.Delete(ctx, DbDaemonSVC(*inst)); err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "failed to delete dbdaemon svc", "InstanceName", inst.Name)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *InstanceReconciler) deleteDBLoadBalancer(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) (ctrl.Result, error) {
+	if err := r.Delete(ctx, InstanceLB(*inst)); err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "failed to delete load balancer", "InstanceName", inst.Name)
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
 // CreateDBLoadBalancer returns the service for the database.
 func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1alpha1.Instance, applyOpts []client.PatchOption) (*corev1.Service, error) {
 	sourceCidrRanges := []string{"0.0.0.0/0"}
@@ -228,7 +282,7 @@ func (r *InstanceReconciler) createDBLoadBalancer(ctx context.Context, inst *v1a
 	var svcAnnotations map[string]string
 
 	lbType := corev1.ServiceTypeLoadBalancer
-	svcNameFull := fmt.Sprintf(controllers.SvcName, inst.Name)
+	svcNameFull := getSVCName(*inst)
 	svcAnnotations = utils.LoadBalancerAnnotations(inst.Spec.DBLoadBalancerOptions)
 
 	svc := &corev1.Service{
@@ -1015,4 +1069,38 @@ func isObjectChanged(ctx context.Context, patch client.Patch, obj client.Object)
 	_, statusChanged = result["status"]
 	specOrMetaChanged = len(result) > 0 && !(len(result) == 1 && statusChanged)
 	return specOrMetaChanged, statusChanged, nil
+}
+
+func getSTSName(instance v1alpha1.Instance) string {
+	return fmt.Sprintf(controllers.StsName, instance.Name)
+}
+
+func getSVCName(instance v1alpha1.Instance) string {
+	return fmt.Sprintf(controllers.SvcName, instance.Name)
+}
+func InstanceLB(inst v1alpha1.Instance) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.GetNamespace(),
+			Name:      getSVCName(inst),
+		},
+	}
+}
+
+func AgentSVC(inst v1alpha1.Instance) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.GetNamespace(),
+			Name:      fmt.Sprintf(controllers.AgentSvcName, inst.Name),
+		},
+	}
+}
+
+func DbDaemonSVC(inst v1alpha1.Instance) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.GetNamespace(),
+			Name:      fmt.Sprintf(controllers.DbdaemonSvcName, inst.Name),
+		},
+	}
 }
