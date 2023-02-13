@@ -149,6 +149,10 @@ type InstanceSpec struct {
 	// AdminUser represents the admin user specification
 	// +optional
 	AdminUser *AdminUserSpec `json:"adminUser,omitempty"`
+
+	// IsStopped is true if an instance is stopped, false otherwise
+	// +optional
+	IsStopped *bool `json:"isStopped,omitempty"`
 }
 
 // DBLoadBalancerOptions contains customization options for the Kubernetes

@@ -76,7 +76,7 @@ func (r *InstanceReconciler) Scheme() *runtime.Scheme {
 // +kubebuilder:rbac:groups=apps,resources=statefulsets/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=services,verbs=list;watch;get;patch;create
+// +kubebuilder:rbac:groups=core,resources=services,verbs=list;watch;get;patch;create;delete
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
@@ -125,8 +125,14 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		}
 	}()
 
-	if !inst.DeletionTimestamp.IsZero() {
+	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+
+	if IsDeleting(&inst) {
 		return r.reconcileInstanceDeletion(ctx, req, log)
+	} else if IsStopped(&inst) && !k8s.ConditionReasonEquals(instanceReadyCond, k8s.InstanceStopped) {
+		return r.reconcileInstanceStop(ctx, req, log)
+	} else if !IsStopped(&inst) && k8s.ConditionReasonEquals(instanceReadyCond, k8s.InstanceStopped) {
+		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.CreateInProgress, "Restarting Instance")
 	}
 
 	// Add finalizer to clean up underlying objects in case of deletion.
@@ -144,7 +150,7 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 	}
 	log.Info("common instance", "total allocated disk space across all instance disks [Gi]", diskSpace/1024/1024/1024)
 
-	instanceReadyCond := k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
+	instanceReadyCond = k8s.FindCondition(inst.Status.Conditions, k8s.Ready)
 	dbInstanceCond := k8s.FindCondition(inst.Status.Conditions, k8s.DatabaseInstanceReady)
 
 	if inst.Spec.Mode == commonv1alpha1.Pause {
@@ -440,6 +446,64 @@ func (r *InstanceReconciler) reconcileInstanceDeletion(ctx context.Context, req 
 	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
+func (r *InstanceReconciler) reconcileInstanceStop(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {
+	log.Info("Stopping Instance...", "InstanceName", req.NamespacedName.Name)
+
+	var inst v1alpha1.Instance
+	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionFalse, k8s.InstanceStoppingInProgress, "Instance is being stopped", log)
+	if _, err := r.stopDBStatefulset(ctx, req, log); err != nil {
+		return ctrl.Result{}, err
+	}
+	//delete the monitoring pod
+	var monitor appsv1.Deployment
+	if err := r.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: fmt.Sprintf("%s-monitor", req.Name)}, &monitor); err == nil {
+		if err := r.Delete(ctx, &monitor); err != nil {
+			log.Error(err, "failed to delete monitoring deployment", "InstanceName", req.Name, "MonitorDeployment", monitor.Name)
+			return ctrl.Result{}, err
+		}
+	} else if !apierrors.IsNotFound(err) { // retry on other errors.
+		return ctrl.Result{}, err
+	}
+	if _, err := r.deleteDBLoadBalancer(ctx, &inst, log); err != nil {
+		return ctrl.Result{}, err
+	}
+	if _, err := r.deleteDBDSVC(ctx, &inst, log); err != nil {
+		return ctrl.Result{}, err
+	}
+	if _, err := r.deleteAgentSVC(ctx, &inst, log); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.InstanceStopped, "Instance has been stopped", log)
+
+	return ctrl.Result{Requeue: false}, nil
+
+}
+
+func (r *InstanceReconciler) shutdownDB(ctx context.Context, inst v1alpha1.Instance) error {
+	dbClient, closeConn, err := r.DatabaseClientFactory.New(ctx, r, inst.GetNamespace(), inst.Name)
+	if err != nil {
+		return err
+	}
+	defer closeConn()
+
+	_, err = dbClient.BounceDatabase(ctx, &dbdpb.BounceDatabaseRequest{
+		Operation:    dbdpb.BounceDatabaseRequest_SHUTDOWN,
+		DatabaseName: inst.Spec.CDBName,
+		Option:       "immediate",
+	})
+	if err != nil {
+		return fmt.Errorf("BounceDatabase: error while shutting db: %v", err)
+	}
+	return nil
+}
+
 // reconcileDatabaseInstance reconciling the underlying database instance.
 // Successful state transition for seeded instance:
 // nil->BootstrapPending->BootstrapInProgress->CreateFailed/CreateComplete
@@ -703,4 +767,11 @@ func lroOperationID(opType string, instance *v1alpha1.Instance) string {
 	default:
 		return fmt.Sprintf("%s_%s", opType, instance.GetUID())
 	}
+}
+func IsStopped(instance *v1alpha1.Instance) bool {
+	return instance.InstanceSpec().IsStopped != nil && *instance.InstanceSpec().IsStopped == true
+}
+
+func IsDeleting(instance *v1alpha1.Instance) bool {
+	return !instance.GetDeletionTimestamp().IsZero()
 }

@@ -54,6 +54,8 @@ const (
 	podInfoMemRequestSubPath    = "request_memory"
 	dbContainerName             = "oracledb"
 	podInfoVolume               = "podinfo"
+	StoppedReplicaCnt           = 0
+	DefaultReplicaCnt           = 1
 )
 
 var (
@@ -162,7 +164,7 @@ func NewConfigMap(inst *v1alpha1.Instance, scheme *runtime.Scheme, cmName string
 
 // NewSts returns the statefulset for the database pod.
 func NewSts(sp StsParams, pvcs []corev1.PersistentVolumeClaim, podTemplate corev1.PodTemplateSpec) (*appsv1.StatefulSet, error) {
-	var replicas int32 = 1
+	var replicas int32 = DefaultReplicaCnt
 	sts := &appsv1.StatefulSet{
 		// It looks like the version needs to be explicitly set to avoid the
 		// "incorrect version specified in apply patch" error.

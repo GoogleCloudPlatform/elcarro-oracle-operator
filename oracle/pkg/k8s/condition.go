@@ -32,6 +32,7 @@ const (
 	StandbyReady            = "StandbyReady"
 	PauseMode               = "Pause"
 	StandbyDRReady          = "StandbyDRReady"
+	InstanceStopped         = "InstanceStopped"
 
 	// Condition Reasons
 	// Backup schedule concurrent policy is relying on the backup ready condition’s reason,
@@ -69,6 +70,10 @@ const (
 	PromoteStandbyInProgress              = "PromoteStandbyInProgress"
 	PromoteStandbyComplete                = "PromoteStandbyComplete"
 	PromoteStandbyFailed                  = "PromoteStandbyFailed"
+
+	DBShutDown = "DBShutdown"
+
+	InstanceStoppingInProgress = "InstanceStoppingInProgress"
 
 	ExportComplete   = "ExportComplete"
 	ExportFailed     = "ExportFailed"

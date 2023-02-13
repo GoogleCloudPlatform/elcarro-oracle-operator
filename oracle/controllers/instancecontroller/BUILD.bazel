@@ -49,6 +49,7 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/predicate",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
         "@io_k8s_sigs_controller_runtime//pkg/source",
+        "@io_k8s_utils//pointer",
         "@org_golang_google_protobuf//types/known/timestamppb",
     ],
 )
