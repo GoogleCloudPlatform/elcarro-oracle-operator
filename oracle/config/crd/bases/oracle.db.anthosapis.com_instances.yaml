@@ -321,6 +321,9 @@ spec:
                   an optional map that allows a customer to specify GCR images different
                   from those chosen/provided.
                 type: object
+              isStopped:
+                description: IsStopped is true if an instance is stopped, false otherwise
+                type: boolean
               maintenanceWindow:
                 description: MaintenanceWindow specifies the time windows during which
                   database downtimes are allowed for maintenance.
