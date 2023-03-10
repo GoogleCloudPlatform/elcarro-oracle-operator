@@ -26,7 +26,7 @@ spec:
     requests:
       memory: 4.0Gi
 
-  dbNetworkServiceOptions:
+  dbLoadBalancerOptions:
     gcp:
       loadBalancerType: Internal
 # Uncomment this section to specify a static load balancer IP address
