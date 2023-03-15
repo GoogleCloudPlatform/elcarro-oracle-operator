@@ -376,7 +376,9 @@ func buildPVCMounts(sp StsParams) []corev1.VolumeMount {
 }
 
 // NewPodTemplate returns the pod template for the database statefulset.
-func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSpec {
+func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec {
+	cdbName := inst.Spec.CDBName
+	DBDomain := GetDBDomain(&inst)
 	labels := map[string]string{
 		"instance":    sp.Inst.Name,
 		"statefulset": sp.StsName,
@@ -556,6 +558,7 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 	if sp.Config != nil && (sp.Config.Spec.Platform == utils.PlatformMinikube || sp.Config.Spec.Platform == utils.PlatformKind) {
 		initContainers = addHostpathInitContainer(sp, initContainers, *uid, *gid)
 	}
+	createAffinitySpec(&inst, antiAffinityNamespaces)
 
 	podSpec := corev1.PodSpec{
 		SecurityContext: &corev1.PodSecurityContext{
@@ -572,23 +575,11 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		// ServiceAccountName:
 		// TerminationGracePeriodSeconds:
 		// Tolerations:
-		Volumes: volumes,
-		Affinity: &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-					{
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{"task-type": DatabaseTaskType},
-						},
-						Namespaces:  antiAffinityNamespaces,
-						TopologyKey: "kubernetes.io/hostname",
-					},
-				},
-			},
-		},
+		Volumes:  volumes,
+		Affinity: inst.Spec.PodSpec.Affinity,
 	}
 
-	// TODO(bdali): consider adding pod affinity, priority class name, secret mount.
+	// TODO(bdali): consider adding priority class name, secret mount.
 
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -598,6 +589,60 @@ func NewPodTemplate(sp StsParams, cdbName, DBDomain string) corev1.PodTemplateSp
 		},
 		Spec: podSpec,
 	}
+}
+
+func createAffinitySpec(inst *v1alpha1.Instance, antiAffinityNamespaces []string) {
+	if hasPodAffinityTermCond(inst) && hasPodAntiAffinityTermCond(inst) {
+		//We have already appended out default, nothing left to be done
+		if configuredDefaultPodAntiAffinity(&inst.Spec.PodSpec) {
+			return
+		}
+		inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, defaultPodAntiAffinity(antiAffinityNamespaces))
+	} else if hasPodAffinityTermCond(inst) {
+		inst.Spec.PodSpec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)}}
+	} else {
+		inst.Spec.PodSpec.Affinity = &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)},
+			},
+		}
+	}
+
+	return
+}
+
+func hasPodAffinityTermCond(inst *v1alpha1.Instance) bool {
+	return inst.Spec.PodSpec.Affinity != nil
+}
+
+func hasPodAntiAffinityTermCond(inst *v1alpha1.Instance) bool {
+	return inst.Spec.PodSpec.Affinity.PodAntiAffinity != nil
+}
+
+func configuredDefaultPodAntiAffinity(podSpec *commonv1alpha1.PodSpec) bool {
+	for _, podAffinity := range podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+		val, ok := podAffinity.LabelSelector.MatchLabels["task-type"]
+		if ok {
+			if val == DatabaseTaskType {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func defaultPodAntiAffinity(antiAffinityNamespaces []string) corev1.PodAffinityTerm {
+	podAffinityTerm := corev1.PodAffinityTerm{
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"task-type": DatabaseTaskType},
+		},
+		Namespaces:  antiAffinityNamespaces,
+		TopologyKey: "kubernetes.io/hostname",
+	}
+
+	return podAffinityTerm
+
 }
 
 // NewSnapshot returns the snapshot for the given instance and pv.

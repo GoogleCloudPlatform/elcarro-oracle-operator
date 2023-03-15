@@ -155,6 +155,13 @@ type InstanceSpec struct {
 	IsStopped *bool `json:"isStopped,omitempty"`
 }
 
+// +kubebuilder:object:generate=true
+type PodSpec struct {
+	//Affinity for Instance Pods
+	//+optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+}
+
 // DBLoadBalancerOptions contains customization options for the Kubernetes
 // LoadBalancer exposing database connections.
 type DBLoadBalancerOptions struct {
