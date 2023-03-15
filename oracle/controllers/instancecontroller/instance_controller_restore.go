@@ -618,6 +618,7 @@ func (r *InstanceReconciler) constructSTSandPVCs(inst v1alpha1.Instance, sp cont
 func (r *InstanceReconciler) deleteOldSTSandPVCs(ctx context.Context, inst v1alpha1.Instance, sp controllers.StsParams, log logr.Logger) (bool, error) {
 	// Create PVC and STS objects from sts params.
 	err, sts, newPVCs := r.constructSTSandPVCs(inst, sp, log)
+
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet")
 		return false, err
