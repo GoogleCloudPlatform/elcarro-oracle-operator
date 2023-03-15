@@ -106,7 +106,7 @@ func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alph
 		log.Error(err, "NewPVCs failed")
 		return ctrl.Result{}, err
 	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	newPodTemplate := controllers.NewPodTemplate(sp, *inst)
 	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
@@ -920,7 +920,7 @@ func (r *InstanceReconciler) buildStatefulSet(ctx context.Context, inst *v1alpha
 		log.Error(err, "NewPVCs failed")
 		return nil, err
 	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	newPodTemplate := controllers.NewPodTemplate(sp, *inst)
 	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
