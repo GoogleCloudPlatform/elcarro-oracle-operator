@@ -160,6 +160,11 @@ type PodSpec struct {
 	//Affinity for Instance Pods
 	//+optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	//Tolerations granting control to schedule/not schedule
+	// an instance on a node with a corresponding taint
+	//+optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // DBLoadBalancerOptions contains customization options for the Kubernetes
