@@ -601,7 +601,7 @@ func (r *InstanceReconciler) constructSTSandPVCs(inst v1alpha1.Instance, sp cont
 		return err, nil, nil
 	}
 	// Create STS
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(&inst))
+	newPodTemplate := controllers.NewPodTemplate(sp, inst)
 	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
