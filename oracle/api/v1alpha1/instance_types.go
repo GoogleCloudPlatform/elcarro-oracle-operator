@@ -42,6 +42,10 @@ type InstanceSpec struct {
 	// part of the spec describing the desired state of an Instance.
 	commonv1alpha1.InstanceSpec `json:",inline"`
 
+	//Spec Configurations for pods of an instance
+	//+optional
+	PodSpec commonv1alpha1.PodSpec `json:"podSpec,omitempty"`
+
 	// Restore and recovery request details.
 	// This section should normally be commented out unless an actual
 	// restore/recovery is required.
