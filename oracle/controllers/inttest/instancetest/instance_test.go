@@ -175,8 +175,18 @@ var _ = Describe("Instance and Database provisioning", func() {
 				},
 			}
 			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(sts1), sts1)
-
 			Expect(*sts1.Spec.Replicas).Should(Equal(int32(controllers.StoppedReplicaCnt)))
+
+			By("Checking that the monitoring deployment replicas were scaled down to 0")
+			monitoringDep1 := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      instancecontroller.GetMonitoringDepName(firstInstanceName),
+					Namespace: namespace,
+				},
+			}
+			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(monitoringDep1), monitoringDep1)
+			Expect(*monitoringDep1.Spec.Replicas).Should(Equal(int32(controllers.StoppedReplicaCnt)))
+
 			By("Checking that the instance can be started")
 			createdInstance1 = &v1alpha1.Instance{}
 			testhelpers.K8sUpdateWithRetry(k8sEnv.K8sClient, k8sEnv.Ctx,
@@ -187,10 +197,17 @@ var _ = Describe("Instance and Database provisioning", func() {
 					instanceToUpdate.Spec.IsStopped = pointer.Bool(false)
 				})
 
-			By("Checking that the sts replicas were scaled up to 1")
+			By("Checking that the sts replicas were scaled up to the default replica count")
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
 			testhelpers.K8sGetWithLongRetry(k8sClient, ctx, client.ObjectKeyFromObject(sts1), sts1)
 			Expect(*sts1.Spec.Replicas).Should(Equal(int32(controllers.DefaultReplicaCnt)))
+
+			By("Checking that the monitoring deployment replicas were scaled up to the default replica count")
+			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
+			Eventually(func() bool {
+				testhelpers.K8sGetWithRetry(k8sClient, ctx, client.ObjectKeyFromObject(monitoringDep1), monitoringDep1)
+				return *monitoringDep1.Spec.Replicas == int32(controllers.DefaultReplicaCnt)
+			}, time.Minute*25, time.Minute).Should(BeTrue())
 
 			By("By checking that the datadisk and log disk get resized")
 			testhelpers.WaitForInstanceConditionState(k8sEnv, instKey1, k8s.Ready, metav1.ConditionTrue, k8s.CreateComplete, 25*time.Minute)
