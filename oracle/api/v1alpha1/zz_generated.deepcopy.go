@@ -855,6 +855,7 @@ func (in *InstanceReference) DeepCopy() *InstanceReference {
 func (in *InstanceSpec) DeepCopyInto(out *InstanceSpec) {
 	*out = *in
 	in.InstanceSpec.DeepCopyInto(&out.InstanceSpec)
+	in.PodSpec.DeepCopyInto(&out.PodSpec)
 	if in.Restore != nil {
 		in, out := &in.Restore, &out.Restore
 		*out = new(RestoreSpec)

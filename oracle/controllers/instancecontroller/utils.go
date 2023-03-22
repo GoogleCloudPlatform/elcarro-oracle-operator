@@ -106,7 +106,7 @@ func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alph
 		log.Error(err, "NewPVCs failed")
 		return ctrl.Result{}, err
 	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	newPodTemplate := controllers.NewPodTemplate(sp, *inst)
 	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
@@ -227,7 +227,7 @@ func (r *InstanceReconciler) stopDBStatefulset(ctx context.Context, req ctrl.Req
 	}
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getSTSName(inst),
+			Name:      GetSTSName(inst.Name),
 			Namespace: inst.Namespace,
 		},
 	}
@@ -920,7 +920,7 @@ func (r *InstanceReconciler) buildStatefulSet(ctx context.Context, inst *v1alpha
 		log.Error(err, "NewPVCs failed")
 		return nil, err
 	}
-	newPodTemplate := controllers.NewPodTemplate(sp, inst.Spec.CDBName, controllers.GetDBDomain(inst))
+	newPodTemplate := controllers.NewPodTemplate(sp, *inst)
 	sts, err := controllers.NewSts(sp, newPVCs, newPodTemplate)
 	if err != nil {
 		log.Error(err, "failed to create a StatefulSet", "sts", sts)
@@ -1071,8 +1071,8 @@ func isObjectChanged(ctx context.Context, patch client.Patch, obj client.Object)
 	return specOrMetaChanged, statusChanged, nil
 }
 
-func getSTSName(instance v1alpha1.Instance) string {
-	return fmt.Sprintf(controllers.StsName, instance.Name)
+func GetSTSName(instanceName string) string {
+	return fmt.Sprintf(controllers.StsName, instanceName)
 }
 
 func getSVCName(instance v1alpha1.Instance) string {
