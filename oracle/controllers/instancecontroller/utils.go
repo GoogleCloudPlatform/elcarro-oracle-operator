@@ -32,18 +32,17 @@ import (
 	dbdpb "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/oracle"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/security"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/utils/pointer"
-
-	"github.com/go-logr/logr"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -126,10 +125,87 @@ func (r *InstanceReconciler) createStatefulSet(ctx context.Context, inst *v1alph
 	return ctrl.Result{}, nil
 }
 
+func (r *InstanceReconciler) removeMonitoringDeployment(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) error {
+	var monitor appsv1.Deployment
+	if err := r.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: GetMonitoringDepName(inst.Name)}, &monitor); err == nil {
+		if err := r.Delete(ctx, &monitor); err != nil {
+			log.Error(err, "failed to delete monitoring deployment", "InstanceName", inst.Name, "MonitorDeployment", monitor.Name)
+			return err
+		}
+		return nil
+	} else if !apierrors.IsNotFound(err) { // retry on other errors.
+		return err
+	}
+	return nil
+}
+
+func (r *InstanceReconciler) stopMonitoringDeployment(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger) error {
+	config, err := r.loadConfig(ctx, inst.Namespace)
+	if err != nil {
+		return err
+	}
+
+	images := CloneMap(r.Images)
+
+	if err := r.overrideDefaultImages(config, images, inst, log); err != nil {
+		return err
+	}
+
+	if err := r.createMonitoringDeployment(ctx, inst, 0, images); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *InstanceReconciler) createMonitoringDeployment(ctx context.Context, inst *v1alpha1.Instance, replicas int32, images map[string]string) error {
+	deployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: inst.Namespace,
+			Name:      GetMonitoringDepName(inst.GetName()),
+		},
+	}
+	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
+		if err := ctrlutil.SetOwnerReference(deployment, inst, r.Scheme()); err != nil {
+			return err
+		}
+		monitoringSecret, err := r.getMonitoringSecret(ctx, inst)
+		if err != nil {
+			return err
+		}
+		matchLabels := map[string]string{"instance": inst.Name, "task-type": controllers.MonitorTaskType}
+		deployment.Spec = appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			// Must match the agent deployment.
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			},
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RollingUpdateDeploymentStrategyType},
+			Template: controllers.MonitoringPodTemplate(inst, monitoringSecret, images),
+		}
+		deployment.Spec.Template.Labels = matchLabels
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *InstanceReconciler) getMonitoringSecret(ctx context.Context, inst *v1alpha1.Instance) (*corev1.Secret, error) {
+	deploymentName := GetMonitoringDepName(inst.Name)
+	monitoringUserSecretName := fmt.Sprintf("%s-secret", deploymentName)
+	monitoringSecret := &corev1.Secret{}
+
+	if err := r.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: monitoringUserSecretName}, monitoringSecret); err != nil {
+		return monitoringSecret, fmt.Errorf("Error getting monitoring secret: %v", err)
+	}
+	return monitoringSecret, nil
+
+}
+
 func (r *InstanceReconciler) reconcileMonitoring(ctx context.Context, inst *v1alpha1.Instance, log logr.Logger, images map[string]string) (ctrl.Result, error) {
 	requeueDuration := 0 * time.Second
 
-	deploymentName := fmt.Sprintf("%s-monitor", inst.Name)
+	deploymentName := GetMonitoringDepName(inst.Name)
 	monitoringUserSecretName := fmt.Sprintf("%s-secret", deploymentName)
 	monitoringUser := "gcsql$monitor"
 	monitoringSecret := &corev1.Secret{
@@ -190,30 +266,7 @@ func (r *InstanceReconciler) reconcileMonitoring(ctx context.Context, inst *v1al
 		requeueDuration = 30 * time.Second
 	}
 
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: inst.Namespace,
-			Name:      deploymentName,
-		},
-	}
-	if _, err := ctrl.CreateOrUpdate(ctx, r.Client, deployment, func() error {
-		if err := ctrlutil.SetOwnerReference(deployment, inst, r.Scheme()); err != nil {
-			return err
-		}
-		one := int32(1)
-		matchLabels := map[string]string{"instance": inst.Name, "task-type": controllers.MonitorTaskType}
-		deployment.Spec = appsv1.DeploymentSpec{
-			Replicas: &one,
-			// Must match the agent deployment.
-			Selector: &metav1.LabelSelector{
-				MatchLabels: matchLabels,
-			},
-			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RollingUpdateDeploymentStrategyType},
-			Template: controllers.MonitoringPodTemplate(inst, monitoringSecret, images),
-		}
-		deployment.Spec.Template.Labels = matchLabels
-		return nil
-	}); err != nil {
+	if err := r.createMonitoringDeployment(ctx, inst, 1, images); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -1073,6 +1126,10 @@ func isObjectChanged(ctx context.Context, patch client.Patch, obj client.Object)
 
 func GetSTSName(instanceName string) string {
 	return fmt.Sprintf(controllers.StsName, instanceName)
+}
+
+func GetMonitoringDepName(instName string) string {
+	return fmt.Sprintf("%s-monitor", instName)
 }
 
 func getSVCName(instance v1alpha1.Instance) string {
