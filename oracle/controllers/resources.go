@@ -568,15 +568,14 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 			RunAsNonRoot: func(b bool) *bool { return &b }(true),
 		},
 		// ImagePullSecrets: []corev1.LocalObjectReference {{Name: GcrSecretName }},
-		// InitContainers: initContainers,
 		Containers:            containers,
 		InitContainers:        initContainers,
 		ShareProcessNamespace: func(b bool) *bool { return &b }(true),
 		// ServiceAccountName:
 		// TerminationGracePeriodSeconds:
-		// Tolerations:
-		Volumes:  volumes,
-		Affinity: inst.Spec.PodSpec.Affinity,
+		Tolerations: inst.Spec.PodSpec.Tolerations,
+		Volumes:     volumes,
+		Affinity:    inst.Spec.PodSpec.Affinity,
 	}
 
 	// TODO(bdali): consider adding priority class name, secret mount.
