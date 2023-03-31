@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -406,21 +405,15 @@ func lroBootstrapCDBOperationID(instance v1alpha1.Instance) string {
 func (r *InstanceReconciler) reconcileInstanceDeletion(ctx context.Context, req ctrl.Request, log logr.Logger) (ctrl.Result, error) {
 	log.Info("Deleting Instance...", "InstanceName", req.NamespacedName.Name)
 
-	// NOTE: must be kept in sync with reconcileMonitoring
-	var monitor appsv1.Deployment
-	if err := r.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: fmt.Sprintf("%s-monitor", req.Name)}, &monitor); err == nil {
-		if err := r.Delete(ctx, &monitor); err != nil {
-			log.Error(err, "failed to delete monitoring deployment", "InstanceName", req.Name, "MonitorDeployment", monitor.Name)
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{Requeue: true}, nil
-	} else if !apierrors.IsNotFound(err) { // retry on other errors.
-		return ctrl.Result{}, err
-	}
-
 	var inst v1alpha1.Instance
 	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if requeue, err := r.removeMonitoringDeployment(ctx, &inst, log); err != nil {
+		return ctrl.Result{}, err
+	} else if requeue {
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	if len(inst.Status.DatabaseNames) == 0 {
@@ -457,14 +450,8 @@ func (r *InstanceReconciler) reconcileInstanceStop(ctx context.Context, req ctrl
 	if _, err := r.stopDBStatefulset(ctx, req, log); err != nil {
 		return ctrl.Result{}, err
 	}
-	//delete the monitoring pod
-	var monitor appsv1.Deployment
-	if err := r.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: fmt.Sprintf("%s-monitor", req.Name)}, &monitor); err == nil {
-		if err := r.Delete(ctx, &monitor); err != nil {
-			log.Error(err, "failed to delete monitoring deployment", "InstanceName", req.Name, "MonitorDeployment", monitor.Name)
-			return ctrl.Result{}, err
-		}
-	} else if !apierrors.IsNotFound(err) { // retry on other errors.
+
+	if err := r.stopMonitoringDeployment(ctx, &inst, log); err != nil {
 		return ctrl.Result{}, err
 	}
 	if _, err := r.deleteDBLoadBalancer(ctx, &inst, log); err != nil {
