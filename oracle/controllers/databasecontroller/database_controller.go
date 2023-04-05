@@ -38,6 +38,8 @@ import (
 	commonv1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/common/api/v1alpha1"
 	v1alpha1 "github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/api/v1alpha1"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers"
+	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/instancecontroller"
+
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/agents/common/sql"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/util"
@@ -138,13 +140,15 @@ func (r *DatabaseReconciler) ReconcileDatabaseDeletion(ctx context.Context, req 
 	log.Info("deleting a database(PDB) from its parent Instance", "DatabaseName", db.Name, "InstanceName", inst.Name)
 
 	if controllerutil.ContainsFinalizer(&db, controllers.FinalizerName) {
-		deleteReq := controllers.DeleteDatabaseRequest{
-			Name:     db.Spec.Name,
-			DbDomain: controllers.GetDBDomain(&inst),
-		}
-		err := controllers.DeleteDatabase(ctx, r, r.DatabaseClientFactory, req.Namespace, inst.Name, deleteReq)
-		if err != nil {
-			return ctrl.Result{}, err
+		if !instancecontroller.IsStopped(&inst) {
+			deleteReq := controllers.DeleteDatabaseRequest{
+				Name:     db.Spec.Name,
+				DbDomain: controllers.GetDBDomain(&inst),
+			}
+			err := controllers.DeleteDatabase(ctx, r, r.DatabaseClientFactory, req.Namespace, inst.Name, deleteReq)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		// Remove PDB from list of DatabaseNames
