@@ -558,7 +558,7 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 	if sp.Config != nil && (sp.Config.Spec.Platform == utils.PlatformMinikube || sp.Config.Spec.Platform == utils.PlatformKind) {
 		initContainers = addHostpathInitContainer(sp, initContainers, *uid, *gid)
 	}
-	createAffinitySpec(&inst, antiAffinityNamespaces)
+	podAffinitySpec := createAffinitySpec(&inst, antiAffinityNamespaces)
 
 	podSpec := corev1.PodSpec{
 		SecurityContext: &corev1.PodSecurityContext{
@@ -575,7 +575,7 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 		// TerminationGracePeriodSeconds:
 		Tolerations: inst.Spec.PodSpec.Tolerations,
 		Volumes:     volumes,
-		Affinity:    inst.Spec.PodSpec.Affinity,
+		Affinity:    &podAffinitySpec,
 	}
 
 	// TODO(bdali): consider adding priority class name, secret mount.
@@ -590,37 +590,23 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 	}
 }
 
-func createAffinitySpec(inst *v1alpha1.Instance, antiAffinityNamespaces []string) {
+func createAffinitySpec(inst *v1alpha1.Instance, antiAffinityNamespaces []string) corev1.Affinity {
 	if inst.Spec.PodSpec.Affinity != nil && inst.Spec.PodSpec.Affinity.PodAntiAffinity != nil {
-		//We have already appended out default, nothing left to be done
-		if configuredDefaultPodAntiAffinity(&inst.Spec.PodSpec) {
-			return
-		}
-		inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, defaultPodAntiAffinity(antiAffinityNamespaces))
+		podSpecAffinity := *inst.Spec.PodSpec.Affinity
+		podSpecAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, defaultPodAntiAffinity(antiAffinityNamespaces))
+		return podSpecAffinity
 	} else if inst.Spec.PodSpec.Affinity != nil {
-		inst.Spec.PodSpec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{
+		podSpecAffinity := *inst.Spec.PodSpec.Affinity
+		podSpecAffinity.PodAntiAffinity = &corev1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)}}
-	} else {
-		inst.Spec.PodSpec.Affinity = &corev1.Affinity{
-			PodAntiAffinity: &corev1.PodAntiAffinity{
-				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)},
-			},
-		}
+		return podSpecAffinity
+	}
+	return corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)},
+		},
 	}
 
-	return
-}
-
-func configuredDefaultPodAntiAffinity(podSpec *commonv1alpha1.PodSpec) bool {
-	for _, podAffinity := range podSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-		val, ok := podAffinity.LabelSelector.MatchLabels["task-type"]
-		if ok {
-			if val == DatabaseTaskType {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func defaultPodAntiAffinity(antiAffinityNamespaces []string) corev1.PodAffinityTerm {
