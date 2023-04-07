@@ -522,7 +522,7 @@ func TestApplyDataPatch(t *testing.T) {
 	if s.database.(*mockDB).openPDBsCount != 1 {
 		t.Fatalf("error setDatabaseUpgradeModeCount")
 	}
-	if !reflect.DeepEqual(s.osUtil.(*mockOsUtil).commands, []string{"DBHOME/OPatch/datapatch"}) {
+	if !reflect.DeepEqual(s.osUtil.(*mockOsUtil).commands, []string{"DBHOME/OPatch/datapatch", "DBHOME/OPatch/datapatch"}) {
 		t.Fatalf("error s.osUtil.(*mockOsUtil).commands %v", s.osUtil.(*mockOsUtil).commands)
 	}
 
