@@ -870,7 +870,7 @@ func (s *Server) applyDataPatch(ctx context.Context) (*dbdpb.ApplyDataPatchRespo
 		return nil, fmt.Errorf("proxy request to startup DB failed: %w", err)
 	}
 
-	// Set upgrade mode
+	// Set upgrade mode (possible OJVM upgrades still require this, but may fail some standard patches).
 	if err := s.database.setDatabaseUpgradeMode(ctx); err != nil {
 		return nil, err
 	}
@@ -878,14 +878,16 @@ func (s *Server) applyDataPatch(ctx context.Context) (*dbdpb.ApplyDataPatchRespo
 	klog.InfoS("dbdaemon/applyDataPatch DB is in migrate state, starting datapatch")
 
 	// oracle/product/12.2/db/OPatch/datapatch -verbose
+	dpCode := 0
 	if err := s.runCommand(datapatch(s.databaseHome), []string{"-verbose"}); err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("datapatch failed with exit code = %v: %w", exitError.ExitCode(), err)
+		if exitError, ok := err.(*exec.ExitError); !ok {
+			return nil, fmt.Errorf("datapatch failed: %w", err)
+		} else {
+			dpCode = exitError.ExitCode()
 		}
-		return nil, fmt.Errorf("datapatch failed: %w", err)
 	}
-
-	klog.InfoS("dbdaemon/applyDataPatch datapatch done, restarting DB in normal mode")
+	// We will try again in normal mode.
+	klog.InfoS("dbdaemon/applyDataPatch datapatch attempt in upgrade mode completed, restarting DB in normal mode", "return code", dpCode)
 
 	// Ask proxy to shutdown the DB
 	// SQL> shutdown immediate
@@ -912,6 +914,14 @@ func (s *Server) applyDataPatch(ctx context.Context) (*dbdpb.ApplyDataPatchRespo
 		return nil, err
 	}
 	// At this point CDB$ROOT, PDB$SEED and all PDBs should be in normal 'RW' or 'RO' state
+
+	// Retry datapatch in normal mode for those that require it.
+	if err := s.runCommand(datapatch(s.databaseHome), []string{"-verbose"}); err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("datapatch failed in normal mode with exit code = %v: %w", exitError.ExitCode(), err)
+		}
+		return nil, fmt.Errorf("datapatch failed: %w", err)
+	}
 
 	klog.InfoS("dbdaemon/applyDataPatch completed, DB is back up")
 	return &dbdpb.ApplyDataPatchResponse{}, nil
