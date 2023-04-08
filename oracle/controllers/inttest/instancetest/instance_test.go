@@ -148,8 +148,8 @@ var _ = Describe("Instance and Database provisioning", func() {
 			}
 			testhelpers.K8sGetWithRetry(k8sEnv.K8sClient, ctx, client.ObjectKeyFromObject(stsPod), stsPod)
 			podSpecLabelNames := []string{}
-			for _, podAffinity := range stsPod.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-				val, ok := podAffinity.LabelSelector.MatchLabels["task-type"]
+			for _, podAffinity := range stsPod.Spec.Affinity.PodAntiAffinity.PreferredDuringSchedulingIgnoredDuringExecution {
+				val, ok := podAffinity.PodAffinityTerm.LabelSelector.MatchLabels["task-type"]
 				if ok {
 					podSpecLabelNames = append(podSpecLabelNames, val)
 				}
@@ -346,19 +346,21 @@ func createInstance(instanceName, cdbName, namespace, version, edition, podSpecL
 		},
 		Spec: v1alpha1.InstanceSpec{
 			// Keep the CDBName in the spec different from the CDB name in the image (GCLOUD).
-			// Doing this implicitly test the CDB renaming feature.
+			// Doing this implicitly tests the CDB renaming feature.
 			CDBName:      cdbName,
 			DBUniqueName: cdbName,
 			PodSpec: commonv1alpha1.PodSpec{
 				Affinity: &corev1.Affinity{
 					PodAntiAffinity: &corev1.PodAntiAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-							{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+							Weight: 1,
+							PodAffinityTerm: corev1.PodAffinityTerm{
 								LabelSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{"task-type": podSpecLabel},
 								},
 								TopologyKey: "kubernetes.io/hostname",
 							},
+						},
 						},
 					},
 				},

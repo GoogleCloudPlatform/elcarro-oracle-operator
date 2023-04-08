@@ -12,6 +12,7 @@ go_library(
         "//common/api/v1alpha1",
         "//oracle/api/v1alpha1",
         "//oracle/controllers",
+        "//oracle/controllers/instancecontroller",
         "//oracle/pkg/agents/common/sql",
         "//oracle/pkg/k8s",
         "//oracle/pkg/util",
