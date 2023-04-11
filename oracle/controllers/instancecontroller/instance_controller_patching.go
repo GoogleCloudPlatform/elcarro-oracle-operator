@@ -447,7 +447,11 @@ func (r *InstanceReconciler) isPatchingBackupCompleted(ctx context.Context, inst
 		if err != nil || snapshot.Status == nil {
 			return false, err
 		}
-		if !*snapshot.Status.ReadyToUse {
+		status := snapshot.Status
+		if status.Error != nil && status.Error.Message != nil {
+			return false, fmt.Errorf("Snapshot Error: %s", *status.Error.Message)
+		}
+		if status.ReadyToUse != nil && !*status.ReadyToUse {
 			return false, nil
 		}
 	}
