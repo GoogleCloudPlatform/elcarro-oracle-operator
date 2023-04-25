@@ -534,11 +534,6 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 		},
 	}
 
-	var antiAffinityNamespaces []string
-	if sp.Config != nil && len(sp.Config.Spec.HostAntiAffinityNamespaces) != 0 {
-		antiAffinityNamespaces = sp.Config.Spec.HostAntiAffinityNamespaces
-	}
-
 	uid := sp.Inst.Spec.DatabaseUID
 	if uid == nil {
 		sp.Log.Info("set pod user ID to default value", "UID", DefaultUID)
@@ -558,7 +553,6 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 	if sp.Config != nil && (sp.Config.Spec.Platform == utils.PlatformMinikube || sp.Config.Spec.Platform == utils.PlatformKind) {
 		initContainers = addHostpathInitContainer(sp, initContainers, *uid, *gid)
 	}
-	podAffinitySpec := createAffinitySpec(&inst, antiAffinityNamespaces)
 
 	podSpec := corev1.PodSpec{
 		SecurityContext: &corev1.PodSecurityContext{
@@ -575,7 +569,7 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 		// TerminationGracePeriodSeconds:
 		Tolerations: inst.Spec.PodSpec.Tolerations,
 		Volumes:     volumes,
-		Affinity:    &podAffinitySpec,
+		Affinity:    inst.Spec.PodSpec.Affinity,
 	}
 
 	// TODO(bdali): consider adding priority class name, secret mount.
@@ -588,37 +582,6 @@ func NewPodTemplate(sp StsParams, inst v1alpha1.Instance) corev1.PodTemplateSpec
 		},
 		Spec: podSpec,
 	}
-}
-
-func createAffinitySpec(inst *v1alpha1.Instance, antiAffinityNamespaces []string) corev1.Affinity {
-	if inst.Spec.PodSpec.Affinity != nil && inst.Spec.PodSpec.Affinity.PodAntiAffinity != nil {
-		podSpecAffinity := *inst.Spec.PodSpec.Affinity
-		podSpecAffinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution = append(inst.Spec.PodSpec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, defaultPodAntiAffinity(antiAffinityNamespaces))
-		return podSpecAffinity
-	} else if inst.Spec.PodSpec.Affinity != nil {
-		podSpecAffinity := *inst.Spec.PodSpec.Affinity
-		podSpecAffinity.PodAntiAffinity = &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)}}
-		return podSpecAffinity
-	}
-	return corev1.Affinity{
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{defaultPodAntiAffinity(antiAffinityNamespaces)},
-		},
-	}
-
-}
-
-func defaultPodAntiAffinity(antiAffinityNamespaces []string) corev1.PodAffinityTerm {
-	podAffinityTerm := corev1.PodAffinityTerm{
-		LabelSelector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{"task-type": DatabaseTaskType},
-		},
-		Namespaces:  antiAffinityNamespaces,
-		TopologyKey: "kubernetes.io/hostname",
-	}
-	return podAffinityTerm
-
 }
 
 // NewSnapshot returns the snapshot for the given instance and pv.
