@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -466,6 +467,13 @@ func (r *InstanceReconciler) reconcileInstanceStop(ctx context.Context, req ctrl
 
 	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	ilb := InstanceLB(inst)
+
+	if err := r.Get(ctx, client.ObjectKeyFromObject(ilb), ilb); err == nil {
+		return ctrl.Result{}, nil
+	} else if !apierrors.IsNotFound(err) {
+		return ctrl.Result{}, err
 	}
 	r.recordEventAndUpdateStatus(ctx, &inst, v1.ConditionTrue, k8s.InstanceStopped, "Instance has been stopped", log)
 
