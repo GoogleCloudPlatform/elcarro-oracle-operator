@@ -71,10 +71,10 @@ export PROW_INT_TEST_SA=$(shell\
 
 # Define number of bazel test jobs for integration tests
 # Chosen arbitrarily, up to total number of jobs
-export INT_TEST_PARALLEL_JOBS=11
+export INT_TEST_PARALLEL_JOBS=5
 # Define number of integration test cluster nodes = INT_TEST_PARALLEL_JOBS x 2
 # as each job can use up to 2 nodes
-export INT_TEST_CLUSTER_NODE_COUNT=22
+export INT_TEST_CLUSTER_NODE_COUNT=11
 
 env:
 	@echo "export PROW_IMAGE_REPO=${PROW_IMAGE_REPO}"
@@ -242,10 +242,12 @@ operator-checks: prepare-prow
 # Prow presubmit job entry point: operator-presubmit
 operator-presubmit: prepare-prow
 	$(MAKE) -j8 buildah-push-all
-	# Create a new GKE cluster for int tests
-	scripts/integration_test_cluster/create_integration_test_cluster.sh
-	# Run tests
-	$(MAKE) test
+	# Create a new GKE cluster for int tests (can be flaky, if failed retry this step once more)
+	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Deleting the cluster and trying to create once more *** "; scripts/integration_test_cluster/delete_integration_test_cluster.sh || true; scripts/integration_test_cluster/create_integration_test_cluster.sh)
+	# Run tests, remove temp cluster in case of failure
+	$(MAKE) test || (scripts/integration_test_cluster/delete_integration_test_cluster.sh; exit 100)
+	# Delete the GKE cluster
+	scripts/integration_test_cluster/delete_integration_test_cluster.sh
 
 # Prow canary test job entry point: operator-canary
 operator-canary: prepare-prow
@@ -260,8 +262,6 @@ operator-oss-presubmit: prepare-prow
 
 # Louhi test job entry point: louhi-operator-canary
 louhi-operator-canary: prepare-prow
-	# Remove stale clusters from the project
-	scripts/integration_test_cluster/cleanup_integration_test_clusters.sh
 	# Create a new GKE cluster for int tests (can be flaky, if failed retry this step once more)
 	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Deleting the cluster and trying to create once more ***"; scripts/integration_test_cluster/delete_integration_test_cluster.sh || true; scripts/integration_test_cluster/create_integration_test_cluster.sh)
 	# Run tests, remove temp cluster in case of failure
