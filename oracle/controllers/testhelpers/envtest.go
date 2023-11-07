@@ -440,29 +440,6 @@ func EnableIamApi() {
 	Expect(err).NotTo(HaveOccurred())
 }
 
-// EnableWiWithNodePool ensures workload identity enabled for PROW_CLUSTER.
-func EnableWiWithNodePool() {
-	log := logg.New(GinkgoWriter, "", 0)
-
-	projectId := os.Getenv("PROW_PROJECT")
-	targetCluster := os.Getenv("PROW_CLUSTER")
-	targetZone := os.Getenv("PROW_CLUSTER_ZONE")
-	Expect(projectId).ToNot(BeEmpty())
-	Expect(targetCluster).ToNot(BeEmpty())
-	Expect(targetZone).NotTo(BeEmpty())
-
-	// Enable workload identify on existing cluster.
-	cmd := exec.Command("gcloud", "container", "clusters", "update", targetCluster, "--workload-pool="+projectId+".svc.id.goog", "--zone="+targetZone, fmt.Sprintf("--project=%s", projectId))
-	out, err := cmd.CombinedOutput()
-	log.Printf("gcloud container clusters update output=%s", string(out))
-	Expect(err).NotTo(HaveOccurred())
-	// Migrate applications to Workload Identity with Node pool modification.
-	cmd = exec.Command("gcloud", "container", "node-pools", "update", "default-pool", "--cluster="+targetCluster, "--workload-metadata=GKE_METADATA", "--zone="+targetZone, fmt.Sprintf("--project=%s", projectId))
-	out, err = cmd.CombinedOutput()
-	log.Printf("gcloud container node-pools update output=%s", string(out))
-	Expect(err).NotTo(HaveOccurred())
-}
-
 // PrintEvents for all namespaces in the cluster.
 func PrintEvents() {
 	cmd := exec.Command("kubectl", "get", "events", "-A", "-o", "custom-columns=LastSeen:.metadata.creationTimestamp,From:.source.component,Type:.type,Reason:.reason,Message:.message", "--sort-by=.metadata.creationTimestamp")
