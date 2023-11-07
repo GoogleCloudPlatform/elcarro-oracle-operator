@@ -32,7 +32,7 @@ go_library(
         "//oracle/controllers/importcontroller",
         "//oracle/controllers/instancecontroller",
         "//oracle/controllers/pitrcontroller",
-        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@com_github_kubernetes_csi_external_snapshotter_client_v4//apis/volumesnapshot/v1:volumesnapshot",
         "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",

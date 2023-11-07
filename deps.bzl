@@ -127,8 +127,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_azure_go_autorest_autorest_mocks",
         importpath = "github.com/Azure/go-autorest/autorest/mocks",
-        sum = "h1:Ww5g4zThfD/6cLb4z6xxgeyDa7QDkizMkJKe0ysZXp0=",
-        version = "v0.2.0",
+        sum = "h1:qJumjCaCudz+OcqE9/XtEPfvtOjOmKaui4EOpFI6zZc=",
+        version = "v0.3.0",
     )
     go_repository(
         name = "com_github_azure_go_autorest_logger",
@@ -1137,11 +1137,18 @@ def go_dependencies():
         version = "v2.0.0+incompatible",
     )
     go_repository(
+        name = "com_github_kubernetes_csi_external_snapshotter_client_v4",
+        importpath = "github.com/kubernetes-csi/external-snapshotter/client/v4",
+        sum = "h1:nHHjmvjitIiyPlUHk/ofpgvBcNcawJLtf4PYHORLjAA=",
+        version = "v4.2.0",
+    )
+    go_repository(
         name = "com_github_kubernetes_csi_external_snapshotter_v2",
         importpath = "github.com/kubernetes-csi/external-snapshotter/v2",
         sum = "h1:DnSsW7uRNT8IRnex9r5TiWzgQRaYv9Eeo/If5fRSgLg=",
         version = "v2.1.5",
     )
+
     go_repository(
         name = "com_github_magiconair_properties",
         importpath = "github.com/magiconair/properties",

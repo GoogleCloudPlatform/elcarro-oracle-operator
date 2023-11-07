@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/grpc-ecosystem/grpc-health-probe v0.4.2
 	github.com/hpcloud/tail v1.0.0
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.5
+	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.24.1
 	github.com/opencontainers/runc v1.1.4

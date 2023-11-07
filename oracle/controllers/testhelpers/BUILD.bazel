@@ -18,7 +18,7 @@ go_library(
         "//oracle/controllers",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/k8s",
-        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@com_github_kubernetes_csi_external_snapshotter_client_v4//apis/volumesnapshot/v1:volumesnapshot",
         "@com_github_onsi_ginkgo//:ginkgo",
         "@com_github_onsi_ginkgo//config",
         "@com_github_onsi_gomega//:gomega",
