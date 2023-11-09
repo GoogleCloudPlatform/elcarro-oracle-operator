@@ -58,7 +58,6 @@ var _ = BeforeSuite(func() {
 	// If the env fulfills, no error should occur.
 	testhelpers.EnableGsmApi()
 	testhelpers.EnableIamApi()
-	testhelpers.EnableWiWithNodePool()
 })
 
 // In case of Ctrl-C clean up the last valid k8sEnv.

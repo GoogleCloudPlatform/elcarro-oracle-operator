@@ -84,7 +84,6 @@ var _ = BeforeSuite(func() {
 	testhelpers.EnableGsmApi()
 	testhelpers.EnableIamApi()
 	prepareTestUsersAndGrantAccess()
-	testhelpers.EnableWiWithNodePool()
 })
 
 // In case of Ctrl-C clean up the last valid k8sEnv.
