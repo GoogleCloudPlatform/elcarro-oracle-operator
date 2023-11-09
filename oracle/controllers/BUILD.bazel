@@ -27,7 +27,7 @@ go_library(
         "//oracle/pkg/k8s/ownerref",
         "//oracle/pkg/util/secret",
         "@com_github_go_logr_logr//:logr",
-        "@com_github_kubernetes_csi_external_snapshotter_v2//pkg/apis/volumesnapshot/v1beta1",
+        "@com_github_kubernetes_csi_external_snapshotter_client_v4//apis/volumesnapshot/v1:volumesnapshot",
         "@com_google_cloud_go_secretmanager//apiv1",
         "@com_google_cloud_go_secretmanager//apiv1/secretmanagerpb",
         "@go_googleapis//google/longrunning:longrunning_go_proto",
