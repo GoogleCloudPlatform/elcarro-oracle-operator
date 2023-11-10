@@ -44,7 +44,8 @@ time gcloud beta container clusters create "${PROW_CLUSTER}" \
 --enable-ip-alias \
 --create-subnetwork name="${PROW_CLUSTER}-subnet",range=/20 \
 --cluster-ipv4-cidr /16 \
---services-ipv4-cidr /20
+--services-ipv4-cidr /20 \
+--enable-l4-ilb-subsetting
 
 
 gcloud container clusters get-credentials ${PROW_CLUSTER} --zone ${PROW_CLUSTER_ZONE} --project ${PROW_PROJECT}
