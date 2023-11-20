@@ -317,6 +317,10 @@ func (r *InstanceReconciler) startStatefulSetPatching(req ctrl.Request, ctx cont
 
 	// Delete existing stateful set
 	existingSTS, err := r.retrieveStatefulSetByName(ctx, req.Namespace, stsParams.StsName)
+	if err != nil {
+		r.Log.Error(err, "failed to retrieve StatefulSet")
+		return ctrl.Result{}, err, false
+	}
 	if err := r.Delete(ctx, existingSTS); err != nil {
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StatefulSetPatchingFailure, "Error while deleting STS")
 		return ctrl.Result{}, err, false
