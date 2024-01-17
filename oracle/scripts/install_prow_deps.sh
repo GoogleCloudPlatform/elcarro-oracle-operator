@@ -44,11 +44,12 @@ echo "deb [arch=amd64] https://storage.googleapis.com/bazel-apt stable jdk1.8" |
 # everything we can get from debian packages.
 apt-get update -qq
 apt-get install -y \
-  bazel clang-format gettext-base jq
+  clang-format gettext-base jq
 
-# unlink the bazel from image
-unlink /usr/local/bin/bazel
-bazel --version
+# Install bazelisk.
+export BAZELISK_VERSION=v1.18.0
+wget -q https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-amd64 -O /usr/local/bin/bazel
+which bazel
 
 # Link the kubekins install to the typical debian location to match Dev
 # machines.
