@@ -28,9 +28,7 @@ import (
 // the model can be also adjusted to reflect that).
 type DiskSpec struct {
 	// Name of a disk.
-	// Allowed values are: DataDisk,LogDisk,BackupDisk
 	// +required
-	// +kubebuilder:validation:Enum=DataDisk;LogDisk;BackupDisk
 	Name string `json:"name"`
 
 	// Disk size. If not specified, the defaults are: DataDisk:"100Gi", LogDisk:"150Gi",BackupDisk:"100Gi"
