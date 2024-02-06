@@ -195,7 +195,7 @@ uninstall: generate-config
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: generate-config
-	$(MAKE) buildah-push-all-containerized -j8
+	$(MAKE) buildah-push-all-containerized
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${PROW_IMAGE_REPO}/${PROW_PROJECT}/oracle.db.anthosapis.com/operator:${PROW_IMAGE_TAG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
@@ -241,7 +241,7 @@ operator-checks: prepare-prow
 
 # Prow presubmit job entry point: operator-presubmit
 operator-presubmit: prepare-prow
-	$(MAKE) -j8 buildah-push-all
+	$(MAKE) buildah-push-all
 	# Create a new GKE cluster for int tests (can be flaky, if failed retry this step once more)
 	scripts/integration_test_cluster/create_integration_test_cluster.sh || (echo "*** Deleting the cluster and trying to create once more *** "; scripts/integration_test_cluster/delete_integration_test_cluster.sh || true; scripts/integration_test_cluster/create_integration_test_cluster.sh)
 	# Run tests, remove temp cluster in case of failure
