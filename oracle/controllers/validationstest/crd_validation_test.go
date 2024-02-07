@@ -229,14 +229,14 @@ var _ = Describe("Instance CRD Validation rules", func() {
 					disks: []commonv1alpha1.DiskSpec{
 						{Name: "FrisbeeDisk"},
 					},
-					valid: false,
+					valid: true,
 				},
 				{
 					disks: []commonv1alpha1.DiskSpec{
 						{Name: "SystemDisk"},
 						{Name: "DataDisk"},
 					},
-					valid: false,
+					valid: true,
 				},
 			}
 

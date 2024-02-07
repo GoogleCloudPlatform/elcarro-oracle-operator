@@ -71,11 +71,7 @@ spec:
                         external tools through Kubernetes.
                       type: object
                     name:
-                      description: 'Name of a disk. Allowed values are: DataDisk,LogDisk,BackupDisk'
-                      enum:
-                      - DataDisk
-                      - LogDisk
-                      - BackupDisk
+                      description: Name of a disk.
                       type: string
                     selector:
                       description: A label query over volumes to consider for binding.
