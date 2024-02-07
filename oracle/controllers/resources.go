@@ -305,7 +305,12 @@ func NewPVCs(sp StsParams) ([]corev1.PersistentVolumeClaim, error) {
 			configSpec = &sp.Config.Spec.ConfigSpec
 		}
 		rl := corev1.ResourceList{corev1.ResourceStorage: utils.FindDiskSize(&diskSpec, configSpec, DefaultDiskSpecs, defaultDiskSize)}
-		pvcName, mount := GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
+		var pvcName, mount string
+		if IsReservedDiskName(diskSpec.Name) {
+			pvcName, mount = GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
+		} else {
+			pvcName, mount = GetCustomPVCNameAndMount(sp.Inst, diskSpec.Name)
+		}
 		var pvc corev1.PersistentVolumeClaim
 
 		// Determine storage class (from disk spec or config)
@@ -365,7 +370,12 @@ func buildPVCMounts(sp StsParams) []corev1.VolumeMount {
 	var diskMounts []corev1.VolumeMount
 
 	for _, diskSpec := range sp.Disks {
-		pvcName, mount := GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
+		var pvcName, mount string
+		if IsReservedDiskName(diskSpec.Name) {
+			pvcName, mount = GetPVCNameAndMount(sp.Inst.Name, diskSpec.Name)
+		} else {
+			pvcName, mount = GetCustomPVCNameAndMount(sp.Inst, diskSpec.Name)
+		}
 		diskMounts = append(diskMounts, corev1.VolumeMount{
 			Name:      pvcName,
 			MountPath: fmt.Sprintf("/%s", mount),
