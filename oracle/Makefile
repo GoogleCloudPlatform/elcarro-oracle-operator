@@ -54,8 +54,8 @@ export PROW_CLUSTER ?= $(shell\
 )
 export PROW_CLUSTER_ZONE ?= $(shell\
 	if [ -n "${PROW_JOB_ID}" ]; then \
-		echo "us-central1-a"; \
-	else echo "us-central1-a"; \
+		echo "us-central1-b"; \
+	else echo "us-central1-b"; \
 	fi \
 )
 
