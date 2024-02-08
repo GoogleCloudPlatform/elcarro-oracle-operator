@@ -137,6 +137,13 @@ func GetPVCNameAndMount(instName, diskName string) (string, string) {
 	return pvcName, mountLocation
 }
 
+// GetCustomPVCNameAndMount returns PVC names and their corresponding mounts for extra disks.
+func GetCustomPVCNameAndMount(inst *v1alpha1.Instance, diskName string) (string, string) {
+	pvcName := fmt.Sprintf(PvcMountName, inst.GetName(), strings.ToLower(diskName))
+	mountLocation := strings.ToLower(diskName)
+	return pvcName, mountLocation
+}
+
 // New returns a new database daemon client
 func (d *GRPCDatabaseClientFactory) New(ctx context.Context, r client.Reader, namespace, instName string) (dbdpb.DatabaseDaemonClient, func() error, error) {
 	var dbservice = fmt.Sprintf(DbdaemonSvcName, instName)
@@ -162,4 +169,15 @@ func GetBackupGcsPath(backup *v1alpha1.Backup) string {
 		gcsPath = gcsPath + backup.Name
 	}
 	return gcsPath
+}
+
+var reservedDiskNames = map[string]struct{}{
+	"datadisk":   {},
+	"backupdisk": {},
+	"logdisk":    {},
+}
+
+func IsReservedDiskName(diskName string) bool {
+	_, exists := reservedDiskNames[strings.ToLower(diskName)]
+	return exists
 }
