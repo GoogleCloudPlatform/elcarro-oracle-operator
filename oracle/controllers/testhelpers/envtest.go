@@ -1247,7 +1247,8 @@ EOF
 // Helper functions for functional and integration tests.
 // Uses ginkgo asserts.
 
-const RetryTimeout = time.Second * 5
+// Should be long enough to handle GKE flakes like 'Internal Server Error 500: the server is currently unable to handle the request'
+const RetryTimeout = time.Minute * 1
 const RetryLongTimeout = time.Minute * 5
 const RetryInterval = time.Second * 1
 
