@@ -1,0 +1,41 @@
+apiVersion: oracle.db.anthosapis.com/v1alpha1
+kind: Instance
+metadata:
+  name: mydb
+spec:
+  type: Oracle
+  version: "19.3"
+  retainDisksAfterInstanceDeletion: false
+  edition: Enterprise
+  parameters:
+    sga_target: 9G
+  dbDomain: "gke"
+  disks:
+  - name: DataDisk
+    size: 40Gi
+    storageClass: "premium-rwo"
+  # This adds a PVC named ExtraDataDisk, it will be mounted to the home
+  # directory of the instance pod as "extradatadisk". The DBA should
+  # explicitly tell the Oracle program when to write to it.
+  - name: ExtraDataDisk
+    size: 35Gi
+    storageClass: "premium-rwo"
+  - name: LogDisk
+    size: 50Gi
+    storageClass: "premium-rwo"
+  services:
+    Backup: true
+    Monitoring: true
+    Logging: true
+  sourceCidrRanges: [ 0.0.0.0/0 ]
+  images:
+    # Replace below with the actual URIs hosting the service agent images.
+    service: "gcr.io/${PROJECT_ID}/oracle-database-images/oracle-12.2-ee-seeded-${DB}"
+  cdbName: GCLOUD
+  databaseResources:
+    requests:
+      memory: 10Gi
+  maintenanceWindow:
+    timeRanges:
+    - start: "2022-01-01T00:00:00Z"
+      duration: "87660h" # good till 2031
