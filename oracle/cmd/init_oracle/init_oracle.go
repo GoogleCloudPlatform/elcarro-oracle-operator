@@ -44,7 +44,7 @@ const (
 )
 
 var (
-	supportedVersions = map[string]bool{"12.2": true, "18.3": true, "18c": true, "19c": true, "19.2": true, "19.3": true}
+	supportedVersions = map[string]bool{"12.2": true, "18.3": true, "18c": true, "19c": true, "19.2": true, "19.3": true, "23c": true}
 	pgaMB             = flag.Uint64("pga", consts.DefaultPGAMB, "Oracle Database PGA memory sizing in MB")
 	sgaMB             = flag.Uint64("sga", consts.DefaultSGAMB, "Oracle Database SGA memory sizing in MB")
 	dbDomain          = flag.String("db_domain", "", "Oracle db_domain init parameter")

@@ -19,6 +19,7 @@ set -u
 readonly ORACLE_12="12.2"
 readonly ORACLE_18="18c"
 readonly ORACLE_19="19.3"
+readonly ORACLE_23="23c"
 readonly USER='oracle'
 readonly GROUP='dba'
 
@@ -29,12 +30,13 @@ install_packages() {
   yum install -y net-tools.x86_64
   yum install -y lsof.x86_64
   yum install -y "${PREINSTALL_RPM}"
+
   echo "#%PAM-1.0
 auth       include      system-auth
 account    include      system-auth
 password   include      system-auth
 " >/etc/pam.d/sudo
-  if [[ "${DB_VERSION}" == "${ORACLE_18}" ]]; then
+  if [[ "${DB_VERSION}" == "${ORACLE_18}" || "${DB_VERSION}" == "${ORACLE_23}" ]]; then
         echo "#%PAM-1.0
 auth		sufficient	pam_rootok.so
 auth		substack	system-auth
@@ -56,6 +58,8 @@ pick_pre_installer() {
     local -g PREINSTALL_RPM="oracle-database-preinstall-18c.x86_64"
   elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
     local -g PREINSTALL_RPM="oracle-database-preinstall-19c.x86_64"
+  elif [[ "${DB_VERSION}" == "${ORACLE_23}" ]]; then
+    local -g PREINSTALL_RPM="https://yum.oracle.com/repo/OracleLinux/OL8/developer/x86_64/getPackage/oracle-database-preinstall-23c-1.0-1.el8.x86_64.rpm"
   else
     echo "DB version ${DB_VERSION} not supported"
     exit 1
