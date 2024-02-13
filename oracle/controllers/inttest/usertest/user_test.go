@@ -255,6 +255,9 @@ var _ = Describe("User operations", func() {
 	Context("Oracle 18c XE", func() {
 		testUpdateUser("18c", "XE")
 	})
+	Context("Oracle 23c FREE", func() {
+		testUpdateUser("23c", "FREE")
+	})
 })
 
 func waitForUserPasswordSyncVersion(createdDatabase *v1alpha1.Database, version string) {

@@ -157,6 +157,10 @@ var _ = Describe("Backup through snapshot", func() {
 	Context("Oracle 18c XE", func() {
 		snapBackupTest("18c", "XE")
 	})
+
+	Context("Oracle 23c FREE", func() {
+		snapBackupTest("23c", "FREE")
+	})
 })
 
 func TestSnapshotBackup(t *testing.T) {

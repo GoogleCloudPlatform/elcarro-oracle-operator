@@ -170,6 +170,11 @@ var _ = Describe("ParameterUpdate", func() {
 		TestParameterUpdateForCorrectParameters("18c", "XE")
 		TestParameterUpdateFailureAndRollback("18c", "XE")
 	})
+
+	Context("Oracle 23c FREE", func() {
+		TestParameterUpdateForCorrectParameters("23c", "FREE")
+		TestParameterUpdateFailureAndRollback("23c", "FREE")
+	})
 })
 
 func fetchParameterValue(pod string, parameter string) string {
