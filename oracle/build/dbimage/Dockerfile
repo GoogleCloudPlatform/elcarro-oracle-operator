@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Base image can be either RHEL8 UBI or OEL8 slim
-# BASE_IMAGE=registry.access.redhat.com/ubi8/ubi
-# ARG BASE_IMAGE=oraclelinux:8-slim
-# Oracle 8 does not support 12c.
-# ARG BASE_IMAGE=oraclelinux:7-slim
-
-FROM docker.io/oraclelinux:7-slim as base
+ARG ORACLE_LINUX_IMAGE=7-slim
+FROM docker.io/oraclelinux:${ORACLE_LINUX_IMAGE} as base
 
 ARG DB_VERSION
 ARG ORACLE_HOME
@@ -44,6 +39,12 @@ ADD ./* $STAGE_DIR
 RUN /bin/bash -c \
     'if [ "${DB_VERSION}" = "18c" ] && [ "${EDITION}" = "xe" ]; then \
       export INSTALL_SCRIPT=install-oracle-18c-xe.sh; \
+      chmod +x $STAGE_DIR$INSTALL_SCRIPT; \
+      $STAGE_DIR/$INSTALL_SCRIPT "${CDB_NAME}" "${CHARACTER_SET}" && \
+      rm -rf $INSTALL_SCRIPT && \
+      rm -rf $STAGE_DIR; \
+    elif [ "${DB_VERSION}" = "23c" ] && [ "${EDITION}" = "free" ]; then \
+      export INSTALL_SCRIPT=install-oracle-23c-free.sh; \
       chmod +x $STAGE_DIR$INSTALL_SCRIPT; \
       $STAGE_DIR/$INSTALL_SCRIPT "${CDB_NAME}" "${CHARACTER_SET}" && \
       rm -rf $INSTALL_SCRIPT && \
