@@ -325,6 +325,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 		TestInstanceCreationAndDatabaseProvisioning("18c", "XE", "", true)
 	})
 
+	Context("Oracle 23c FREE", func() {
+		TestInstanceCreationAndDatabaseProvisioning("23c", "FREE", "", true)
+	})
+
 	// Slow tests, only run in Canary
 	if testhelpers.IsCanaryJob() {
 		Context("Oracle 19.3 EE unseeded", func() {
@@ -339,6 +343,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 })
 
 func createInstance(instanceName, cdbName, namespace, version, edition, podSpecLabel, extra string, retainDisksOnDelete bool) {
+	// Free edition only allows a CDB named 'FREE'
+	if edition == "FREE" {
+		cdbName = "FREE"
+	}
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,

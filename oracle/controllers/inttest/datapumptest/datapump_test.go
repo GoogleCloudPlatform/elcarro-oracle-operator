@@ -199,6 +199,10 @@ drop table test_table;`
 	Context("Oracle 18c XE", func() {
 		testDataPump("18c", "XE")
 	})
+
+	Context("Oracle 23c FREE", func() {
+		testDataPump("23c", "FREE")
+	})
 })
 
 func TestDataPump(t *testing.T) {

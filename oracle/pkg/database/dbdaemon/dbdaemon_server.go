@@ -2051,10 +2051,10 @@ func (s *Server) RecoverConfigFile(ctx context.Context, req *dbdpb.RecoverConfig
 	_, err := s.runSQLPlusHelper(ctx, &dbdpb.RunSQLPlusCMDRequest{
 		Commands: []string{fmt.Sprintf("create spfile='%s' from pfile='%s'", spFileLoc, backupPFileLoc)}}, false)
 	if err != nil {
-		klog.InfoS("dbdaemon/RecoverConfigFile: error while backing up config file", "err", err)
-		return nil, fmt.Errorf("dbdaemon/RecoverConfigFile: error while backing up config file: %v", err)
+		klog.InfoS("dbdaemon/RecoverConfigFile: error while recovering config file", "err", err)
+		return nil, fmt.Errorf("dbdaemon/RecoverConfigFile: error while recovering config file: %v", err)
 	}
-	klog.InfoS("dbdaemon/RecoverConfigFile: Successfully backed up config file")
+	klog.InfoS("dbdaemon/RecoverConfigFile: Successfully recovering config file")
 	return &dbdpb.RecoverConfigFileResponse{}, nil
 }
 

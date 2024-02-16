@@ -274,7 +274,7 @@ func (s *Server) BounceDatabase(ctx context.Context, req *dbdpb.BounceDatabaseRe
 	if operation == "shutdown" {
 		// shutdownEnumMap keys should match validShutdownOptions above to prevent nil.
 		err = s.shutdownDatabase(ctx, shutdownEnumMap[req.Option])
-		if err != nil && strings.Contains(err.Error(), "ORA-01034: ORACLE not available") {
+		if err != nil && strings.Contains(err.Error(), "ORA-01034:") {
 			klog.InfoS("dbdaemon/shutdownDatabase: database is already down", "err", err)
 			err = nil
 		}

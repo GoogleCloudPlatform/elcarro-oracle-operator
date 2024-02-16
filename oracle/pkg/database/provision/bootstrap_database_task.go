@@ -309,6 +309,17 @@ func getLocalListener(listeners map[string]*consts.Listener) (string, error) {
 	return "", fmt.Errorf("no local listener defined")
 }
 
+func isFreeVersion(db oracleDB) bool {
+	if db.GetVersion() == consts.Oracle18c {
+		return true
+	}
+	// There is no 'edition' in the oracleDB interface, will check if DB Home is '/opt/oracle/product/23c/dbhomeFree'
+	if db.GetVersion() == "23c" && db.GetDatabaseHome() == "/opt/oracle/product/23c/dbhomeFree" {
+		return true
+	}
+	return false
+}
+
 func (task *BootstrapTask) setParametersHelper(ctx context.Context) error {
 	localListener, err := getLocalListener(task.db.GetListeners())
 	if err != nil {
@@ -344,10 +355,10 @@ func (task *BootstrapTask) setParametersHelper(ctx context.Context) error {
 		parameters = append(parameters, "common_user_prefix='gcsql$'")
 	}
 
-	if task.isSeeded && task.db.GetVersion() != consts.Oracle18c {
-		/* We do not change the pga_aggregate_target and sga_target parameters for Oracle 18c XE because of limitations
-		   Oracle places on memory allocation for the Express Edition. The parameter "compatible" comes preset with the
-			 desired value for Oracle 18c XE */
+	/* We do not change the pga_aggregate_target and sga_target parameters for Oracle 18c XE/23c FREE because of limitations
+	   Oracle places on memory allocation for the Express/Free Edition. The parameter "compatible" comes preset with the
+		 desired value for Oracle 18c XE/23c FREE */
+	if task.isSeeded && !isFreeVersion(task.db) {
 		parameters = append(parameters, fmt.Sprintf("pga_aggregate_target=%dM", task.db.GetDatabaseParamPGATargetMB()))
 		parameters = append(parameters, fmt.Sprintf("sga_target=%dM", task.db.GetDatabaseParamSGATargetMB()))
 		parameters = append(parameters, fmt.Sprintf("compatible='%s.0'", task.db.GetVersion()))

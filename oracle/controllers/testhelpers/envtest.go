@@ -885,6 +885,18 @@ func TestImageForVersion(version string, edition string, extra string) string {
 				}
 			}
 		}
+	case "FREE":
+		{
+			switch version {
+			case "23c":
+				{
+					switch extra {
+					default:
+						return os.Getenv("TEST_IMAGE_ORACLE_23_FREE_SEEDED")
+					}
+				}
+			}
+		}
 	case "EE":
 		{
 			switch version {
@@ -913,13 +925,19 @@ func TestImageForVersion(version string, edition string, extra string) string {
 // 'version' and 'edition' should match rules of TestImageForVersion().
 // Depends on the Ginkgo asserts.
 func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, version string, edition string) {
+	cdbName := "GCLOUD"
+	// Free edition only allows a CDB named 'FREE'
+	if edition == "FREE" {
+		cdbName = "FREE"
+	}
+
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
 			Namespace: k8sEnv.DPNamespace,
 		},
 		Spec: v1alpha1.InstanceSpec{
-			CDBName: "GCLOUD",
+			CDBName: cdbName,
 			InstanceSpec: commonv1alpha1.InstanceSpec{
 				Version: version,
 				Disks: []commonv1alpha1.DiskSpec{
@@ -1188,7 +1206,8 @@ Depends on the Ginkgo asserts.
 Please escape any bash special characters.
 */
 func K8sExecuteSql(pod string, ns string, sql string) (string, error) {
-	cmd := fmt.Sprintf(`source ~/GCLOUD.env && sqlplus -S / as sysdba <<EOF
+	// source both FREE.env and GCLOUD.env to cover both EE and Free test cases
+	cmd := fmt.Sprintf(`[[ -f ~/GCLOUD.env ]] && source ~/GCLOUD.env; [[ -f ~/FREE.env ]] && source ~/FREE.env; sqlplus -S / as sysdba <<EOF
 whenever sqlerror exit sql.sqlcode;
 set pagesize 0
 set feedback off
@@ -1220,7 +1239,7 @@ func K8sExecuteSqlOrFail(pod, ns, sql string) string {
 func K8sVerifyUserConnectivity(pod, ns, pdb string, userCred map[string]string) {
 	for user, password := range userCred {
 		Eventually(func() bool {
-			cmd := fmt.Sprintf(`cd ~ && source ~/GCLOUD.env && sqlplus -S %s/%s@localhost:6021/%s <<EOF
+			cmd := fmt.Sprintf(`cd ~ && [[ -f ~/GCLOUD.env ]] && source ~/GCLOUD.env; [[ -f ~/FREE.env ]] && source ~/FREE.env; sqlplus -S %s/%s@localhost:6021/%s <<EOF
 whenever sqlerror exit sql.sqlcode
 set pagesize 0
 set feedback off
