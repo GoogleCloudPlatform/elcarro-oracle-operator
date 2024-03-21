@@ -22,9 +22,9 @@ import (
 
 // CredentialSpec defines the desired state of user credentials.
 // The credential can be expressed in one of the 3 following ways:
-//      1) A plaintext password;
-//      2) A reference to a k8s secret;
-//      3) A reference to a remote GSM secret (note that it only works for GKE).
+//  1. A plaintext password;
+//  2. A reference to a k8s secret;
+//  3. A reference to a remote GSM secret (note that it only works for GKE).
 type CredentialSpec struct {
 	// Plaintext password.
 	// +optional

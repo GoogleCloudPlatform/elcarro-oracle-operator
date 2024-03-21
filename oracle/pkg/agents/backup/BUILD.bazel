@@ -12,9 +12,9 @@ go_library(
         "//oracle/pkg/agents/consts",
         "//oracle/pkg/agents/oracle",
         "//oracle/pkg/util",
-        "@go_googleapis//google/longrunning:longrunning_go_proto",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_klog_v2//:klog",
+        "@org_golang_google_genproto//googleapis/longrunning",
         "@org_golang_google_protobuf//types/known/timestamppb",
     ],
 )

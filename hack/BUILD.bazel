@@ -20,7 +20,9 @@ PROTOC_GEN_GO_GRPC = "@org_golang_google_grpc_cmd_protoc_gen_go_grpc//:protoc-ge
 
 WELL_KNOWN_PROTOS = "@com_google_protobuf//:well_known_protos"
 
-LRO_PROTOS = "@go_googleapis//google/longrunning:longrunning_proto"
+ANNOTATIONS_PROTO = "@googleapis//google/api:annotations_proto"
+
+OPERATIONS_PROTOS = "@googleapis//google/longrunning:operations_proto"
 
 MOCKGEN = "@com_github_golang_mock//mockgen"
 
@@ -35,28 +37,15 @@ KUSTOMIZE = "@io_k8s_sigs_kustomize_kustomize_v4//:v4"
 sh_binary(
     name = "update-bazel",
     srcs = ["update-bazel.sh"],
-    args = [
-        "$(location %s)" % GAZELLE,
-        "$(location %s)" % KAZEL,
-    ],
-    data = [
-        GAZELLE,
-        KAZEL,
-    ],
+    tags = ["local"],
 )
 
-sh_test(
+sh_binary(
     name = "verify-bazel",
-    size = "small",
     srcs = ["verify-bazel.sh"],
-    args = [
-        "$(location %s)" % GAZELLE,
-        "$(location %s)" % KAZEL,
-    ],
-    data = [
-        "//:all-srcs",
-        GAZELLE,
-        KAZEL,
+    tags = [
+        "local",
+        "verify",
     ],
 )
 
@@ -119,7 +108,8 @@ sh_binary(
         PROTOC_GEN_GO_GRPC,
         KUSTOMIZE,
         WELL_KNOWN_PROTOS,
-        LRO_PROTOS,
+        ANNOTATIONS_PROTO,
+        OPERATIONS_PROTOS,
         MOCKGEN,
         "boilerplate.go.txt",
     ],
@@ -147,7 +137,8 @@ sh_test(
         PROTOC_GEN_GO_GRPC,
         KUSTOMIZE,
         WELL_KNOWN_PROTOS,
-        LRO_PROTOS,
+        ANNOTATIONS_PROTO,
+        OPERATIONS_PROTOS,
         MOCKGEN,
         ":update-codegen",
         "//:all-srcs",

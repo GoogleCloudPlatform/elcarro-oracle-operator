@@ -20,7 +20,7 @@ import (
 
 // TimeRange defines a window of time.
 // Both start time and duration are required.
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 type TimeRange struct {
 	// Start time.
 	// +required
@@ -32,7 +32,7 @@ type TimeRange struct {
 }
 
 // MaintenanceWindowSpec defines the time ranges during which maintenance may be started on a database.
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 type MaintenanceWindowSpec struct {
 	// Maintenance time ranges.
 	TimeRanges []TimeRange `json:"timeRanges,omitempty"`

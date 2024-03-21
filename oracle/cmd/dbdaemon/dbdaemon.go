@@ -17,8 +17,8 @@
 // data plane agents running in containers.
 //
 // Usage:
-//   dbdaemon
 //
+//	dbdaemon
 package main
 
 import (
