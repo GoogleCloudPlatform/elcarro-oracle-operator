@@ -89,7 +89,12 @@ func (b *snapshotBackup) create(ctx context.Context) error {
 	b.log.Info("VolumeSnapshotClass", "volumeSnapshotClass", vsc)
 
 	getPvcNames := func(spec commonv1alpha1.DiskSpec) (string, string, string) {
-		shortPVCName, mount := controllers.GetPVCNameAndMount(b.inst.Name, spec.Name)
+		var shortPVCName, mount string
+		if controllers.IsReservedDiskName(spec.Name) {
+			shortPVCName, mount = controllers.GetPVCNameAndMount(b.inst.Name, spec.Name)
+		} else {
+			shortPVCName, mount = controllers.GetCustomPVCNameAndMount(b.inst, spec.Name)
+		}
 		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, b.inst.Name))
 		snapshotName := fmt.Sprintf("%s-%s", b.backup.Status.BackupID, mount)
 		return fullPVCName, snapshotName, vsc

@@ -409,7 +409,12 @@ func (r *InstanceReconciler) prePatchBackup(ctx context.Context, inst v1alpha1.I
 	log := r.Log.WithValues("Instance", inst.Name)
 
 	for _, diskSpec := range inst.Spec.Disks {
-		shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
+		var shortPVCName, mount string
+		if controllers.IsReservedDiskName(diskSpec.Name) {
+			shortPVCName, mount = controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
+		} else {
+			shortPVCName, mount = controllers.GetCustomPVCNameAndMount(&inst, diskSpec.Name)
+		}
 		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
 		snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
 		bk, err := controllers.NewSnapshotInst(&inst, r.SchemeVal, fullPVCName, snapshotName, vsc)
@@ -433,7 +438,12 @@ func (r *InstanceReconciler) isPatchingBackupCompleted(ctx context.Context, inst
 	log := r.Log.WithValues("Instance", inst.Name)
 
 	for _, diskSpec := range inst.Spec.Disks {
-		shortPVCName, mount := controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
+		var shortPVCName, mount string
+		if controllers.IsReservedDiskName(diskSpec.Name) {
+			shortPVCName, mount = controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
+		} else {
+			shortPVCName, mount = controllers.GetCustomPVCNameAndMount(&inst, diskSpec.Name)
+		}
 		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
 		snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
 		bk, err := controllers.NewSnapshotInst(&inst, r.SchemeVal, fullPVCName, snapshotName, vsc)
