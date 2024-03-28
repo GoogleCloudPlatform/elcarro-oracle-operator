@@ -90,9 +90,6 @@ func getPlatformConfig(p string, e string) (*platformConfig, error) {
 
 func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultDiskSpecs map[string]commonv1alpha1.DiskSpec, defaultDiskSize resource.Quantity) resource.Quantity {
 	spec, exists := defaultDiskSpecs[diskSpec.Name]
-	if !exists {
-		return defaultDiskSize
-	}
 
 	if !diskSpec.Size.IsZero() {
 		return diskSpec.Size
@@ -109,7 +106,10 @@ func FindDiskSize(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.
 		}
 	}
 
-	return spec.Size
+	if exists {
+		return spec.Size
+	}
+	return defaultDiskSize
 }
 
 func FindStorageClassName(diskSpec *commonv1alpha1.DiskSpec, configSpec *commonv1alpha1.ConfigSpec, defaultPlatform string, engineType string) (string, error) {
