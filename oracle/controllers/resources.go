@@ -271,6 +271,7 @@ func MonitoringPodTemplate(inst *v1alpha1.Instance, monitoringSecret *corev1.Sec
 				},
 			},
 		},
+		Tolerations: inst.Spec.PodSpec.Tolerations,
 		Volumes: []corev1.Volume{{
 			Name: "mon-creds",
 			VolumeSource: corev1.VolumeSource{
