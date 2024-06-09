@@ -873,7 +873,7 @@ func tryResizeDisksOf(ctx context.Context, c client.Client, newSts *appsv1.State
 	// sanity check: all sc can expand
 	if err := PvcsCanBeExpanded(ctx, c, newSts, changedDisks); err != nil {
 		return false,
-			fmt.Errorf("pvcs may not be expanded")
+			fmt.Errorf("pvcs may not be expanded: %w", err)
 	}
 	// actually do the update
 	done, err := resizePvcs(ctx, c, newSts, changedDisks, log)
@@ -911,8 +911,13 @@ func resizePvcs(ctx context.Context, c client.Client, sts *appsv1.StatefulSet, d
 
 			pvc := &corev1.PersistentVolumeClaim{}
 			if err := c.Get(ctx, key, pvc); err != nil {
-				return false,
-					fmt.Errorf("error getting pvc [%v]: %v", key, err)
+				if apierrors.IsNotFound(err) {
+					// ignore non-existence PVC since it will be created
+					continue
+				} else {
+					return false,
+						fmt.Errorf("error getting pvc [%v]: %v", key, err)
+				}
 			}
 
 			if newSize.Equal(*pvc.Spec.Resources.Requests.Storage()) {
@@ -1006,8 +1011,12 @@ func FilterDiskWithSizeChanged(old, new []corev1.PersistentVolumeClaim, log logr
 
 	for i, c := range new {
 		newSize := c.Spec.Resources.Requests.Storage()
-		if oldSize, ok := oldDisks[c.GetName()]; ok && !oldSize.Equal(*newSize) {
-			sb.WriteString(fmt.Sprintf("[%v:%v->%v]", c.GetName(), oldSize.String(), newSize.String()))
+		oldSize, ok := oldDisks[c.GetName()]
+		if !ok {
+			sb.WriteString(fmt.Sprintf("New disk [%v: %v], ", c.GetName(), newSize.String()))
+			changedDisks = append(changedDisks, &new[i])
+		} else if !oldSize.Equal(*newSize) {
+			sb.WriteString(fmt.Sprintf("[%v:%v->%v], ", c.GetName(), oldSize.String(), newSize.String()))
 			changedDisks = append(changedDisks, &new[i])
 		}
 	}
@@ -1045,7 +1054,12 @@ func PvcsCanBeExpanded(ctx context.Context, r client.Reader, sts *appsv1.Statefu
 func CheckSinglePvc(ctx context.Context, r client.Reader, key client.ObjectKey) error {
 	tpvc := &corev1.PersistentVolumeClaim{}
 	if err := r.Get(ctx, key, tpvc); err != nil {
-		return fmt.Errorf("error getting pvc [%v]: %v", key, err)
+		if apierrors.IsNotFound(err) {
+			// non-existence PVC can be created at new size
+			return nil
+		} else {
+			return fmt.Errorf("error getting pvc [%v]: %v", key, err)
+		}
 	}
 
 	if tpvc.Spec.StorageClassName == nil || *tpvc.Spec.StorageClassName == "" {
