@@ -17,12 +17,9 @@ else
   exit 0
 fi
 
-gazelle=$(realpath "$1")
-kazel=$(realpath "$2")
-
 cd "$BUILD_WORKSPACE_DIRECTORY"
-
 set -x
-"$gazelle" update-repos -from_file=go.mod -to_macro=deps.bzl%go_dependencies
-"$gazelle" fix
-"$kazel"
+
+bazel run //:gazelle-fix
+bazel run //:gazelle-update-repos
+bazel run //:kazel -- -root "$BUILD_WORKSPACE_DIRECTORY"

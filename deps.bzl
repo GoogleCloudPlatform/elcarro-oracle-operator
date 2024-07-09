@@ -582,14 +582,14 @@ def go_dependencies():
     go_repository(
         name = "com_github_go_kit_kit",
         importpath = "github.com/go-kit/kit",
-        sum = "h1:wDJmvq38kDhkVxi50ni9ykkdUr1PKgqKOoi01fa0Mdk=",
-        version = "v0.9.0",
+        sum = "h1:Wz+5lgoB0kkuqLEc6NVmwRknTKP6dTGbSqvhZtBI/j0=",
+        version = "v0.8.0",
     )
     go_repository(
         name = "com_github_go_kit_log",
         importpath = "github.com/go-kit/log",
-        sum = "h1:7i2K3eKTos3Vc0enKCfnVcgHh2olr/MyfboYq7cAcFw=",
-        version = "v0.2.0",
+        sum = "h1:MRVx0/zhvdseW+Gza6N9rVzU/IVzaeE1SFI4raAhmBU=",
+        version = "v0.2.1",
     )
     go_repository(
         name = "com_github_go_logfmt_logfmt",
@@ -812,6 +812,7 @@ def go_dependencies():
 
     go_repository(
         name = "com_github_googleapis_gax_go_v2",
+        build_file_proto_mode = "disable_global",
         importpath = "github.com/googleapis/gax-go/v2",
         sum = "h1:IcsPKeInNvYi7eqSaDjiZqDDKu5rsmunY0Y1YupQSSQ=",
         version = "v2.7.0",
@@ -1091,8 +1092,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_konsorten_go_windows_terminal_sequences",
         importpath = "github.com/konsorten/go-windows-terminal-sequences",
-        sum = "h1:CE8S1cTafDpPvMhIxNJKvHsGVBgn1xWYf1NbHQhywc8=",
-        version = "v1.0.3",
+        sum = "h1:mweAR1A6xJ3oS2pRaGiHgQ4OO8tzTaLawm8vnODuwDk=",
+        version = "v1.0.1",
     )
     go_repository(
         name = "com_github_kr_fs",
@@ -1447,8 +1448,8 @@ def go_dependencies():
         name = "com_github_prometheus_common",
         # build_file_proto_mode = "disable_global",
         importpath = "github.com/prometheus/common",
-        sum = "h1:ccBbHCgIiT9uSoFY0vX8H3zsNR5eLt17/RQLUvn8pXE=",
-        version = "v0.37.0",
+        sum = "h1:oOyhkDq05hPZKItWVBkJ6g6AtGxi+fy7F4JvUV8uhsI=",
+        version = "v0.39.0",
     )
     go_repository(
         name = "com_github_prometheus_procfs",
@@ -2954,14 +2955,14 @@ def go_dependencies():
     go_repository(
         name = "org_golang_x_net",
         importpath = "golang.org/x/net",
-        sum = "h1:sZfSu1wtKLGlWI4ZZayP0ck9Y73K1ynO6gqzTdBVdPU=",
-        version = "v0.2.0",
+        sum = "h1:Q5QPcMlvfxFTAPV0+07Xz/MpK9NTXu2VDUuy0FeMfaU=",
+        version = "v0.4.0",
     )
     go_repository(
         name = "org_golang_x_oauth2",
         importpath = "golang.org/x/oauth2",
-        sum = "h1:GtQkldQ9m7yvzCL1V+LrYow3Khe0eJH0w7RbX/VbaIU=",
-        version = "v0.2.0",
+        sum = "h1:6l90koy8/LaBLmLu8jpHeHexzMwEita0zFfYlggy2F8=",
+        version = "v0.3.0",
     )
     go_repository(
         name = "org_golang_x_perf",

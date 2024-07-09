@@ -48,15 +48,15 @@ func NewNSPrefixMapper(nsPrefix string) NamespaceMapper {
 	return &prefixer{prefix: nsPrefix}
 }
 
-//NewPrefixSwappingNSMapper returns a NamespaceMapper that replaces the old
-//prefix of a namespace with a new prefix.  If the namespace does not have the
-//old prefix, a new prefix will be added in front of the namespace. The entity name
-//doesn't change. The destination namespace may have a prefix-hash appended at
-//the end for long names (with truncation)
-//Examples, for an old prefix "g-" and a new prefix "gs-ods-"
-//{ ns: "g-a", "name: "b" } -> { ns: "gs-ods-a", name: "b" }
-//{ ns: "g-g-a", name: "c" } -> { ns: "gs-ods-g-a", name: "c" }
-//{ ns: "a, name: "c" } -> { ns: "gs-ods-a", name: "c" }
+// NewPrefixSwappingNSMapper returns a NamespaceMapper that replaces the old
+// prefix of a namespace with a new prefix.  If the namespace does not have the
+// old prefix, a new prefix will be added in front of the namespace. The entity name
+// doesn't change. The destination namespace may have a prefix-hash appended at
+// the end for long names (with truncation)
+// Examples, for an old prefix "g-" and a new prefix "gs-ods-"
+// { ns: "g-a", "name: "b" } -> { ns: "gs-ods-a", name: "b" }
+// { ns: "g-g-a", name: "c" } -> { ns: "gs-ods-g-a", name: "c" }
+// { ns: "a, name: "c" } -> { ns: "gs-ods-a", name: "c" }
 func NewPrefixSwappingNSMapper(oldPrefix, newPrefix string) NamespaceMapper {
 	return &prefixSwapper{oldPre: oldPrefix, newPre: newPrefix}
 }

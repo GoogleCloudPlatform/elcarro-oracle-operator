@@ -1,12 +1,12 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
-# Modern pkg_rules
+# == Archive building rules ==
 http_archive(
     name = "rules_pkg",
-    sha256 = "8a298e832762eda1830597d64fe7db58178aa84cd5926d76d5b744d6558941c2",
+    sha256 = "8f9ee2dc10c1ae514ee599a8b42ed99fa262b757058f65ad3c384289ff70c4b8",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.7.0/rules_pkg-0.7.0.tar.gz",
-        "https://github.com/bazelbuild/rules_pkg/releases/download/0.7.0/rules_pkg-0.7.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.9.1/rules_pkg-0.9.1.tar.gz",
+        "https://github.com/bazelbuild/rules_pkg/releases/download/0.9.1/rules_pkg-0.9.1.tar.gz",
     ],
 )
 
@@ -14,45 +14,76 @@ load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
 
 rules_pkg_dependencies()
 
-# Golang
+# == Golang ==
 http_archive(
     name = "io_bazel_rules_go",
-    sha256 = "685052b498b6ddfe562ca7a97736741d87916fe536623afb7da2824c0211c369",
+    sha256 = "91585017debb61982f7054c9688857a2ad1fd823fc3f9cb05048b0025c47d023",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.33.0/rules_go-v0.33.0.zip",
-        "https://github.com/bazelbuild/rules_go/releases/download/v0.33.0/rules_go-v0.33.0.zip",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.42.0/rules_go-v0.42.0.zip",
     ],
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
 
-# Initialize after loading everything
 go_rules_dependencies()
 
 go_register_toolchains(
     nogo = "@//hack:nogo",
-    version = "1.18.5",
+    version = "1.21.7",
 )
 
-# Gazelle
+# == Gazelle ==
 http_archive(
     name = "bazel_gazelle",
-    sha256 = "501deb3d5695ab658e82f6f6f549ba681ea3ca2a5fb7911154b5aa45596183fa",
+    sha256 = "d3fa66a39028e97d76f9e2db8f1b0c11c099e8e01bf363a923074784e451f809",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.26.0/bazel-gazelle-v0.26.0.tar.gz",
-        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.26.0/bazel-gazelle-v0.26.0.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-gazelle/releases/download/v0.33.0/bazel-gazelle-v0.33.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.33.0/bazel-gazelle-v0.33.0.tar.gz",
     ],
 )
 
-load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
-load("//:deps.bzl", "go_dependencies")
+load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
+# gazelle injects few go_repository rules with newer versions which will override your rules.
+# to solve this problem you should load the problematic rules before `gazelle_dependencies`.
+# see https://github.com/bazelbuild/bazel-gazelle/releases/tag/v0.24.0 to v0.26.0
+
+go_repository(
+    name = "com_github_prometheus_client_model",
+    importpath = "github.com/prometheus/client_model",
+    sum = "h1:UBgGFHqYdG/TPFD1B1ogZywDqEkwp3fBMvqdiQ7Xew4=",
+    version = "v0.3.0",
+)
+
+go_repository(
+    name = "org_golang_x_oauth2",
+    importpath = "golang.org/x/oauth2",
+    sum = "h1:6l90koy8/LaBLmLu8jpHeHexzMwEita0zFfYlggy2F8=",
+    version = "v0.3.0",
+)
+
+# gazelle_dependencies(go_repository_default_config = "@//:WORKSPACE.bazel")
 gazelle_dependencies()
 
-# gazelle:repository_macro deps.bzl%go_dependencies
-go_dependencies()
+http_archive(
+    name = "googleapis",
+    sha256 = "9d1a930e767c93c825398b8f8692eca3fe353b9aaadedfbcf1fca2282c85df88",
+    strip_prefix = "googleapis-64926d52febbf298cb82a8f472ade4a3969ba922",
+    urls = [
+        "https://github.com/googleapis/googleapis/archive/64926d52febbf298cb82a8f472ade4a3969ba922.zip",
+    ],
+)
 
-# Docker
+load("@googleapis//:repository_rules.bzl", "switched_rules_by_language")
+
+switched_rules_by_language(
+    name = "com_google_googleapis_imports",
+    go = True,
+    grpc = True,
+)
+
+# == Docker ==
 http_archive(
     name = "io_bazel_rules_docker",
     sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
@@ -67,25 +98,26 @@ load(
 container_repositories()
 
 load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
-load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
 
 container_deps()
 
-go_image_repos()
+load("@io_bazel_rules_docker//go:image.bzl", _go_image_repos = "repositories")
 
-# Protobuf
+_go_image_repos()
+
+# == Protobuf ==
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "8242327e5df8c80ba49e4165250b8f79a76bd11765facefaaecfca7747dc8da2",
-    strip_prefix = "protobuf-3.21.5",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.21.5.zip"],
+    sha256 = "985bb1ca491f0815daad825ef1857b684e0844dc68123626a08351686e8d30c9",
+    strip_prefix = "protobuf-3.15.6",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.15.6.zip"],
 )
 
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
 
-# skylib for go_gencode
+# == Skylib for go_gencode ==
 http_archive(
     name = "bazel_skylib",
     sha256 = "1c531376ac7e5a180e0237938a2536de0c54d93f5c278634818e0efc952dd56c",
@@ -218,3 +250,8 @@ pkg_tar(
         "https://download.oracle.com/otn_software/linux/instantclient/1914000/instantclient-basiclite-linux.x64-19.14.0.0.0dbru.zip",
     ],
 )
+
+load("//:deps.bzl", "go_dependencies")
+
+# gazelle:repository_macro deps.bzl%go_dependencies
+go_dependencies()

@@ -25,7 +25,7 @@ protoc_gen_go_grpc=$(realpath "$5")
 mockgen=$(realpath "$6")
 kustomize=$(realpath "$7")
 wkt_path=$(realpath external/com_google_protobuf/src)
-googleapis_path=$(realpath external/go_googleapis)
+googleapis_path=$(realpath external/googleapis)
 headerfile=$(realpath hack/boilerplate.go.txt)
 PATH=$(dirname "$go"):$(dirname "$protoc_gen_go"):$(dirname "$protoc_gen_go_grpc"):$(dirname "$mockgen"):$PATH
 export PATH

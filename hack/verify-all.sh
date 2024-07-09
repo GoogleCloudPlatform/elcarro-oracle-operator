@@ -4,8 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+hack=$(dirname "${BASH_SOURCE[0]}")
+
+"$hack/verify-bazel.sh"
+
 bazel test --test_output=streamed \
-  //hack:verify-bazel \
   //hack:verify-fmt \
-  //hack:verify-codegen \
-  //hack:verify-shellcheck
+  //hack:verify-codegen

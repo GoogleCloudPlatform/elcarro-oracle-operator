@@ -133,7 +133,7 @@ type CronAnythingSpec struct {
 	ResourceTimestampFormat *string `json:"resourceTimestampFormat,omitempty"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // ResourceRetention specifies the retention policy for resources.
 type ResourceRetention struct {
 	// The number of completed resources to keep before deleting them. This
@@ -173,7 +173,7 @@ const (
 	FinishableStrategyStringField FinishableStrategyType = "StringField"
 )
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // FinishableStrategy specifies how the CronAnything controller can decide
 // whether a created resource has completed. This is needed for any concurrency
 // policies other than AllowConcurrent.
@@ -195,7 +195,7 @@ type FinishableStrategy struct {
 	StringField *StringFieldStrategy `json:"stringField,omitempty"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // TimestampFieldStrategy defines how the CronAnything controller can find
 // a field on the resource that contains a timestamp. The contract here is that
 // if the field contains a valid timestamp the resource is considered finished.
@@ -205,7 +205,7 @@ type TimestampFieldStrategy struct {
 	FieldPath string `json:"fieldPath"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // StringFieldStrategy defines how the CronAnything controller can find and
 // use the value of a field on the resource to decide if it has finished.
 type StringFieldStrategy struct {
@@ -227,7 +227,7 @@ const (
 	ResourceTimestampStrategyField ResourceTimestampStrategyType = "Field"
 )
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // ResourceTimestampStrategy specifies how the CronAnything controller can find
 // the timestamp on the resource that will again decide the order in which
 // resources are deleted based on the retention policy.
@@ -242,7 +242,7 @@ type ResourceTimestampStrategy struct {
 	FieldResourceTimestampStrategy *FieldResourceTimestampStrategy `json:"field,omitempty"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // FieldResourceTimestampStrategy defines how the CronAnything controller can
 // find the timestamp for a resource.
 type FieldResourceTimestampStrategy struct {
@@ -268,7 +268,7 @@ const (
 	ReplaceConcurrent ConcurrencyPolicy = "Replace"
 )
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // CronAnythingStatus defines the observed state of CronAnything.
 type CronAnythingStatus struct {
 
@@ -297,7 +297,7 @@ type CronAnythingStatus struct {
 	PendingTrigger *PendingTrigger `json:"pendingTrigger,omitempty"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // PendingTrigger keeps information about triggers that should have been
 // completed, but due to some kind of error, is still pending. They will
 // typically remain in this state until either the issue has been resolved and
@@ -314,7 +314,7 @@ type PendingTrigger struct {
 	Result TriggerResult `json:"result"`
 }
 
-//+kubebuilder:object:generate=true
+// +kubebuilder:object:generate=true
 // TriggerHistoryRecord contains information about the result of a trigger. It
 // can either have completed successfully, and if it did not, the record will
 // provide information about what is the cause of the failure.
