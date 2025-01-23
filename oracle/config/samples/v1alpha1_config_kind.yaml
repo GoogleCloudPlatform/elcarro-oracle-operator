@@ -7,7 +7,7 @@ spec:
   storageClass: "csi-hostpath-sc"
   volumeSnapshotClass: "csi-hostpath-snapclass"
   images:
-    service: "gcr.io/oracle-database-images/oracle-12.2-ee-seeded-mydb:kind"
-    dbinit: "gcr.io/oracle.db.anthosapis.com/dbinit:kind"
-    logging_sidecar: "gcr.io/oracle.db.anthosapis.com/loggingsidecar:kind"
-    monitoring: "gcr.io/oracle.db.anthosapis.com/monitoring:kind"
+    service: "localhost:5000/oracle-12.2-ee-seeded-mydb:latest"
+    dbinit: "localhost:5000/oracle.db.anthosapis.com/dbinit:latest"
+    logging_sidecar: "localhost:5000/oracle.db.anthosapis.com/loggingsidecar:latest"
+    monitoring: "localhost:5000/oracle.db.anthosapis.com/monitoring:latest"
