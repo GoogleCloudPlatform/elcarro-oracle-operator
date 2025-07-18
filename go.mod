@@ -1,10 +1,10 @@
 module github.com/GoogleCloudPlatform/elcarro-oracle-operator
 
-go 1.21
+go 1.23.0
 
 require (
 	bitbucket.org/creachadair/stringset v0.0.10
-	cloud.google.com/go/compute/metadata v0.2.2
+	cloud.google.com/go/compute/metadata v0.3.0
 	cloud.google.com/go/secretmanager v1.9.0
 	cloud.google.com/go/storage v1.28.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -46,7 +46,6 @@ require (
 
 require (
 	cloud.google.com/go v0.107.0 // indirect
-	cloud.google.com/go/compute v1.14.0 // indirect
 	cloud.google.com/go/iam v0.8.0 // indirect
 	cloud.google.com/go/longrunning v0.3.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
@@ -112,7 +111,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/net v0.4.0 // indirect
-	golang.org/x/oauth2 v0.3.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
