@@ -17,7 +17,7 @@
 readonly ORACLE_12="12.2"
 readonly ORACLE_19="19.3"
 readonly ORACLE_18="18c"
-readonly ORACLE_23="23c"
+readonly ORACLE_23="23ai"
 readonly DUMMY_VALUE="-1"
 
 DB_VERSION=''
@@ -79,7 +79,7 @@ sanity_check_params() {
   fi
 
   if [[ "${DB_VERSION}" == "${ORACLE_23}" && "${EDITION}" != "free" ]]; then
-    echo "Only Oracle 23c-FREE is supported"
+    echo "Only Oracle 23ai-FREE is supported"
     usage
   fi
 }
@@ -251,8 +251,9 @@ execute_command() {
     ORACLE_HOME="/opt/oracle/product/18c/dbhomeXE"
     ORACLE_BASE="/opt/oracle"
   elif [ "${DB_VERSION}" == "${ORACLE_23}" ] && [ "${EDITION}" == "free" ]; then
-    ORACLE_HOME="/opt/oracle/product/23c/dbhomeFree"
+    ORACLE_HOME="/opt/oracle/product/23ai/dbhomeFree"
     ORACLE_BASE="/opt/oracle"
+    CDB_NAME="FREE" # SID name for Oracle Database 23ai must always be set to "FREE"
   else
     ORACLE_HOME="/u01/app/oracle/product/${DB_VERSION}/db"
     ORACLE_BASE="/u01/app/oracle"
@@ -264,18 +265,18 @@ execute_command() {
 
   if [ "${LOCAL_BUILD}" == true ]; then
     if [ "${DB_VERSION}" == "${ORACLE_23}" ]; then
-      # Oracle 23 requires oracle:8 base image
-      BUILD_CMD=$(echo docker build --build-arg=ORACLE_LINUX_IMAGE=8 --no-cache --build-arg=DB_VERSION="${DB_VERSION}" --build-arg=ORACLE_HOME="${ORACLE_HOME}" --build-arg=ORACLE_BASE="${ORACLE_BASE}" --build-arg=CREATE_CDB="${CREATE_CDB}" --build-arg=CDB_NAME="${CDB_NAME}" --build-arg=CHARACTER_SET="${CHARACTER_SET}" --build-arg=MEM_PCT="${MEM_PCT}" --build-arg=EDITION="${EDITION}" --build-arg=PATCH_VERSION="${PATCH_VERSION}" --tag="$TAG" .)
+      # We explicitly configure a hosts entry for buildkitsandbox to get around this issue https://github.com/oracle/docker-images/issues/2870
+      BUILD_CMD=$(echo docker build --no-cache --add-host buildkitsandbox="$(docker run --quiet --rm ubuntu hostname -I)" --build-arg=DB_VERSION="${DB_VERSION}" --build-arg=ORACLE_HOME="${ORACLE_HOME}" --build-arg=ORACLE_BASE="${ORACLE_BASE}" --build-arg=CREATE_CDB="${CREATE_CDB}" --build-arg=CDB_NAME="${CDB_NAME}" --build-arg=CHARACTER_SET="${CHARACTER_SET}" --build-arg=MEM_PCT="${MEM_PCT}" --build-arg=EDITION="${EDITION}" --build-arg=PATCH_VERSION="${PATCH_VERSION}" --tag="$TAG" .)
     else
       BUILD_CMD=$(echo docker build --no-cache --build-arg=DB_VERSION="${DB_VERSION}" --build-arg=ORACLE_HOME="${ORACLE_HOME}" --build-arg=ORACLE_BASE="${ORACLE_BASE}" --build-arg=CREATE_CDB="${CREATE_CDB}" --build-arg=CDB_NAME="${CDB_NAME}" --build-arg=CHARACTER_SET="${CHARACTER_SET}" --build-arg=MEM_PCT="${MEM_PCT}" --build-arg=EDITION="${EDITION}" --build-arg=PATCH_VERSION="${PATCH_VERSION}" --tag="$TAG" .)
     fi
   else
     if [ "${DB_VERSION}" == "${ORACLE_18}" ]; then
-      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild-18c-xe.yaml --substitutions=_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
+      BUILD_CMD=$(echo gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild-18c-xe.yaml --substitutions=_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
     elif [ "${DB_VERSION}" == "${ORACLE_23}" ] && [ "${EDITION}" == "free" ]; then
-      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild-23c-free.yaml --substitutions=_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
+      BUILD_CMD=$(echo gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild-23ai-free.yaml --substitutions=_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_TAG="${TAG}")
     else
-      BUILD_CMD=$(echo gcloud builds submit --project=${PROJECT_ID} --config=cloudbuild.yaml --substitutions=_INSTALL_PATH="${INSTALL_PATH}",_DB_VERSION="${DB_VERSION}",_EDITION="${EDITION}",_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CREATE_CDB="${CREATE_CDB}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_MEM_PCT="${MEM_PCT}",_TAG="${TAG}",_PATCH_VERSION="${PATCH_VERSION}")
+      BUILD_CMD=$(echo gcloud builds submit --project="${PROJECT_ID}" --config=cloudbuild.yaml --substitutions=_INSTALL_PATH="${INSTALL_PATH}",_DB_VERSION="${DB_VERSION}",_EDITION="${EDITION}",_ORACLE_HOME="${ORACLE_HOME}",_ORACLE_BASE="${ORACLE_BASE}",_CREATE_CDB="${CREATE_CDB}",_CDB_NAME="${CDB_NAME}",_CHARACTER_SET="${CHARACTER_SET}",_MEM_PCT="${MEM_PCT}",_TAG="${TAG}",_PATCH_VERSION="${PATCH_VERSION}")
     fi
   fi
 

@@ -888,7 +888,7 @@ func TestImageForVersion(version string, edition string, extra string) string {
 	case "FREE":
 		{
 			switch version {
-			case "23c":
+			case "23ai":
 				{
 					switch extra {
 					default:
@@ -903,10 +903,10 @@ func TestImageForVersion(version string, edition string, extra string) string {
 			case "19.3":
 				{
 					switch extra {
-					case "unseeded-32545013":
-						return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_32545013")
+					case "unseeded-37960098":
+						return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_37960098")
 					case "unseeded":
-						return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_32545013")
+						return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_37960098")
 					case "seeded-buggy":
 						return os.Getenv("TEST_IMAGE_ORACLE_19_3_EE_SEEDED_BUGGY")
 					case "ocr":

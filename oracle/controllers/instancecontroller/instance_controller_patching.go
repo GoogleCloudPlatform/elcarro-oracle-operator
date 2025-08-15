@@ -80,17 +80,19 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		if result, err := r.startPatchingBackup(req, ctx, inst, log); err != nil {
 			// In case of k8s conflict retry, otherwise switch to failed state
 			if !apierrors.IsConflict(err) {
+				log.Info(fmt.Sprintf("patchingStateMachine: %s->PatchingBackupFailure", instanceReadyCond.Reason))
 				k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingBackupFailure, "")
 			}
 			return result, err, true
 		}
 		log.Info("patchingStateMachine: CreateComplete->PatchingBackupStarted")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingBackupStarted, "Patching Backup Started")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true // Requeue after 30 seconds to allow status updates to propagate
 
 	case k8s.PatchingBackupStarted:
 		completed, err := r.isPatchingBackupCompleted(ctx, *inst)
 		if err != nil {
+			log.Info("patchingStateMachine: PatchingBackupStarted->PatchingBackupFailure")
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingBackupFailure, "")
 			return ctrl.Result{}, err, true
 		} else if !completed {
@@ -98,7 +100,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		}
 		log.Info("patchingStateMachine: PatchingBackupStarted->DeploymentSetPatchingInProgress")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DeploymentSetPatchingInProgress, "Patching backup completed, continuing patching")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.DeploymentSetPatchingInProgress:
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(instanceReadyCond, time.Second)
@@ -138,7 +140,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		// If there are no new images specified with respect to the stateful set skip this state.
 		if !isStatefulSetPatchingRequired(inst.Status.ActiveImages, inst.Spec.Images) {
 			k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StatefulSetPatchingComplete, "")
-			return ctrl.Result{Requeue: true}, nil, true
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
 
 		// Start software patching
@@ -148,7 +150,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		}
 		log.Info("patchingStateMachine: DeploymentSetPatchingComplete->StatefulSetPatchingInProgress")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StatefulSetPatchingInProgress, "")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.DeploymentSetPatchingRollbackInProgress:
 		elapsed := k8s.ElapsedTimeFromLastTransitionTime(instanceReadyCond, time.Second)
@@ -189,7 +191,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		}
 		log.Info("patchingStateMachine: StatefulSetPatchingInProgress->StatefulSetPatchingComplete")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.StatefulSetPatchingComplete, "")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.StatefulSetPatchingComplete:
 		// We know STS is up, check status of Oracle
@@ -208,7 +210,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		}
 		log.Info("patchingStateMachine: StatefulSetPatchingComplete->DatabasePatchingInProgress")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DatabasePatchingInProgress, "Calling ApplyDataPatch()")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.DatabasePatchingInProgress:
 		// Track database patching runtime and terminate if its running beyond timeout interval
@@ -232,7 +234,7 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 		}
 		log.Info("patchingStateMachine: DatabasePatchingInProgress->DatabasePatchingComplete")
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.DatabasePatchingComplete, "Calling ApplyDataPatch()")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.DatabasePatchingComplete:
 		log.Info("patchingStateMachine: DatabasePatchingComplete->CreateComplete")
@@ -251,12 +253,12 @@ func (r *InstanceReconciler) patchingStateMachine(req ctrl.Request, instanceRead
 			return ctrl.Result{}, err, true
 		} else if !done {
 			r.Log.Info("STS/PVC removal in progress, waiting")
-			return ctrl.Result{Requeue: true}, nil, true
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 		}
 
 		k8s.InstanceUpsertCondition(&inst.Status, k8s.Ready, v1.ConditionFalse, k8s.PatchingRecoveryInProgress, "Restoring snapshot due to patching failure")
 		log.Info("patchingStateMachine: XXXPatchingFailure->PatchingRecoveryInProgress")
-		return ctrl.Result{Requeue: true}, nil, true
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil, true
 
 	case k8s.PatchingRecoveryInProgress:
 		// always retry recoverFromPatchingFailure to keep STS correct
@@ -434,30 +436,24 @@ func (r *InstanceReconciler) prePatchBackup(ctx context.Context, inst v1alpha1.I
 func (r *InstanceReconciler) isPatchingBackupCompleted(ctx context.Context, inst v1alpha1.Instance) (bool, error) {
 	backupID := inst.Status.BackupID
 
-	vsc := "csi-gce-pd-snapshot-class"
 	log := r.Log.WithValues("Instance", inst.Name)
 
 	for _, diskSpec := range inst.Spec.Disks {
-		var shortPVCName, mount string
+		var mount string
 		if controllers.IsReservedDiskName(diskSpec.Name) {
-			shortPVCName, mount = controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
+			_, mount = controllers.GetPVCNameAndMount(inst.Name, diskSpec.Name)
 		} else {
-			shortPVCName, mount = controllers.GetCustomPVCNameAndMount(&inst, diskSpec.Name)
+			_, mount = controllers.GetCustomPVCNameAndMount(&inst, diskSpec.Name)
 		}
-		fullPVCName := fmt.Sprintf("%s-%s-0", shortPVCName, fmt.Sprintf(controllers.StsName, inst.Name))
 		snapshotName := fmt.Sprintf("%s-%s", backupID, mount)
-		bk, err := controllers.NewSnapshotInst(&inst, r.SchemeVal, fullPVCName, snapshotName, vsc)
-		if err != nil {
-			return false, err
-		}
-		log.V(1).Info("new Backup/Snapshot resource", "backup", bk)
+		log.Info("Checking status of snapshot", "ID", snapshotName)
 
 		name := types.NamespacedName{
 			Namespace: inst.Namespace,
 			Name:      snapshotName,
 		}
 		snapshot := snapv1.VolumeSnapshot{}
-		err = r.Get(ctx, name, &snapshot)
+		err := r.Get(ctx, name, &snapshot)
 		if err != nil || snapshot.Status == nil {
 			return false, err
 		}

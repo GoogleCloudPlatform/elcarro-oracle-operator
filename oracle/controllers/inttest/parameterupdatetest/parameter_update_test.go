@@ -166,14 +166,9 @@ var _ = Describe("ParameterUpdate", func() {
 		TestParameterUpdateFailureAndRollback("19.3", "EE")
 	})
 
-	Context("Oracle 18c XE", func() {
-		TestParameterUpdateForCorrectParameters("18c", "XE")
-		TestParameterUpdateFailureAndRollback("18c", "XE")
-	})
-
-	Context("Oracle 23c FREE", func() {
-		TestParameterUpdateForCorrectParameters("23c", "FREE")
-		TestParameterUpdateFailureAndRollback("23c", "FREE")
+	Context("Oracle 23ai FREE", func() {
+		TestParameterUpdateForCorrectParameters("23ai", "FREE")
+		TestParameterUpdateFailureAndRollback("23ai", "FREE")
 	})
 })
 

@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2/klogr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
@@ -252,11 +253,8 @@ var _ = Describe("User operations", func() {
 	Context("Oracle 19.3 EE", func() {
 		testUpdateUser("19.3", "EE")
 	})
-	Context("Oracle 18c XE", func() {
-		testUpdateUser("18c", "XE")
-	})
-	Context("Oracle 23c FREE", func() {
-		testUpdateUser("23c", "FREE")
+	Context("Oracle 23ai FREE", func() {
+		testUpdateUser("23ai", "FREE")
 	})
 })
 

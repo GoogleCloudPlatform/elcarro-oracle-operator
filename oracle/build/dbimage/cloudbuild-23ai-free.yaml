@@ -22,7 +22,7 @@ steps:
   - 'build'
   - '--no-cache'
   - '--build-arg=ORACLE_LINUX_IMAGE=8'
-  - '--build-arg=DB_VERSION=23c'
+  - '--build-arg=DB_VERSION=23ai'
   - '--build-arg=ORACLE_HOME=$_ORACLE_HOME'
   - '--build-arg=CREATE_CDB=true'
   - '--build-arg=ORACLE_BASE=$_ORACLE_BASE'

@@ -16,11 +16,14 @@
 
 SCRIPTS_DIR="/agents"
 
-echo "$(date +%Y-%m-%d.%H:%M:%S) Enabling Unified Auditing in the dbdaemon container..."  >> "${SCRIPTS_DIR}/init_dbdaemon.log"
-make -C $ORACLE_HOME/rdbms/lib -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${ORACLE_HOME}" >> "${SCRIPTS_DIR}/init_dbdaemon.log"
-rc=$?
-if (( ${rc} != 0 )); then
-  echo "$(date +%Y-%m-%d.%H:%M:%S) Error occurred while attempting to enable Unified Auditing in the dbdaemon container: ${rc}"  >> "${SCRIPTS_DIR}/init_dbdaemon.log"
+# Unified auditing is enabled by default in Oracle 23ai
+if [[ "${ORACLE_HOME}" != "/opt/oracle/product/23ai/dbhomeFree" ]]; then
+  echo "$(date +%Y-%m-%d.%H:%M:%S) Enabling Unified Auditing in the dbdaemon container..."  >> "${SCRIPTS_DIR}/init_dbdaemon.log"
+  make -C $ORACLE_HOME/rdbms/lib -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${ORACLE_HOME}" >> "${SCRIPTS_DIR}/init_dbdaemon.log"
+  rc=$?
+  if (( ${rc} != 0 )); then
+    echo "$(date +%Y-%m-%d.%H:%M:%S) Error occurred while attempting to enable Unified Auditing in the dbdaemon container: ${rc}"  >> "${SCRIPTS_DIR}/init_dbdaemon.log"
+  fi
 fi
 
 ${SCRIPTS_DIR}/dbdaemon --cdb_name="$1"

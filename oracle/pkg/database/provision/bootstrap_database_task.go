@@ -313,8 +313,8 @@ func isFreeVersion(db oracleDB) bool {
 	if db.GetVersion() == consts.Oracle18c {
 		return true
 	}
-	// There is no 'edition' in the oracleDB interface, will check if DB Home is '/opt/oracle/product/23c/dbhomeFree'
-	if db.GetVersion() == "23c" && db.GetDatabaseHome() == "/opt/oracle/product/23c/dbhomeFree" {
+	// There is no 'edition' in the oracleDB interface, will check if DB Home is '/opt/oracle/product/23ai/dbhomeFree'
+	if db.GetVersion() == "23ai" && db.GetDatabaseHome() == "/opt/oracle/product/23ai/dbhomeFree" {
 		return true
 	}
 	return false
@@ -355,9 +355,9 @@ func (task *BootstrapTask) setParametersHelper(ctx context.Context) error {
 		parameters = append(parameters, "common_user_prefix='gcsql$'")
 	}
 
-	/* We do not change the pga_aggregate_target and sga_target parameters for Oracle 18c XE/23c FREE because of limitations
-	   Oracle places on memory allocation for the Express/Free Edition. The parameter "compatible" comes preset with the
-		 desired value for Oracle 18c XE/23c FREE */
+	/* We do not change the pga_aggregate_target and sga_target parameters for Oracle 23ai FREE because of limitations
+	   Oracle places on memory allocation for the Free Edition. The parameter "compatible" comes preset with the
+		 desired value for 23ai FREE */
 	if task.isSeeded && !isFreeVersion(task.db) {
 		parameters = append(parameters, fmt.Sprintf("pga_aggregate_target=%dM", task.db.GetDatabaseParamPGATargetMB()))
 		parameters = append(parameters, fmt.Sprintf("sga_target=%dM", task.db.GetDatabaseParamSGATargetMB()))

@@ -196,12 +196,8 @@ drop table test_table;`
 		testDataPump("19.3", "EE")
 	})
 
-	Context("Oracle 18c XE", func() {
-		testDataPump("18c", "XE")
-	})
-
-	Context("Oracle 23c FREE", func() {
-		testDataPump("23c", "FREE")
+	Context("Oracle 23ai FREE", func() {
+		testDataPump("23ai", "FREE")
 	})
 })
 

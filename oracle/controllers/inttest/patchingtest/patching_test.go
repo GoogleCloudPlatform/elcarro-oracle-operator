@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
 	// Enable GCP auth for k8s client
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
@@ -107,7 +108,7 @@ var _ = Describe("Patching", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(out).To(Equal(getExpectedOPatchMessage(targetPatchNumber)))
 			// Check post-patch oracle DB version
-			out = testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch ORDER by action_time;")
+			out = testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch WHERE status ='SUCCESS' ORDER by action_time;")
 			Expect(out).To(Equal(fmt.Sprintf("%s\n  %s", startingPatchNumber, targetPatchNumber)))
 
 			// Check that test data is still there
@@ -151,7 +152,7 @@ var _ = Describe("Patching", func() {
 			}, 5*time.Minute, 5*time.Second).Should(Equal(getExpectedOPatchMessage(startingPatchNumber)))
 
 			// Check post-patch oracle DB version
-			out := testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch ORDER by action_time;")
+			out := testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch ORDER by action_time FETCH FIRST 1 ROW ONLY;")
 			Expect(out).To(Equal(startingPatchNumber))
 
 			// Check that test data is still there
@@ -159,13 +160,13 @@ var _ = Describe("Patching", func() {
 		})
 	}
 
-	//Patching is not supported for Oracle 18c XE
+	//Patching is not supported for Oracle 23ai FREE
 	Context("Normal Patching - Oracle 19.3 EE", func() {
-		TestNormalPatchingFlow("19.3", "EE", "32218454", "32545013")
+		TestNormalPatchingFlow("19.3", "EE", "37642901", "37960098")
 	})
 
 	Context("Faulty Patching - Oracle 19.3 EE", func() {
-		TestFaultyPatchingFlow("19.3", "EE", "32218454", "32545013")
+		TestFaultyPatchingFlow("19.3", "EE", "37642901", "37960098")
 	})
 })
 
@@ -184,7 +185,7 @@ func createInstanceAndVerifyPrePatchVersion(instanceName, pod, version, edition,
 	Expect(err).NotTo(HaveOccurred())
 	Expect(out).To(Equal(getExpectedOPatchMessage(startingPatchNumber)))
 	// Check pre-patch oracle SQL patch version
-	out = testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch ORDER by action_time;")
+	out = testhelpers.K8sExecuteSqlOrFail(pod, k8sEnv.DPNamespace, "SELECT patch_id FROM sys.dba_registry_sqlpatch ORDER by action_time FETCH FIRST 1 ROW ONLY;")
 	Expect(out).To(Equal(startingPatchNumber))
 	// Insert test data
 	testhelpers.InsertSimpleData(k8sEnv)
@@ -193,14 +194,10 @@ func createInstanceAndVerifyPrePatchVersion(instanceName, pod, version, edition,
 // Returns the output that we expect to receive after executing $ORACLE_HOME/OPatch/opatch lspatches
 func getExpectedOPatchMessage(patchNumber string) string {
 	switch patchNumber {
-	case "31312468":
-		return "31312468;Database Jul 2020 Release Update : 12.2.0.1.200714 (31312468)\n\nOPatch succeeded."
-	case "31741641":
-		return "31741641;Database Oct 2020 Release Update : 12.2.0.1.201020 (31741641)\n\nOPatch succeeded."
-	case "32218454":
-		return "32218454;Database Release Update : 19.10.0.0.210119 (32218454)\n29585399;OCW RELEASE UPDATE 19.3.0.0.0 (29585399)\n\nOPatch succeeded."
-	case "32545013":
-		return "32545013;Database Release Update : 19.11.0.0.210420 (32545013)\n29585399;OCW RELEASE UPDATE 19.3.0.0.0 (29585399)\n\nOPatch succeeded."
+	case "37642901":
+		return "37642901;Database Release Update : 19.27.0.0.250415 (37642901)\n29585399;OCW RELEASE UPDATE 19.3.0.0.0 (29585399)\n\nOPatch succeeded."
+	case "37960098":
+		return "37960098;Database Release Update : 19.28.0.0.250715 (37960098)\n29585399;OCW RELEASE UPDATE 19.3.0.0.0 (29585399)\n\nOPatch succeeded."
 	default:
 		return "INVALID_PATCH_NUMBER"
 	}

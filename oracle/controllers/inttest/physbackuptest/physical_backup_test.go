@@ -72,7 +72,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 
 	AfterEach(func() {
 		if CurrentGinkgoTestDescription().Failed {
-			testhelpers.PrintSimpleDebugInfo(k8sEnv, "mydb", "GCLOUD")
+			testhelpers.PrintSimpleDebugInfo(k8sEnv, "mydb", "FREE")
 		}
 		k8sEnv.Close()
 	})
@@ -161,7 +161,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			instanceName: "mydb",
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
-				CDBName: "GCLOUD",
+				CDBName: "FREE",
 				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
@@ -188,10 +188,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 
-		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.Version = "18c"
+		Context("Oracle 23ai FREE", func() {
+			testCase.instanceSpec.Version = "23ai"
 			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
+				"service": testhelpers.TestImageForVersion("23ai", "FREE", ""),
 			}
 			BackupTest(testCase)
 		})
@@ -204,7 +204,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			instanceName: "mydb",
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
-				CDBName: "GCLOUD",
+				CDBName: "FREE",
 				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
@@ -235,10 +235,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 				LocalPath: "/u04/app/oracle/rman",
 			},
 		}
-		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.Version = "18c"
+		Context("Oracle 23ai FREE", func() {
+			testCase.instanceSpec.Version = "23ai"
 			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
+				"service": testhelpers.TestImageForVersion("23ai", "FREE", ""),
 			}
 			BackupTest(testCase)
 		})
@@ -250,7 +250,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			instanceName: "mydb",
 			backupName:   "phys",
 			instanceSpec: v1alpha1.InstanceSpec{
-				CDBName: "GCLOUD",
+				CDBName: "FREE",
 				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
@@ -279,10 +279,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 
-		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.Version = "18c"
+		Context("Oracle 23ai FREE", func() {
+			testCase.instanceSpec.Version = "23ai"
 			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
+				"service": testhelpers.TestImageForVersion("23ai", "FREE", ""),
 			}
 			BackupTest(testCase)
 		})
@@ -302,7 +302,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 			instanceName: "mydb",
 			backupName:   "secsiz",
 			instanceSpec: v1alpha1.InstanceSpec{
-				CDBName: "GCLOUD",
+				CDBName: "FREE",
 				InstanceSpec: commonv1alpha1.InstanceSpec{
 					Disks: []commonv1alpha1.DiskSpec{
 						{
@@ -330,10 +330,10 @@ var _ = Describe("Instance and Database provisioning", func() {
 			},
 		}
 
-		Context("Oracle 18c XE", func() {
-			testCase.instanceSpec.Version = "18c"
+		Context("Oracle 23ai FREE", func() {
+			testCase.instanceSpec.Version = "23ai"
 			testCase.instanceSpec.Images = map[string]string{
-				"service": testhelpers.TestImageForVersion("18c", "XE", ""),
+				"service": testhelpers.TestImageForVersion("23ai", "FREE", ""),
 			}
 			BackupTest(testCase)
 		})

@@ -30,11 +30,14 @@ trap term_handler SIGTERM
 trap kill_handler SIGKILL
 trap int_handler SIGINT
 
-echo "$(date +%Y-%m-%d.%H:%M:%S) Enabling Unified Auditing in the oracledb container..."  >> "${SCRIPTS_DIR}/init_oracle.log"
-make -C $ORACLE_HOME/rdbms/lib -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${ORACLE_HOME}" >> "${SCRIPTS_DIR}/init_oracle.log"
-rc=$?
-if (( ${rc} != 0 )); then
-  echo "$(date +%Y-%m-%d.%H:%M:%S) Error occurred while attempting to enable Unified Auditing in the oracledb container: ${rc}"  >> "${SCRIPTS_DIR}/init_oracle.log"
+# Unified auditing is enabled by default in Oracle 23ai
+if [[ "${ORACLE_HOME}" != "/opt/oracle/product/23ai/dbhomeFree" ]]; then
+  echo "$(date +%Y-%m-%d.%H:%M:%S) Enabling Unified Auditing in the oracledb container..."  >> "${SCRIPTS_DIR}/init_oracle.log"
+  make -C $ORACLE_HOME/rdbms/lib -f ins_rdbms.mk uniaud_on ioracle ORACLE_HOME="${ORACLE_HOME}" >> "${SCRIPTS_DIR}/init_oracle.log"
+  rc=$?
+  if (( ${rc} != 0 )); then
+    echo "$(date +%Y-%m-%d.%H:%M:%S) Error occurred while attempting to enable Unified Auditing in the oracledb container: ${rc}"  >> "${SCRIPTS_DIR}/init_oracle.log"
+  fi
 fi
 
 ${SCRIPTS_DIR}/dbdaemon_proxy --cdb_name="$1" &

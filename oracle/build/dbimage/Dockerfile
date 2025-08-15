@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG ORACLE_LINUX_IMAGE=7-slim
-FROM docker.io/oraclelinux:${ORACLE_LINUX_IMAGE} as base
+ARG ORACLE_LINUX_IMAGE=9
+FROM docker.io/oraclelinux:${ORACLE_LINUX_IMAGE} AS base
 
 ARG DB_VERSION
 ARG ORACLE_HOME
@@ -24,7 +24,7 @@ ENV STAGE_DIR=/tmp/stage/
 COPY oracle-preinstall.sh $STAGE_DIR
 RUN /bin/bash $STAGE_DIR/oracle-preinstall.sh
 
-FROM base as installer
+FROM base AS installer
 
 ARG DB_VERSION
 ARG CREATE_CDB
@@ -43,8 +43,8 @@ RUN /bin/bash -c \
       $STAGE_DIR/$INSTALL_SCRIPT "${CDB_NAME}" "${CHARACTER_SET}" && \
       rm -rf $INSTALL_SCRIPT && \
       rm -rf $STAGE_DIR; \
-    elif [ "${DB_VERSION}" = "23c" ] && [ "${EDITION}" = "free" ]; then \
-      export INSTALL_SCRIPT=install-oracle-23c-free.sh; \
+    elif [ "${DB_VERSION}" = "23ai" ] && [ "${EDITION}" = "free" ]; then \
+      export INSTALL_SCRIPT=install-oracle-23ai-free.sh; \
       chmod +x $STAGE_DIR$INSTALL_SCRIPT; \
       $STAGE_DIR/$INSTALL_SCRIPT "${CDB_NAME}" "${CHARACTER_SET}" && \
       rm -rf $INSTALL_SCRIPT && \
@@ -57,7 +57,7 @@ RUN /bin/bash -c \
       rm -rf $STAGE_DIR; \
     fi'
 
-FROM base as database_image
+FROM base AS database_image
 
 ARG ORACLE_HOME
 ARG ORACLE_BASE
@@ -77,8 +77,7 @@ USER root
 RUN $ORACLE_HOME/root.sh && rm $STAGE_DIR/oracle-preinstall.sh
 
 VOLUME ["/u02", "/u03"]
-# TODO: make the port number configurable
 EXPOSE 1521
 
 # Define default command to start Oracle Database.
-CMD exec /bin/bash
+CMD ["/bin/bash"]

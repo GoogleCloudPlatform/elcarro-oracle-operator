@@ -57,7 +57,7 @@ var _ = Describe("Instance and Database provisioning", func() {
 		operatorNamespace = testhelpers.RandName("namespace-test-op")
 		instanceNamespace = testhelpers.RandName("namespace-test-inst")
 		instanceName = "mydb-1"
-		cdbName = "MYDB"
+		cdbName = "FREE" // ORACLE 23ai only allows FREE for CDB name
 
 		k8sEnv.Init(operatorNamespace, instanceNamespace)
 	})
@@ -108,14 +108,14 @@ var _ = Describe("Instance and Database provisioning", func() {
 		TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "", true)
 	})
 
-	Context("Oracle 18c XE", func() {
-		TestInstanceCreationAndDatabaseProvisioning("18c", "XE", "", true)
+	Context("Oracle 23ai FREE", func() {
+		TestInstanceCreationAndDatabaseProvisioning("23ai", "FREE", "", true)
 	})
 
 	// Slow tests, only run in Canary
 	if testhelpers.IsCanaryJob() {
 		Context("Oracle 19.3 EE unseeded", func() {
-			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "32545013-unseeded", false)
+			TestInstanceCreationAndDatabaseProvisioning("19.3", "EE", "unseeded-37960098", false)
 		})
 
 		// Images from OCR

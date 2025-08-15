@@ -23,7 +23,7 @@ readonly CDB_NAME=${1:-GCLOUD}
 readonly CHARACTER_SET=${2:-AL32UTF8}
 readonly USER="oracle"
 readonly GROUP="dba"
-readonly OHOME="/opt/oracle/product/23c/dbhomeFree"
+readonly OHOME="/opt/oracle/product/23ai/dbhomeFree"
 
 set_environment() {
   export ORACLE_DOCKER_INSTALL=true
@@ -32,20 +32,21 @@ set_environment() {
 
 
 install_oracle() {
-  yum -y localinstall https://download.oracle.com/otn-pub/otn_software/db-free/oracle-database-free-23c-1.0-1.el8.x86_64.rpm
+  yum -y localinstall https://download.oracle.com/otn-pub/otn_software/db-free/oracle-database-free-23ai-23.9-1.el9.x86_64.rpm
 }
 
 write_oracle_config() {
   echo "\
 CHARSET=${CHARACTER_SET}
 ORACLE_SID=${CDB_NAME}
-SKIP_VALIDATIONS=FALSE" > /etc/sysconfig/oracle-free-23c.conf
+SKIP_VALIDATIONS=FALSE" > /etc/sysconfig/oracle-free-23ai.conf
 }
 
 create_cdb() {
   set +x
-  local syspass="$(openssl rand -base64 16 | tr -dc a-zA-Z0-9)"
-  (echo "${syspass}"; echo "${syspass}";) | /etc/init.d/oracle-free-23c configure
+  local syspass
+  syspass="$(openssl rand -base64 16 | tr -dc a-zA-Z0-9)"
+  (echo "${syspass}"; echo "${syspass}";) | /etc/init.d/oracle-free-23ai configure
   set -x
 }
 
@@ -71,7 +72,7 @@ run_sql() {
 }
 
 main() {
-  echo "Running Oracle 23c FREE install script..."
+  echo "Running Oracle 23ai FREE install script..."
   set_environment
   install_oracle
   write_oracle_config
@@ -79,7 +80,7 @@ main() {
   set_file_ownership
   delete_xe_pdb
   shutdown_oracle
-  echo "Oracle 23c FREE installation succeeded!"
+  echo "Oracle 23ai FREE installation succeeded!"
 }
 
 main

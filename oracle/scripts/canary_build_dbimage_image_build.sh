@@ -36,7 +36,7 @@ export IMAGE_TAG_LATEST="${IMG}:latest"
 # # echo $TEST_IMAGE_ORACLE_12_2_EE_UNSEEDED_31741641
 # # echo $TEST_IMAGE_ORACLE_12_2_EE_SEEDED_BUGGY
 # # echo $TEST_IMAGE_ORACLE_12_2_EE_SEEDED
-# # echo $TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_32545013
+# # echo $TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_37960098
 
 # # NOTE: permissions need to be set to read the files needed for build from GCS
 # # gsutil iam ch serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com:roles/storage.objectViewer gs://${GCS_BUCKET}

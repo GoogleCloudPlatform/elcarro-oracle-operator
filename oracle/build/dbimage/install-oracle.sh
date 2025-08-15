@@ -158,7 +158,9 @@ setup_ocm() {
 
 setup_directories() {
   mkdir -p "${STAGE_DIR}/patches"
+  mkdir -p "${OHOME}/lib/stubs"
   chown "${USER}:${GROUP}" "${STAGE_DIR}/patches"
+  chown "${USER}:${GROUP}" "${OHOME}/lib/stubs"
 }
 
 patch_oracle() {
@@ -193,7 +195,7 @@ install_oracle19() {
     >>/etc/oraInst.loc
   chown "${USER}:${GROUP}" /etc/oraInst.loc
   cd "${OHOME}"
-  export CV_ASSUME_DISTID=OL7
+  export CV_ASSUME_DISTID=OL8
   sudo -E -u oracle "${OHOME}/runInstaller" \
     -silent \
     -waitforcompletion \
@@ -323,11 +325,15 @@ unzip_binaries() {
     chown -R "${USER}:${GROUP}" "${STAGE_DIR}"
     sudo -u oracle unzip "${STAGE_DIR}/${INSTALL_ZIP}" -d "${STAGE_DIR}"
   elif [[ "${DB_VERSION}" == "${ORACLE_19}" ]]; then
-    sudo -u oracle unzip "${STAGE_DIR}/${INSTALL_ZIP}" -d "${OHOME}"
+    sudo -u oracle unzip -q "${STAGE_DIR}/${INSTALL_ZIP}" -d "${OHOME}"
   fi
-  sudo -u oracle unzip "${STAGE_DIR}/${PATCH_ZIP}" -d "${STAGE_DIR}/patches/${PATCH_VERSION}"
+  sudo -u oracle unzip -q "${STAGE_DIR}/${PATCH_ZIP}" -d "${STAGE_DIR}/patches/${PATCH_VERSION}"
+  sudo -u oracle unzip -o "${STAGE_DIR}/p35775632_190000_Linux-x86-64.zip" -d "${OHOME}/lib/stubs"
+  cd "${OHOME}/lib/stubs"
+  sudo -u oracle tar -xf stubs.tar
   rm "${STAGE_DIR}/${INSTALL_ZIP}"
   rm "${STAGE_DIR}/${PATCH_ZIP}"
+  rm "${STAGE_DIR}/p35775632_190000_Linux-x86-64.zip"
 }
 
 shutdown_oracle() {
