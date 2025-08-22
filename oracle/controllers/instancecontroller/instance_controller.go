@@ -103,6 +103,7 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 	log := r.Log.WithValues("Instance", req.NamespacedName)
 
 	log.Info("reconciling instance")
+	log.Info("No-op")
 
 	var inst v1alpha1.Instance
 	if err := r.Get(ctx, req.NamespacedName, &inst); err != nil {
