@@ -36,6 +36,7 @@ INSTALL_TMP_DIR=$(mktemp -d)
 cd $INSTALL_TMP_DIR
 
 # upgrade bazel
+apt-get update -y
 apt-get install -y apt-transport-https curl gnupg
 curl -fsSL https://storage.googleapis.com/www.bazel.build/bazel-release.pub.gpg | gpg --dearmor > bazel.gpg
 mv bazel.gpg /etc/apt/trusted.gpg.d/
