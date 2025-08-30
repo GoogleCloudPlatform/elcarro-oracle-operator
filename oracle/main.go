@@ -45,15 +45,13 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-
+	scheme               = runtime.NewScheme()
+	setupLog             = ctrl.Log.WithName("setup")
 	dbInitImage          = flag.String("db_init_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/dbinit:latest", "DB POD init binary image URI")
 	serviceImage         = flag.String("service_image_uri", "", "GCR service URI")
 	loggingSidecarImage  = flag.String("logging_sidecar_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/loggingsidecar:latest", "Logging Sidecar image URI")
 	monitoringAgentImage = flag.String("monitoring_agent_image_uri", "gcr.io/elcarro/oracle.db.anthosapis.com/monitoring:latest", "Monitoring Agent image URI")
-
-	namespace = flag.String("namespace", "", "TESTING ONLY: Limits controller to watching resources in this namespace only")
+	namespace            = flag.String("namespace", "", "TESTING ONLY: Limits controller to watching resources in this namespace only")
 )
 
 func init() {

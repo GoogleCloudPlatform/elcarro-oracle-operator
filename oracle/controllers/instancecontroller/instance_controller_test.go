@@ -159,6 +159,9 @@ func testInstanceDatapatch() {
 			twoHours := metav1.Duration{Duration: 2 * time.Hour}
 			instance.Spec.MaintenanceWindow = &commonv1alpha1.MaintenanceWindowSpec{TimeRanges: []commonv1alpha1.TimeRange{{Start: &oneHourBefore, Duration: &twoHours}}}
 			instance.Spec.Images["service"] = "patched-service-image"
+			instance.Spec.Images["dbinit"] = "patched-dbinit-image"
+			instance.Spec.Images["logging_sidecar"] = "patched-logging-image"
+			instance.Spec.Images["monitoring"] = "patched-monitoring-image"
 			instance.Spec.Services = map[commonv1alpha1.Service]bool{"Patching": true}
 			return k8sClient.Update(ctx, instance)
 		})).Should(Succeed())
@@ -202,6 +205,9 @@ func testInstanceDatapatch() {
 		}, timeout, interval).Should(Equal(true))
 
 		Expect(instance.Status.ActiveImages["service"]).Should(Equal("patched-service-image"))
+		Expect(instance.Status.ActiveImages["dbinit"]).Should(Equal("patched-dbinit-image"))
+		Expect(instance.Status.ActiveImages["logging_sidecar"]).Should(Equal("patched-logging-image"))
+		Expect(instance.Status.ActiveImages["monitoring"]).Should(Equal("patched-monitoring-image"))
 		Expect(fakeDatabaseClientFactory.Dbclient.GetOperationCalledCnt()).Should(BeNumerically(">", 0))
 	})
 
@@ -216,7 +222,12 @@ func testInstanceDatapatch() {
 			return k8s.ConditionReasonEquals(cond, k8s.DatabasePatchingFailure)
 		}, timeout, interval).Should(Equal(true))
 
+		// Since the instance never went through the CreateComplete state, there will be
+		// no active images.
 		Expect(instance.Status.ActiveImages["service"]).Should(Equal(""))
+		Expect(instance.Status.ActiveImages["dbinit"]).Should(Equal(""))
+		Expect(instance.Status.ActiveImages["logging_sidecar"]).Should(Equal(""))
+		Expect(instance.Status.ActiveImages["monitoring"]).Should(Equal(""))
 		Expect(fakeDatabaseClientFactory.Dbclient.GetOperationCalledCnt()).Should(BeNumerically(">", 0))
 	})
 

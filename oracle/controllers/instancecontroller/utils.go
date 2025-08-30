@@ -145,7 +145,7 @@ func (r *InstanceReconciler) stopMonitoringDeployment(ctx context.Context, inst 
 		return err
 	}
 
-	images := CloneMap(r.Images)
+	images := r.InstanceStatefulSetImages(ctx, inst.Spec.Images)
 
 	if err := r.overrideDefaultImages(config, images, inst, log); err != nil {
 		return err

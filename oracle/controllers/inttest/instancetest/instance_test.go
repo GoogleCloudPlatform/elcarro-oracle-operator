@@ -17,6 +17,7 @@ package instancetest
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -41,6 +42,17 @@ import (
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/instancecontroller"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/controllers/testhelpers"
 	"github.com/GoogleCloudPlatform/elcarro-oracle-operator/oracle/pkg/k8s"
+)
+
+var (
+	agentImageTag     = os.Getenv("PROW_IMAGE_TAG")
+	agentImageRepo    = os.Getenv("PROW_IMAGE_REPO")
+	agentImageProject = os.Getenv("PROW_PROJECT")
+	// Base image names, to be combined with PROW_IMAGE_{TAG,REPO}.
+	dbInitImage          = "oracle.db.anthosapis.com/dbinit"
+	loggingSidecarImage  = "oracle.db.anthosapis.com/loggingsidecar"
+	monitoringAgentImage = "oracle.db.anthosapis.com/monitoring"
+	// Used by pitr test directly.
 )
 
 // Made global to be accessible by AfterSuite
@@ -344,6 +356,16 @@ func createInstance(instanceName, cdbName, namespace, version, edition, podSpecL
 	if edition == "FREE" {
 		cdbName = "FREE"
 	}
+
+	var agentImageTag, agentImageRepo, agentImageProject string
+	agentImageTag = os.Getenv("PROW_IMAGE_TAG")
+	agentImageRepo = os.Getenv("PROW_IMAGE_REPO")
+	agentImageProject = os.Getenv("PROW_PROJECT")
+
+	dbInitImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, dbInitImage, agentImageTag)
+	loggingSidecarImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, loggingSidecarImage, agentImageTag)
+	monitoringAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, monitoringAgentImage, agentImageTag)
+
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
@@ -392,7 +414,10 @@ func createInstance(instanceName, cdbName, namespace, version, edition, podSpecL
 					},
 				},
 				Images: map[string]string{
-					"service": testhelpers.TestImageForVersion(version, edition, extra),
+					"service":         testhelpers.TestImageForVersion(version, edition, extra),
+					"dbinit":          dbInitImage,
+					"logging_sidecar": loggingSidecarImage,
+					"monitoring":      monitoringAgentImage,
 				},
 				DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
 					GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},

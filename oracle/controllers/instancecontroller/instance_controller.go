@@ -97,6 +97,19 @@ const (
 	reconcileTimeout                     = 3 * time.Minute
 )
 
+func (r *InstanceReconciler) InstanceStatefulSetImages(ctx context.Context, instanceSpecImages map[string]string) (images map[string]string) {
+	// Gets expected STS images from the Instance CRD, or return default values
+	overriddenImages := map[string]string{}
+	for key, defaultImage := range r.Images {
+		if image, exists := instanceSpecImages[key]; exists {
+			overriddenImages[key] = image
+		} else {
+			overriddenImages[key] = defaultImage
+		}
+	}
+	return overriddenImages
+}
+
 func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, respErr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
@@ -204,7 +217,7 @@ func (r *InstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_
 		return ctrl.Result{}, err
 	}
 
-	images := CloneMap(r.Images)
+	images := r.InstanceStatefulSetImages(ctx, inst.Spec.Images)
 
 	if err := r.overrideDefaultImages(config, images, &inst, log); err != nil {
 		return ctrl.Result{}, err

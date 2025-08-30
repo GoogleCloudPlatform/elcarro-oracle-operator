@@ -571,6 +571,7 @@ func deployOperator(ctx context.Context, k8sClient client.Client, CPNamespace, D
 	dbInitImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, dbInitImage, agentImageTag)
 	loggingSidecarImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, loggingSidecarImage, agentImageTag)
 	monitoringAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, monitoringAgentImage, agentImageTag)
+
 	operatorImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, operatorImage, agentImageTag)
 	// Global modified for usage in pitr test.
 	PitrAgentImage = fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, PitrAgentImage, agentImageTag)
@@ -931,6 +932,15 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 		cdbName = "FREE"
 	}
 
+	var agentImageTag, agentImageRepo, agentImageProject string
+	agentImageTag = os.Getenv("PROW_IMAGE_TAG")
+	agentImageRepo = os.Getenv("PROW_IMAGE_REPO")
+	agentImageProject = os.Getenv("PROW_PROJECT")
+
+	dbInitImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, dbInitImage, agentImageTag)
+	loggingSidecarImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, loggingSidecarImage, agentImageTag)
+	monitoringAgentImage := fmt.Sprintf("%s/%s/%s:%s", agentImageRepo, agentImageProject, monitoringAgentImage, agentImageTag)
+
 	instance := &v1alpha1.Instance{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName,
@@ -956,7 +966,10 @@ func CreateSimpleInstance(k8sEnv K8sOperatorEnvironment, instanceName string, ve
 					},
 				},
 				Images: map[string]string{
-					"service": TestImageForVersion(version, edition, ""),
+					"service":         TestImageForVersion(version, edition, ""),
+					"dbinit":          dbInitImage,
+					"logging_sidecar": loggingSidecarImage,
+					"monitoring":      monitoringAgentImage,
 				},
 				DBLoadBalancerOptions: &commonv1alpha1.DBLoadBalancerOptions{
 					GCP: commonv1alpha1.DBLoadBalancerOptionsGCP{LoadBalancerType: "Internal"},
