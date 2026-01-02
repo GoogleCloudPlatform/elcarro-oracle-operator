@@ -171,9 +171,9 @@ function create_cluster() {
     --member serviceAccount:${GKE_SA_EMAIL} \
     --role roles/logging.logWriter
 
-    readonly GCR_GCS_PATH=$(gsutil ls | grep -E '^gs://artifacts.*appspot.com/$')
+    readonly GCR_GCS_PATH=$(gcloud storage ls | grep -E '^gs://artifacts.*appspot.com/$')
     echo "adding project container repository bucket ${GCR_GCS_PATH} read permission to ${GKE_SA_EMAIL}"
-    gsutil iam ch serviceAccount:${GKE_SA_EMAIL}:roles/storage.objectViewer "${GCR_GCS_PATH}"
+    gcloud storage buckets add-iam-policy-binding "${GCR_GCS_PATH}" --member="serviceAccount:${GKE_SA_EMAIL}" --role="roles/storage.objectViewer"
 
     gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid \
     --machine-type=n1-standard-2 --num-nodes 2 --zone ${ZONE} \
@@ -204,7 +204,7 @@ function build_image() {
 
     # strip off part of the path after the bucket: gs://bucket/dir1/dir becomes gs://bucket
     local -r GCS_BUCKET="gs://$(echo ${GCS_PATH} | tr "/" "\n" | head -n3 | tail -n1)"
-    gsutil iam ch serviceAccount:$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")@cloudbuild.gserviceaccount.com:roles/storage.objectViewer "${GCS_BUCKET}"
+    gcloud storage buckets add-iam-policy-binding "${GCS_BUCKET}" --member="serviceAccount:$(gcloud projects describe ${PROJECT} --format="value(projectNumber)")@cloudbuild.gserviceaccount.com" --role="roles/storage.objectViewer"
 
     pushd "${RELEASE_DIR}/dbimage" > /dev/null
     bash image_build.sh  --install_path="${GCS_PATH}" --db_version="${DB_VERSION}"  --mem_pct=45 --create_cdb=true --cdb_name="${CDB_NAME}" --no_dry_run

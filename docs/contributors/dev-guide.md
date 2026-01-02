@@ -118,7 +118,7 @@ but take considerably less time on subsequent runs.
    ``` 
 8. Give your default Service Account permission to access your freshly built images
    ```sh
-   $ gsutil iam ch serviceAccount:$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")-compute@developer.gserviceaccount.com:objectViewer gs://artifacts.${PROJECT_ID}.appspot.com
+   $ gcloud storage buckets add-iam-policy-binding gs://artifacts.${PROJECT_ID}.appspot.com --member=serviceAccount:$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")-compute@developer.gserviceaccount.com --role=roles/storage.objectViewer
    ``` 
 9. Deploy the El Carro Operator 
    ```sh

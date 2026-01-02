@@ -406,8 +406,8 @@ for more instructions.
 
     ```sh
     export GCS_BUCKET=<your globally unique Google Cloud Storage bucket name>
-    gsutil mb gs://$GCS_BUCKET
-    gsutil cp <path to the Oracle database password file> gs://$GCS_BUCKET/password/orapw<primary SID>
+    gcloud storage buckets create gs://$GCS_BUCKET
+    gcloud storage cp <path to the Oracle database password file> gs://$GCS_BUCKET/password/orapw<primary SID>
     ```
 
 2.  Find the GCP service account for El Carro instance in GKE, see
@@ -421,7 +421,7 @@ for more instructions.
     GCP service account
 
     ```sh
-    gsutil iam ch serviceAccount:${INSTANCE_GCP_SA}:roles/storage.objectViewer gs://$GCS_BUCKET
+    gcloud storage buckets add-iam-policy-binding gs://$GCS_BUCKET --member=serviceAccount:${INSTANCE_GCP_SA} --role=roles/storage.objectViewer
     ```
 
 4.  Update `.spec.replicationSettings.passwordFileURI` to point to the uploaded
@@ -443,8 +443,8 @@ for more instructions.
 
     ```sh
     export GCS_BUCKET=<your globally unique Google Cloud Storage bucket name>
-    gsutil mb gs://$GCS_BUCKET
-    gsutil -m cp <path to the full backup> gs://$GCS_BUCKET/backup
+    gcloud storage buckets create gs://$GCS_BUCKET
+    gcloud storage cp <path to the full backup> gs://$GCS_BUCKET/backup
     ```
 
 2.  Find the GCP service account for El Carro in GKE, see
@@ -458,7 +458,7 @@ for more instructions.
     GCP service account
 
     ```sh
-    gsutil iam ch serviceAccount:${INSTANCE_GCP_SA}:roles/storage.objectViewer gs://$GCS_BUCKET
+    gcloud storage buckets add-iam-policy-binding gs://$GCS_BUCKET --member=serviceAccount:${INSTANCE_GCP_SA} --role=roles/storage.objectViewer
     ```
 
 4.  Update `.spec.replicationSettings.backupURI` to point to the uploaded backup
@@ -470,4 +470,3 @@ for more instructions.
     ```
 
     Then El Carro is able to download the backup.
-

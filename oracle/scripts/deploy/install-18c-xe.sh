@@ -140,9 +140,9 @@ function create_cluster() {
     --member serviceAccount:${GKE_SA_EMAIL} \
     --role roles/logging.logWriter
 
-    readonly GCR_GCS_PATH=$(gsutil ls | grep -E '^gs://artifacts.*appspot.com/$')
+    readonly GCR_GCS_PATH=$(gcloud storage ls | grep -E '^gs://artifacts.*appspot.com/$')
     echo "adding project container repository bucket ${GCR_GCS_PATH} read permission to ${GKE_SA_EMAIL}"
-    gsutil iam ch serviceAccount:${GKE_SA_EMAIL}:roles/storage.objectViewer "${GCR_GCS_PATH}"
+    gcloud storage buckets add-iam-policy-binding "${GCR_GCS_PATH}" --member="serviceAccount:${GKE_SA_EMAIL}" --role="roles/storage.objectViewer"
 
     gcloud beta container clusters create ${CLUSTER_NAME} --release-channel rapid \
     --machine-type=n1-standard-2 --num-nodes 2 --zone ${ZONE} \
