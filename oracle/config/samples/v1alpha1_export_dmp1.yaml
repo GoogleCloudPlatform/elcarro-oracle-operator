@@ -17,7 +17,7 @@ spec:
 
   # Service account should have write access to the destination bucket,
   # sample command to grant access (replace with actual SA email):
-  # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://ex-bucket
+  # > gcloud storage buckets add-iam-policy-binding gs://ex-bucket --member=serviceAccount:SA@PROJECT.iam.gserviceaccount.com --role=roles/storage.objectCreator
   #  Add .gz as GCS object file extension to enable compression.
   gcsPath: "gs://ex-bucket/export/pdb1/exportSchema.dmp"
   gcsLogPath: "gs://ex-bucket/export/pdb1/exportSchema.log" # optional

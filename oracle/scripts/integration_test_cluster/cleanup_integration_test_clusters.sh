@@ -80,12 +80,12 @@ for c in "${STALE_FIREWALL_RULES[@]}"; do
 done
 
 # Cleanup GCS bucket bindings for deleted service accounts
-STALE_GCS_SA=($(gsutil iam get gs://"${PROW_PROJECT}" | jq -r ".bindings[].members[]|select(startswith(\"deleted\"))"))
+STALE_GCS_SA=($(gcloud storage buckets get-iam-policy gs://"${PROW_PROJECT}" --format="json" | jq -r ".bindings[].members[]|select(startswith(\"deleted\"))"))
 
 for c in "${STALE_GCS_SA[@]}"; do
   echo " * Deleting GCS binding ${c}";
   set -x #echo on
   # Ignore errors as there might be concurrent jobs running
-  gsutil iam ch -d "${c}" gs://"${PROW_PROJECT}" || true
+  (gcloud storage buckets get-iam-policy gs://"${PROW_PROJECT}" --format="json" | jq --arg member_to_remove "${c}" '.bindings |= map(.members |= map(select(.!=$member_to_remove))) | .bindings |= map(select(.members | length > 0))' | gcloud storage buckets set-iam-policy gs://"${PROW_PROJECT}" -) || true
   set +x #echo off
 done

@@ -19,9 +19,9 @@ options:
   diskSizeGb: 1000
 timeout: 7200s
 steps:
-- name: 'gcr.io/cloud-builders/gsutil'
+- name: 'gcr.io/cloud-builders/gcloud'
   id: 'install_zip'
-  args: ['-m', 'cp', "-r", '${_INSTALL_PATH}/*', '.']
+  args: ['storage', 'cp', "--recursive", '${_INSTALL_PATH}/*', '.']
 
 - name: 'gcr.io/cloud-builders/docker'
   waitFor:

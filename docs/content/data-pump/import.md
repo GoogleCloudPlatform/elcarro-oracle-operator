@@ -47,7 +47,7 @@ name** the dump file is imported to, must match.
     Grant permissions using the appropriate service account:
 
     ```sh
-     gsutil iam ch serviceAccount:$service_account_email:objectViewer gs://example-bucket
+     gcloud storage buckets add-iam-policy-binding gs://example-bucket --member="serviceAccount:$service_account_email" --role="roles/storage.objectViewer"
     ```
 
     **Optionally**
@@ -59,7 +59,7 @@ name** the dump file is imported to, must match.
     destination GCS bucket
 
     ```sh
-    gsutil iam ch serviceAccount:$gke_cluster_service_account_email:objectCreator gs://example-log-bucket
+    gcloud storage buckets add-iam-policy-binding gs://example-log-bucket --member="serviceAccount:$gke_cluster_service_account_email" --role="roles/storage.objectCreator"
     ```
 
 1.  Create and apply Import CR
@@ -82,12 +82,12 @@ name** the dump file is imported to, must match.
       type: DataPump
       # Service account should have read access to the destination bucket,
       # sample command to grant read access (replace with actual SA email):
-      # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectViewer gs://ex-bucket
+      # > gcloud storage buckets add-iam-policy-binding gs://ex-bucket --member="serviceaccount:SA@PROJECT.iam.gserviceaccount.com" --role="roles/storage.objectViewer"
       gcsPath: "gs://example-bucket/import/pdb1/import.dmp"
       # Uncomment to enable import log upload to Google Cloud Storage.
       # Service account should have write access to the destination bucket,
       # sample command to grant access (replace with actual SA email):
-      # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://ex-bucket
+      # > gcloud storage buckets add-iam-policy-binding gs://ex-bucket --member="serviceaccount:SA@PROJECT.iam.gserviceaccount.com" --role="roles/storage.objectCreator"
       #  Add .gz as Google Cloud Storage object file extension to enable compression.
       gcsLogPath: "gs://example-log-bucket/import/pdb1.log"
     ```
