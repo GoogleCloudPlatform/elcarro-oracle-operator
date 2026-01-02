@@ -38,5 +38,5 @@ stores the software.
 ```shell
 export PROJECT_NUMBER=<gcloud_project_number>
 export BUCKET_NAME=<gcs_bucket_storing_software>
-gsutil iam ch serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com:roles/storage.objectViewer gs://$BUCKET_NAME
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET_NAME --member=serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com --role=roles/storage.objectViewer
 ```

@@ -28,7 +28,7 @@ set -x #echo on
 export SA="${PROW_INT_TEST_SA}@${PROW_PROJECT}.iam.gserviceaccount.com"
 
 # Delete GCS bucket permissions for integration tests
-gsutil iam ch -d serviceAccount:"${SA}" gs://"${PROW_PROJECT}"
+gcloud storage buckets remove-iam-policy-binding gs://"${PROW_PROJECT}" --member=serviceAccount:"${SA}"
 
 # Delete service account for integration tests
 gcloud iam service-accounts delete "${SA}" -q

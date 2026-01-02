@@ -101,7 +101,7 @@ install_bmctl() {
   mkdir -p ~/$WORKING_DIR/.sa-keys
   cd ~/$WORKING_DIR
   CWD=$(pwd)
-  gsutil cp gs://anthos-baremetal-release/bmctl/1.7.1/linux-amd64/bmctl bmctl
+  gcloud storage cp gs://anthos-baremetal-release/bmctl/1.7.1/linux-amd64/bmctl bmctl
   chmod a+x bmctl
 }
 

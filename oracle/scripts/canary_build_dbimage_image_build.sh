@@ -39,7 +39,7 @@ export IMAGE_TAG_LATEST="${IMG}:latest"
 # # echo $TEST_IMAGE_ORACLE_19_3_EE_UNSEEDED_37960098
 
 # # NOTE: permissions need to be set to read the files needed for build from GCS
-# # gsutil iam ch serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com:roles/storage.objectViewer gs://${GCS_BUCKET}
+# # gcloud storage buckets add-iam-policy-binding gs://${GCS_BUCKET} --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" --role="roles/storage.objectViewer"
 
 cd build/dbimage
 ./image_build.sh \

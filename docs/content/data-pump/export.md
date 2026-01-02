@@ -36,7 +36,7 @@ to declaratively initiate a Data Pump export. To do so:
 
      # Service account should have write access to the destination bucket,
      # sample command to grant access (replace with actual SA email):
-     # > gsutil iam ch serviceaccount:SA@PROJECT.iam.gserviceaccount.com:objectCreator gs://example-bucket
+     # > gcloud storage buckets add-iam-policy-binding gs://example-bucket --member=serviceAccount:SA@PROJECT.iam.gserviceaccount.com --role=roles/storage.objectCreator
      #  Add .gz as GCS object file extension to enable compression.
      gcsPath: "gs://example-bucket/elcarro/export/pdb1/exportSchema.dmp"
      gcsLogPath: "gs://example-bucket/elcarro/export/pdb1/exportSchema.log" #optional
@@ -80,7 +80,7 @@ Carro operator has adequate write permissions to the GCS bucket by running the
 following command:
 
 ```sh
-gsutil iam ch serviceaccount:$gke_cluster_service_account_email:objectCreator gs://example-bucket
+gcloud storage buckets add-iam-policy-binding gs://example-bucket --member=serviceAccount:$gke_cluster_service_account_email --role=roles/storage.objectCreator
 ```
 
 ### gcsLogPath field
