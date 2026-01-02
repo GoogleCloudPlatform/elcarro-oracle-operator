@@ -40,7 +40,7 @@ release, from this [GCS bucket](https://console.cloud.google.com/storage/browser
 using [gsutil](https://cloud.google.com/storage/docs/gsutil).
 
 ```sh
-gsutil -m cp -r gs://elcarro/latest $PATH_TO_EL_CARRO_RELEASE
+gcloud storage cp --recursive gs://elcarro/latest $PATH_TO_EL_CARRO_RELEASE
 ```
 
 [Create a new GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)

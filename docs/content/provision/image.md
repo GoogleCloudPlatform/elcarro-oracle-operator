@@ -59,17 +59,17 @@ Google Cloud Build* or *building the image locally using Docker*.
     needed, a new Google Cloud Storage bucket can be created as follows:
 
     ```sh
-    gsutil mb gs://${GCS_BUCKET}
-    gsutil cp ~/Downloads/linuxx64_12201_database.zip gs://${GCS_BUCKET}/install/
-    gsutil cp ~/Downloads/p6880880_200000_LINUX.zip  gs://${GCS_BUCKET}/install/
-    gsutil cp ~/Downloads/p32228578_122010_Linux-x86-64.zip  gs://${GCS_BUCKET}/install/
+    gcloud storage buckets create gs://${GCS_BUCKET}
+    gcloud storage cp ~/Downloads/linuxx64_12201_database.zip gs://${GCS_BUCKET}/install/
+    gcloud storage cp ~/Downloads/p6880880_200000_LINUX.zip  gs://${GCS_BUCKET}/install/
+    gcloud storage cp ~/Downloads/p32228578_122010_Linux-x86-64.zip  gs://${GCS_BUCKET}/install/
     ```
 
     This is an example of how the three files in a Google Cloud Storage bucket
     could look like on the command line and in the Google Cloud Console:
 
     ```sh
-    gsutil ls -l gs://${GCS_BUCKET}/install
+    gcloud storage ls --long gs://${GCS_BUCKET}/install
              0  2020-10-13T19:24:05Z  gs://${GCS_BUCKET}/install/
     3453696911  2020-10-13T19:24:24Z  gs://${GCS_BUCKET}/install/linuxx64_12201_database.zip
      856130787  2020-10-13T19:37:29Z  gs://${GCS_BUCKET}/install/p32228578_122010_Linux-x86-64.zip
@@ -83,7 +83,7 @@ Google Cloud Build* or *building the image locally using Docker*.
 
     ```sh
     export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
-    gsutil iam ch serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com:roles/storage.objectViewer gs://${GCS_BUCKET}
+    gcloud storage buckets add-iam-policy-binding gs://${GCS_BUCKET} --member=serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com --role=roles/storage.objectViewer
     ```
 
 2.  Trigger the Google Cloud Build (GCB) pipeline.
@@ -140,7 +140,7 @@ Google Cloud Build* or *building the image locally using Docker*.
     ~40+ minutes.
 
     If AccessDeniedException is raised against the above command that likely
-    means that the previous gsutil iam ch command didn't succeed. Once fixed,
+    means that the previous gcloud storage buckets add-iam-policy-binding command didn't succeed. Once fixed,
     rerun the above image build script.
 
 3.  Verify that your containerized database image was successfully created.

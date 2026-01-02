@@ -46,7 +46,7 @@ Download El Carro software to your workstation as follows:
    [gsutil](https://cloud.google.com/storage/docs/gsutil).
 
 ```sh
-gsutil -m cp -r gs://elcarro/latest $PATH_TO_EL_CARRO_RELEASE
+gcloud storage cp --recursive gs://elcarro/latest $PATH_TO_EL_CARRO_RELEASE
 ```
 
 [Create a new GCP project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
@@ -195,11 +195,11 @@ Cloud Build or building the image locally using Docker.
     can be created as follows:
 
     ```sh
-    gsutil mb gs://$GCS_BUCKET
+    gcloud storage buckets create gs://$GCS_BUCKET
 
-    gsutil cp ~/Downloads/V839960-01.zip gs://$GCS_BUCKET/install/
-    gsutil cp ~/Downloads/p6880880_200000_Linux-x86-64.zip  gs://$GCS_BUCKET/install/
-    gsutil cp ~/Downloads/p32228578_122010_Linux-x86-64.zip  gs://$GCS_BUCKET/install/
+    gcloud storage cp ~/Downloads/V839960-01.zip gs://$GCS_BUCKET/install/
+    gcloud storage cp ~/Downloads/p6880880_200000_Linux-x86-64.zip  gs://$GCS_BUCKET/install/
+    gcloud storage cp ~/Downloads/p32228578_122010_Linux-x86-64.zip  gs://$GCS_BUCKET/install/
     ```
 
     Once the bucket is ready, grant the IAM read privilege
@@ -209,7 +209,7 @@ Cloud Build or building the image locally using Docker.
 
     ```sh
     export PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-    gsutil iam ch serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com:roles/storage.objectViewer gs://$GCS_BUCKET
+    gcloud storage buckets add-iam-policy-binding gs://$GCS_BUCKET --member=serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com --role=roles/storage.objectViewer
     ```
 
 3.  Trigger the Google Cloud Build pipeline
@@ -233,8 +233,8 @@ Cloud Build or building the image locally using Docker.
     ```
 
     If **AccessDeniedException** is raised against the above command, it's
-    likely because the previous `gsutil iam ch` command didn’t succeed. We
-    suggest you rerun the `gsutil` command and ensure that the Cloud build
+    likely because the previous `gcloud storage buckets add-iam-policy-binding` command didn’t succeed. We
+    suggest you rerun the `gcloud storage` command and ensure that the Cloud build
     service account has the read privilege on the GCS bucket that contains the
     Oracle software.
 

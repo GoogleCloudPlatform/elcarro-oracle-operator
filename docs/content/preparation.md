@@ -54,7 +54,7 @@ release, from this [GCS bucket](https://console.cloud.google.com/storage/browser
 using [gsutil](https://cloud.google.com/storage/docs/gsutil).
 
 ```sh
-gsutil -m cp -r gs://elcarro/latest .
+gcloud storage cp --recursive gs://elcarro/latest .
 Copying gs://elcarro/...
 ...
 

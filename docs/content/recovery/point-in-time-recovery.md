@@ -47,7 +47,7 @@ This procedure enables point-in-time recovery for an existing El Carro instance.
    Grant permissions using the appropriate service account:
 
     ```shell
-    gsutil iam ch serviceAccount:$SERVICE_ACCOUNT:admin $PITR_STORAGE_URI
+    gcloud storage buckets add-iam-policy-binding $PITR_STORAGE_URI --member=serviceAccount:$SERVICE_ACCOUNT --role=admin
     ```
 
    TIPs: you can also use the [configure-service-account.sh](https://github.com/GoogleCloudPlatform/elcarro-oracle-operator/blob/main/hack/configure-service-account.sh) script to find out which service account to grant permission for if workload identity is disabled. Or specify an existing service account to for El Carro to use if workload identity is enabled.
